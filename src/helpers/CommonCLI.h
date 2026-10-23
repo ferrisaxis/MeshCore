@@ -7,6 +7,9 @@
 #include <helpers/ClientACL.h>
 #include <helpers/RegionMap.h>
 #include <helpers/ConfigSerializer.h>
+#include <helpers/CommonRadioPrefs.h>
+#include <helpers/DynamicConfigSerializer.h>
+#include <helpers/KeyValueStore.h>
 #include <helpers/ClockSource.h>
 #include <string.h>
 
@@ -116,7 +119,7 @@ public:
   char tel_pass[40] = {};
 
 private:
-  class RadioPrefs : public ConfigSerializer {
+  class RadioPrefs : public CommonRadioPrefs {
     NodePrefs* _parent;
   protected:
     void structure() override {
@@ -144,6 +147,41 @@ private:
     }
   public:
     RadioPrefs(NodePrefs* parent) : _parent(parent) { }
+    // CommonRadioPrefs interface
+    float getFreq() const override { return _parent->freq; }
+    void setFreq(float f) override { _parent->freq = f; markDirty(); }
+    float getBandwidth() const override { return _parent->bw; }
+    void setBandwidth(float bw) override { _parent->bw = bw; markDirty(); }
+    uint8_t getSpreadFactor() const override { return _parent->sf; }
+    void setSpreadFactor(uint8_t sf) override { _parent->sf = sf; markDirty(); }
+    uint8_t getCodingRate() const override { return _parent->cr; }
+    void setCodingRate(uint8_t cr) override { _parent->cr = cr; markDirty(); }
+    float getAirtimeFactor() const override { return _parent->airtime_factor; }
+    void setAirtimeFactor(float af) override { _parent->airtime_factor = af; markDirty(); }
+    bool isCadEnabled() const override { return _parent->cad_enabled; }
+    void setCadEnabled(bool en) override { _parent->cad_enabled = en; markDirty(); }
+    uint8_t getIntThresh() const override { return _parent->interference_threshold; }
+    void setIntThresh(uint8_t t) override { _parent->interference_threshold = t; markDirty(); }
+    uint8_t getRxGain() const override { return _parent->rx_boosted_gain; }
+    void setRxGain(uint8_t g) override { _parent->rx_boosted_gain = g; markDirty(); }
+    uint8_t getTxPower() const override { return _parent->tx_power_dbm; }
+    void setTxPower(uint8_t dbm) override { _parent->tx_power_dbm = dbm; markDirty(); }
+    float getRxDelay() const override { return _parent->rx_delay_base; }
+    void setRxDelay(float d) override { _parent->rx_delay_base = d; markDirty(); }
+    uint16_t getAgcResetInt() const override { return _parent->agc_reset_interval * 4; }
+    void setAgcResetInt(uint16_t secs) override { _parent->agc_reset_interval = secs / 4; markDirty(); }
+    uint8_t getHashMode() const override { return _parent->path_hash_mode; }
+    void setHashMode(uint8_t m) override { _parent->path_hash_mode = m; markDirty(); }
+    uint8_t getMultiAcks() const override { return _parent->multi_acks; }
+    void setMultiAcks(uint8_t m) override { _parent->multi_acks = m; markDirty(); }
+    float getFloodTxDelay() const override { return _parent->tx_delay_factor; }
+    void setFloodTxDelay(float d) override { _parent->tx_delay_factor = d; markDirty(); }
+    float getDirectTxDelay() const override { return _parent->direct_tx_delay_factor; }
+    void setDirectTxDelay(float d) override { _parent->direct_tx_delay_factor = d; markDirty(); }
+    uint8_t getFEMRxGain() const override { return _parent->radio_fem_rxgain; }
+    void setFEMRxGain(uint8_t g) override { _parent->radio_fem_rxgain = g; markDirty(); }
+    uint8_t getFEMTxGain() const override { return _parent->radio_fem_txgain; }
+    void setFEMTxGain(uint8_t g) override { _parent->radio_fem_txgain = g; markDirty(); }
   };
   RadioPrefs radio;
 
@@ -299,6 +337,7 @@ protected:
     def("wifi", wifi);
     def("ntp", ntp);
     def("tel", tel);
+    def("custom", custom);
     for (int i = 0; i < CLOCK_NODE_MAX; i++) {
       char key[8];
       clockNodePrefKey(key, sizeof(key), i);
@@ -307,7 +346,7 @@ protected:
   }
 
 public:
-  NodePrefs() : ConfigSerializer(), bridge(this), gps(this), radio(this), power(this), repeat(this), room(this), mqtt(this), wifi(this), ntp(this), tel(this) {
+  NodePrefs() : ConfigSerializer(), bridge(this), gps(this), radio(this), power(this), repeat(this), room(this), mqtt(this), wifi(this), ntp(this), tel(this), custom(&radio) {
     node_name[0] = 0;
     password[0] = 0;
     guest_password[0] = 0;
@@ -315,6 +354,14 @@ public:
     owner_info[0] = 0;
     memset(clock_nodes, 0, sizeof(clock_nodes));
   }
+
+  DynamicConfigSerializer custom;
+
+  CommonRadioPrefs* getRadioPrefs() { return &radio; }
+  KeyValueStore* getCustom() { return &custom; }
+
+  bool isDirty() const override { return ConfigSerializer::isDirty() || radio.isDirty() || custom.isDirty(); }
+  void clearDirty() override { ConfigSerializer::clearDirty(); radio.clearDirty(); custom.clearDirty(); }
 };
 
 class CommonCLICallbacks {

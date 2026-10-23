@@ -119,7 +119,7 @@ switch(t){
 //  Serial.println((int) t);
 }
 
-void UITask::msgRead(int msgcount) {
+void UITask::onQueueSizeChanged(int msgcount) {
   _msgcount = msgcount;
   if (msgcount == 0) {
     clearMsgPreview();
@@ -140,10 +140,11 @@ void UITask::newMsg(uint8_t path_len, const char* from_name, const char* text, i
   vibration.trigger();   // vibrate even while the app is connected (honors quiet + cooldown)
 #endif
 
+  uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
   if (path_len == 0xFF) {
-    sprintf(_origin, "(F) %s", from_name);
+    sprintf(_origin, "(F) %s", from.name);
   } else {
-    sprintf(_origin, "(%d) %s", (uint32_t) path_len, from_name);
+    sprintf(_origin, "(%d) %s", (uint32_t) path_len, from.name);
   }
   StrHelper::strncpy(_msg, text, sizeof(_msg));
 
@@ -152,9 +153,45 @@ void UITask::newMsg(uint8_t path_len, const char* from_name, const char* text, i
       _display->turnOn();
     }
     if (_display->isOn()) {
-    _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
-    _need_refresh = true;
+      _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
+      _need_refresh = true;
     }
+  }
+  if (!hasConnection()) {
+    notify(UIEventType::contactMessage);
+  }
+}
+
+void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_details, const char* text) {
+#ifdef HAS_DRV2605
+  vibration.trigger();   // vibrate even while the app is connected (honors quiet + cooldown)
+#endif
+
+  uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
+  if (path_len == 0xFF) {
+    sprintf(_origin, "(F) %s", channel_details.name);
+  } else {
+    sprintf(_origin, "(%d) %s", (uint32_t) path_len, channel_details.name);
+  }
+  StrHelper::strncpy(_msg, text, sizeof(_msg));
+
+  if (_display != NULL) {
+    if (!_display->isOn() && !hasConnection()) {
+      _display->turnOn();
+    }
+    if (_display->isOn()) {
+      _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
+      _need_refresh = true;
+    }
+  }
+  if (!hasConnection()) {
+    notify(UIEventType::channelMessage);
+  }
+}
+
+void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
+  if (!hasConnection()) {
+    notify(UIEventType::newContactMessage);
   }
 }
 
@@ -255,7 +292,7 @@ void UITask::renderCurrScreen() {
     _display->print(tmp);
 
     // BT pin
-    if (!_connected && the_mesh.getBLEPin() != 0) {
+    if (!hasConnection() && the_mesh.getBLEPin() != 0) {
       _display->setColor(UIColor::warning_txt);
       _display->setTextSize(2);
       _display->setCursor(0, 43);
@@ -365,7 +402,7 @@ void UITask::userLedHandler() {
         statusLedWrite(255, 0, 0);      // red: battery low
       } else if (_msgcount > 0) {
         statusLedWrite(255, 90, 0);     // amber: unread messages
-      } else if (_connected) {
+      } else if (hasConnection()) {
         statusLedWrite(0, 0, 255);      // blue: app connected
       } else {
         statusLedWrite(0, 255, 0);      // green: heartbeat

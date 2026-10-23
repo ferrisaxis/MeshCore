@@ -27,6 +27,7 @@ public:
   virtual void clean() {}
   // Next frame uses the full waveform, even if few pixels changed.
   virtual void markFull() {}
+  virtual void forceFullRefresh() {}   // next refresh will be a full one (eink panels override this)
   // 0: long wave when black turns white. 1: short wave on changed pixels. 2: partial by percent.
   virtual void setRefreshMode(uint8_t) {}
   virtual void turnOn() = 0;

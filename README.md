@@ -404,6 +404,12 @@ Wi‑Fi из консоли: `set wifi.ssid <имя>`, `set wifi.password <па�
 
 Устройство с этой прошивкой работает в одной сети с узлами на обычном MeshCore: радиопротокол тот же.
 
+## Сообщество / Community
+
+- Report bugs and request features on the [GitHub Issues](https://github.com/meshcore-dev/meshcore/issues) page.
+- Find additional guides and components on [my site](https://buymeacoffee.com/ripplebiz).
+- Join [MeshCore Discord](https://meshcore.gg) to chat with the developers and get help from the community.
+
 ## Лицензия
 
 Как и оригинальный MeshCore, проект под лицензией MIT: можно свободно использовать, изменять и распространять, в том числе в коммерческих целях.
