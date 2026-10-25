@@ -6,8 +6,8 @@
 // Firmware version is "<upstream MeshCore release>-<fork version>", e.g. v1.17.1-0.1.3.
 // Release tags must match it exactly; build.sh appends "-<commit hash>".
 // A candidate tag may add a suffix, for example v1.17.1-0.1.3-rc1.
-#define MESHCORE_BASE_VERSION  "v1.17.1"
-#define FORK_VERSION           "0.1.4"
+#define MESHCORE_BASE_VERSION  "v1.18.0"
+#define FORK_VERSION           "0.2.0"
 
 #ifndef FIRMWARE_VERSION
   #define FIRMWARE_VERSION  MESHCORE_BASE_VERSION "-" FORK_VERSION
