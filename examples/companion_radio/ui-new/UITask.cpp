@@ -867,12 +867,22 @@ public:
       }
     } else if (_page == HomePage::BLUETOOTH) {
       display.setColor(UIColor::corp_blue);
-      display.drawXbm((display.width() - 32) / 2, 18,
+      display.drawXbm((display.width() - 32) / 2, 2,
           _task->isBluetoothEnabled() ? bluetooth_on : bluetooth_off,
           32, 32);
       display.setColor(UIColor::secondary_txt);
       display.setTextSize(1);
-      display.drawTextCentered(display.width() / 2, 64 - 11, "toggle: " PRESS_LABEL);
+      // PIN for pairing: always show it here, even when a client is connected
+      if (the_mesh.getBLEPin() != 0) {
+        char pin_buf[20];
+        snprintf(pin_buf, sizeof(pin_buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
+        display.setTextSize(2);
+        display.drawTextCentered(display.width() / 2, 36, pin_buf);
+        display.setTextSize(1);
+        display.drawTextCentered(display.width() / 2, 64 - 11, "toggle: " PRESS_LABEL);
+      } else {
+        display.drawTextCentered(display.width() / 2, 64 - 11, "toggle: " PRESS_LABEL);
+      }
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {
       LocationProvider* nmea = sensors.getLocationProvider();
