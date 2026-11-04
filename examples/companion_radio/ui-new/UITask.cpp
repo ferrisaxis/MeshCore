@@ -183,6 +183,7 @@ static void formatClockDate(uint32_t t, int16_t tz_mins, uint8_t lang, char* buf
 }
 
 class HomeScreen : public UIScreen {
+public:
   enum HomePage {
     FIRST,
     RECENT,
@@ -192,6 +193,7 @@ class HomeScreen : public UIScreen {
     SCAN,
     FSCAN,
     BLUETOOTH,
+    CONNECTIONS,
 #if ENV_INCLUDE_GPS == 1
     GPS,
     BEACON,
@@ -204,6 +206,8 @@ class HomeScreen : public UIScreen {
     Count    // keep as last
   };
 
+private:
+
   UITask* _task;
   mesh::RTCClock* _rtc;
   SensorManager* _sensors;
@@ -212,6 +216,15 @@ class HomeScreen : public UIScreen {
   uint8_t _setup_row;
   bool _setup_edit;
   bool _shutdown_init;
+  uint8_t _conn_selected = 0;
+
+public:
+  // Accessors for UITask
+  uint8_t getPage() const { return _page; }
+  uint8_t getConnSelected() const { return _conn_selected; }
+  void setConnSelected(uint8_t v) { _conn_selected = v; }
+
+private:
   AdvertPath recent[UI_RECENT_LIST_SIZE];
   NeighborInfo neighbor_list[NEIGHBOR_TABLE_SIZE];
 #if UI_DISCOVER_SCREEN
@@ -883,6 +896,52 @@ public:
       } else {
         display.drawTextCentered(display.width() / 2, 64 - 11, "toggle: " PRESS_LABEL);
       }
+    } else if (_page == HomePage::CONNECTIONS) {
+      // Connections page: show all interfaces with status, click to select, long press to toggle
+      int y = 4;
+      int line_h = 12;
+      int selected = _conn_selected;
+      int conn_count = 0;
+
+      // BLE
+      bool ble_on = _task->isBluetoothEnabled();
+      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
+      display.setTextSize(1);
+      char buf[32];
+      snprintf(buf, sizeof(buf), "BLE  %s", ble_on ? "ON" : "off");
+      display.drawTextLeftAlign(0, y, buf);
+      y += line_h;
+      conn_count++;
+
+      // WiFi
+      bool wifi_on = _task->isWiFiEnabled();
+      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
+      snprintf(buf, sizeof(buf), "WiFi %s", wifi_on ? "ON" : "off");
+      display.drawTextLeftAlign(0, y, buf);
+      if (wifi_on && WiFi.status() == WL_CONNECTED) {
+        y += line_h;
+        IPAddress ip = WiFi.localIP();
+        snprintf(buf, sizeof(buf), "    %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextLeftAlign(0, y, buf);
+      }
+      y += line_h;
+      conn_count++;
+
+      // USB
+      bool usb_on = _task->isUSBEnabled();
+      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
+      snprintf(buf, sizeof(buf), "USB  %s", usb_on ? "ON" : "off");
+      display.drawTextLeftAlign(0, y, buf);
+      y += line_h;
+      conn_count++;
+
+      // Hint
+      display.setColor(UIColor::secondary_txt);
+      display.setTextSize(1);
+      display.drawTextCentered(display.width() / 2, display.height() - 11,
+          "click:select  long:toggle  left/right:exit");
+
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {
       LocationProvider* nmea = sensors.getLocationProvider();
@@ -1265,6 +1324,11 @@ public:
       } else {
         _task->enableBluetooth();
       }
+      return true;
+    }
+    if (c == KEY_ENTER && _page == HomePage::CONNECTIONS) {
+      // cycle selection: BLE -> WiFi -> USB -> BLE
+      _conn_selected = (_conn_selected + 1) % 3;
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::RECENT) {
@@ -2199,6 +2263,24 @@ char UITask::handleLongPress(char c) {
   if (millis() - ui_started_at < 8000) {   // long press in first 8 seconds since startup -> CLI/rescue
     the_mesh.enterCLIRescue();
     c = 0;   // consume event
+  }
+  // Long press on Connections page toggles the selected interface
+  if (curr == home) {
+    HomeScreen* hs = static_cast<HomeScreen*>(curr);
+    if (hs->getPage() == HomeScreen::HomePage::CONNECTIONS) {
+      switch (hs->getConnSelected()) {
+        case 0: // BLE
+          if (isBluetoothEnabled()) disableBluetooth(); else enableBluetooth();
+          break;
+        case 1: // WiFi
+          if (isWiFiEnabled()) disableWiFi(); else enableWiFi();
+          break;
+        case 2: // USB
+          if (isUSBEnabled()) disableUSB(); else enableUSB();
+          break;
+      }
+      c = 0;
+    }
   }
   return c;
 }

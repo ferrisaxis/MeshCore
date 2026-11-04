@@ -81,9 +81,59 @@ public:
     }
   }
 
+  void enableWiFi() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::WiFi){
+        iface.instance->enable();
+      }
+    }
+  }
+
+  void disableWiFi() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::WiFi){
+        iface.instance->disable();
+      }
+    }
+  }
+
+  void enableUSB() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::USB){
+        iface.instance->enable();
+      }
+    }
+  }
+
+  void disableUSB() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::USB){
+        iface.instance->disable();
+      }
+    }
+  }
+
   bool isBluetoothEnabled() {
     for(auto iface : _interfaces){
       if(iface.instance && iface.type == InterfaceType::Bluetooth){
+        return iface.instance->isEnabled();
+      }
+    }
+    return false; 
+  }
+
+  bool isWiFiEnabled() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::WiFi){
+        return iface.instance->isEnabled();
+      }
+    }
+    return false; 
+  }
+
+  bool isUSBEnabled() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::USB){
         return iface.instance->isEnabled();
       }
     }

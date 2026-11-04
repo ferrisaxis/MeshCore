@@ -36,9 +36,15 @@ public:
   virtual void setHasConnection(bool connected) { }  // state is derived; kept for the fork UI bridge
   uint16_t getBattMilliVolts() const { return _board->getBattMilliVolts(); }
   bool isBluetoothEnabled() const { return _interfaceManager->isBluetoothEnabled(); }
+  bool isWiFiEnabled() const { return _interfaceManager->isWiFiEnabled(); }
+  bool isUSBEnabled() const { return _interfaceManager->isUSBEnabled(); }
   virtual bool isDisplayOn() const { return false; }
   void enableBluetooth() { _interfaceManager->enableBluetooth(); }
   void disableBluetooth() { _interfaceManager->disableBluetooth(); }
+  void enableWiFi() { _interfaceManager->enableWiFi(); }
+  void disableWiFi() { _interfaceManager->disableWiFi(); }
+  void enableUSB() { _interfaceManager->enableUSB(); }
+  void disableUSB() { _interfaceManager->disableUSB(); }
   virtual void msgRead(int msgcount) = 0;
   // The phone took a message that was also kept on the device screen.
   virtual void clearTakenMsg() {}
