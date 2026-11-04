@@ -3,8 +3,8 @@
 #include "BaseSerialInterface.h"
 
 #ifndef MAX_INTERFACES
-  // ble, usb, wifi, ethernet
-  #define MAX_INTERFACES 4
+  // ble, usb, wifi, wifi2, ethernet
+  #define MAX_INTERFACES 5
 #endif
 
 enum class InterfaceType : uint8_t {
@@ -12,6 +12,7 @@ enum class InterfaceType : uint8_t {
   Bluetooth,
   USB,
   WiFi,
+  WiFi2,
   Ethernet,
   HardwareSerial
 };
@@ -97,6 +98,22 @@ public:
     }
   }
 
+  void enableWiFi2() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::WiFi2){
+        iface.instance->enable();
+      }
+    }
+  }
+
+  void disableWiFi2() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::WiFi2){
+        iface.instance->disable();
+      }
+    }
+  }
+
   void enableUSB() {
     for(auto iface : _interfaces){
       if(iface.instance && iface.type == InterfaceType::USB){
@@ -125,6 +142,15 @@ public:
   bool isWiFiEnabled() {
     for(auto iface : _interfaces){
       if(iface.instance && iface.type == InterfaceType::WiFi){
+        return iface.instance->isEnabled();
+      }
+    }
+    return false; 
+  }
+
+  bool isWiFi2Enabled() {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == InterfaceType::WiFi2){
         return iface.instance->isEnabled();
       }
     }

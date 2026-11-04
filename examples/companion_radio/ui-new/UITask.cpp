@@ -928,6 +928,21 @@ public:
       y += line_h;
       conn_count++;
 
+      // WiFi2 (Home Assistant)
+      bool wifi2_on = _task->isWiFi2Enabled();
+      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
+      snprintf(buf, sizeof(buf), "WiFi2 %s", wifi2_on ? "ON" : "off");
+      display.drawTextLeftAlign(0, y, buf);
+      if (wifi2_on && WiFi.status() == WL_CONNECTED) {
+        y += line_h;
+        IPAddress ip = WiFi.localIP();
+        snprintf(buf, sizeof(buf), "    %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextLeftAlign(0, y, buf);
+      }
+      y += line_h;
+      conn_count++;
+
       // USB
       bool usb_on = _task->isUSBEnabled();
       display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
@@ -1327,8 +1342,8 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::CONNECTIONS) {
-      // cycle selection: BLE -> WiFi -> USB -> BLE
-      _conn_selected = (_conn_selected + 1) % 3;
+      // cycle selection: BLE -> WiFi -> WiFi2 -> USB -> BLE
+      _conn_selected = (_conn_selected + 1) % 4;
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::RECENT) {
@@ -2275,7 +2290,10 @@ char UITask::handleLongPress(char c) {
         case 1: // WiFi
           if (isWiFiEnabled()) disableWiFi(); else enableWiFi();
           break;
-        case 2: // USB
+        case 2: // WiFi2
+          if (isWiFi2Enabled()) disableWiFi2(); else enableWiFi2();
+          break;
+        case 3: // USB
           if (isUSBEnabled()) disableUSB(); else enableUSB();
           break;
       }

@@ -37,12 +37,15 @@ public:
   uint16_t getBattMilliVolts() const { return _board->getBattMilliVolts(); }
   bool isBluetoothEnabled() const { return _interfaceManager->isBluetoothEnabled(); }
   bool isWiFiEnabled() const { return _interfaceManager->isWiFiEnabled(); }
+  bool isWiFi2Enabled() const { return _interfaceManager->isWiFi2Enabled(); }
   bool isUSBEnabled() const { return _interfaceManager->isUSBEnabled(); }
   virtual bool isDisplayOn() const { return false; }
   void enableBluetooth() { _interfaceManager->enableBluetooth(); }
   void disableBluetooth() { _interfaceManager->disableBluetooth(); }
   void enableWiFi() { _interfaceManager->enableWiFi(); }
   void disableWiFi() { _interfaceManager->disableWiFi(); }
+  void enableWiFi2() { _interfaceManager->enableWiFi2(); }
+  void disableWiFi2() { _interfaceManager->disableWiFi2(); }
   void enableUSB() { _interfaceManager->enableUSB(); }
   void disableUSB() { _interfaceManager->disableUSB(); }
   virtual void msgRead(int msgcount) = 0;

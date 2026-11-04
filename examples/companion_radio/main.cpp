@@ -59,6 +59,7 @@ MultiSerialInterface interface_manager;
   #if defined(ESP32) || defined(RP2040_PLATFORM)
     #include <helpers/wifi/SerialWifiInterface.h>
     SerialWifiInterface wifi_interface;
+    SerialWifiInterface wifi_interface_ha;
   #else
     #error "SerialWifiInterface is not defined for this platform"
   #endif
@@ -249,6 +250,9 @@ void setup() {
 #endif
     wifi_interface.begin(TCP_PORT);
     interface_manager.addInterface(InterfaceType::WiFi, &wifi_interface);
+    // Second WiFi interface for Home Assistant (port 5001)
+    wifi_interface_ha.begin(TCP_PORT + 1);
+    interface_manager.addInterface(InterfaceType::WiFi2, &wifi_interface_ha);
   } else {
     WIFI_DEBUG_PRINTLN("wifi disabled");
   }
