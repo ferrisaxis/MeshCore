@@ -898,7 +898,7 @@ public:
       }
     } else if (_page == HomePage::CONNECTIONS) {
       // Connections page: show all interfaces with status, click to select, long press to toggle
-      int y = 4;
+      int y = 2;
       int line_h = 12;
       int selected = _conn_selected;
       int conn_count = 0;
@@ -913,34 +913,19 @@ public:
       y += line_h;
       conn_count++;
 
-      // WiFi
+      // WiFi (controls both port 5000 and 5001)
       bool wifi_on = _task->isWiFiEnabled();
       display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
       snprintf(buf, sizeof(buf), "WiFi %s", wifi_on ? "ON" : "off");
       display.drawTextLeftAlign(0, y, buf);
+      y += line_h;
       if (wifi_on && WiFi.status() == WL_CONNECTED) {
-        y += line_h;
         IPAddress ip = WiFi.localIP();
         snprintf(buf, sizeof(buf), "    %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
         display.setColor(UIColor::secondary_txt);
         display.drawTextLeftAlign(0, y, buf);
-      }
-      y += line_h;
-      conn_count++;
-
-      // WiFi2 (Home Assistant)
-      bool wifi2_on = _task->isWiFi2Enabled();
-      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "WiFi2 %s", wifi2_on ? "ON" : "off");
-      display.drawTextLeftAlign(0, y, buf);
-      if (wifi2_on && WiFi.status() == WL_CONNECTED) {
         y += line_h;
-        IPAddress ip = WiFi.localIP();
-        snprintf(buf, sizeof(buf), "    %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, buf);
       }
-      y += line_h;
       conn_count++;
 
       // USB
@@ -954,7 +939,7 @@ public:
       // Hint
       display.setColor(UIColor::secondary_txt);
       display.setTextSize(1);
-      display.drawTextCentered(display.width() / 2, display.height() - 11,
+      display.drawTextCentered(display.width() / 2, display.height() - 10,
           "click:select  long:toggle  left/right:exit");
 
 #if ENV_INCLUDE_GPS == 1
@@ -1342,8 +1327,8 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::CONNECTIONS) {
-      // cycle selection: BLE -> WiFi -> WiFi2 -> USB -> BLE
-      _conn_selected = (_conn_selected + 1) % 4;
+      // cycle selection: BLE -> WiFi -> USB -> BLE
+      _conn_selected = (_conn_selected + 1) % 3;
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::RECENT) {
@@ -2287,13 +2272,11 @@ char UITask::handleLongPress(char c) {
         case 0: // BLE
           if (isBluetoothEnabled()) disableBluetooth(); else enableBluetooth();
           break;
-        case 1: // WiFi
-          if (isWiFiEnabled()) disableWiFi(); else enableWiFi();
+        case 1: // WiFi (toggles both port 5000 and 5001)
+          if (isWiFiEnabled()) { disableWiFi(); disableWiFi2(); }
+          else { enableWiFi(); enableWiFi2(); }
           break;
-        case 2: // WiFi2
-          if (isWiFi2Enabled()) disableWiFi2(); else enableWiFi2();
-          break;
-        case 3: // USB
+        case 2: // USB
           if (isUSBEnabled()) disableUSB(); else enableUSB();
           break;
       }
