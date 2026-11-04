@@ -49,4 +49,10 @@ public:
   }
 
   void doResetAGC() override { sx126xResetAGC((SX126x *)_radio, getRxBoostedGainMode()); }
+
+  bool lastRxHadCRC() override {
+    bool crc = true;
+    ((CustomSX1262 *)_radio)->getLoRaRxHeaderInfo(NULL, &crc);
+    return crc;
+  }
 };
