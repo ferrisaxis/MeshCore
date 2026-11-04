@@ -898,8 +898,8 @@ public:
       }
     } else if (_page == HomePage::CONNECTIONS) {
       // Connections page: show all interfaces with status, click to select, long press to toggle
-      int y = 2;
-      int line_h = 12;
+      int y = 18;
+      int line_h = 10;
       int selected = _conn_selected;
       int conn_count = 0;
 
