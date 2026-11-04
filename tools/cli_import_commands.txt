@@ -1,0 +1,86 @@
+# MeshCore Config Import Commands
+# Run these in CLI rescue mode (long press button during boot, first 8 seconds)
+# Or via MeshCore App -> Console when connected
+
+# ============================================================
+# RADIO SETTINGS
+# ============================================================
+set radio.freq 868731
+set radio.bw 62500
+set radio.sf 7
+set radio.cr 7
+set radio.txpower 10
+
+# ============================================================
+# POSITION
+# ============================================================
+set position 55.916482 37.722432
+
+# ============================================================
+# OTHER SETTINGS
+# ============================================================
+set manual_add_contacts 1
+set advert_location_policy 0
+
+# ============================================================
+# AUTO-ADD CONFIG (bitmask)
+# Bit 0 (1): overwrite_oldest = true
+# Bit 1 (2): auto_add_chat = false
+# Bit 2 (4): auto_add_repeater = true
+# Bit 3 (8): auto_add_room_server = true
+# Bit 4 (16): auto_add_sensor = true
+# Total: 1 + 4 + 8 + 16 = 29
+# ============================================================
+set auto_add_config 29
+
+# ============================================================
+# CHANNELS
+# ============================================================
+channel add "Public" 8b3387e9c5cdea6ac9e5edbaa115cd72
+channel add "#connections" ca178cb1014cba4a542bf1ec834fd404 "#mow" f8392e7a4eac7804d2f1a73df53cf5c6
+
+# ============================================================
+# CONTACTS (350 contacts from JSON)
+# Format: contact add <type> "<name>" <pubkey> <lat> <lon>
+# Type 2 = Companion/Contact
+# ============================================================
+
+# First batch (first 20)
+contact add 2 "MO Lobnya Katyshki2 Rou" e1aaf708cb5bfb0c23b5a4409f23d0eb288549e9c91a39245c61a357b342a0e8 56.007146 37.440658
+contact add 2 "ZAO Vernadsky" 0824a047fadea0eb2d224f1ba15c23c02671329ab045a4086665cfcd56af6f47 55.68164 37.51837
+contact add 2 "b0eb0da" b0eb0dad53c119ce900df75d2d071d4e149429461a91b63d551c54d8ba29f824 0.0 0.0
+contact add 2 "zao aa1" 9330cb984dd2e0bc98a4ee43c79d556ebf5a1098cd33b65c27ad4c807e57211f 0.0 0.0
+contact add 2 "TINAO Satino" 08586a8f4befdd671795666ef117faab74e470ccafec96ea322c681e430af390 55.3738 37.34999
+contact add 2 "ZAO Solntsevo 4" dad52fa5886deaa428e8481d6c42cce7ff723df613d8a8c1a3319e2faddc3a0b 55.64629 37.38888
+contact add 2 "Zelenograd 23mkr." 36bec4c5fb50060458a458366f103a06af3a2388ded1df23c7996117af10e885 55.966079 37.19054
+contact add 2 "MO KRS OBS ZGR" 21bc9d44a940c42af2d740587430c7ff5a7480a0c2f4d309fba8bda980a576a9 55.83472 37.28675
+contact add 2 "CAO Taganka" feede8e5f93b3926fa9f29290b2b6a15152a49814bb9fd390822f0f21b38601f 55.740285 37.682566
+contact add 2 "MO Lobnya Moskvich" 1e7e475e816373fb5fd89acd1280f4db07b6a568cd10e34397f0a6f578e9f9f8 56.006049 37.456244
+contact add 2 "TROYAN-Repeater" d65d0c1958fd26fe3c00f225b920b00083f0aa62a45af5ee0ad8255ec22cf9c8 55.681163 37.587317
+contact add 2 "SVAO Zvezdniy" 6aafb67e1351f2b3461b33991b8807b5cdcded724de6037e2be7f870d2c97f89 0.0 0.0
+contact add 2 "MO Mytischi-4" 698aa486dd59c5b4f839dc7276a999aaefb773543e243c343cb96f7865e3ffaa 55.91966 37.72792
+contact add 2 "CAO Moscow-City 2" e8811fddb4bc0816d83ef1b0087d07692d3a0a30a212cce7c77cbd6210fd1b6b 55.74991 37.5337
+contact add 2 "ZelAO_17_mkr" ccec8fdac9c84e792b02baa04d483380017a3d8e34bea328aa4687f9aa85a7d9 55.96768 37.15025
+contact add 2 "ZAO Novo-Peredelkino " 303e6284791e4137b626aa8f3688ea7d977bc01685b78119b192ca6997c94545 55.642712 37.34766
+contact add 2 "SAO KOPTEVO 2" 853df7084c1d6433fa74c4f8a2573d1b43dd19a1686115428124a77bb86f7bfe 55.82586 37.529798
+contact add 2 "MO Mytischi Mira 37" 0666bab6804592f60919710c416426d126701d9825e1b64b7cf21e5cad46bc3e 55.91836 37.72132
+contact add 2 "MO Buharovo1" d2ce0a13b2747548e37e9bc4f6fd3c9d73c9c718f36261487a68492f07a168e8 56.090873 37.188547
+contact add 2 "BazaAlt - MQTT Observer" c0e35a4610516fdfc08ae9b5c81c0a591e64d97bb36a2969df945f88f2add473 56.02332 37.18352
+contact add 2 "SIGMA🌙⭐" b800925dc74fcc41ade6e67b29ce1a573bc6cb2cdf9aec676a0d62cb627890e1 56.07337 37.37091
+
+# ... (remaining contacts from JSON - use the full import script)
+
+# ============================================================
+# SAVE AND REBOOT
+# ============================================================
+save
+reboot
+
+# ============================================================
+# NOTES
+# ============================================================
+# 1. To enter CLI rescue: Hold USER button (GPIO0) during boot for 8 seconds
+# 2. Then connect via USB serial at 115200 baud
+# 3. Paste these commands line by line
+# 4. Or use MeshCore App -> Console when connected via BLE/WiFi
+# 5. Full contact list is in FDSKY_meshcore_config_2026-10-25-172953.json
