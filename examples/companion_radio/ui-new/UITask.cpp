@@ -920,13 +920,6 @@ public:
       snprintf(buf, sizeof(buf), "WiFi %s", wifi_on ? "ON" : "OFF");
       display.drawTextLeftAlign(0, y, buf);
       y += line_h;
-      if (wifi_on && WiFi.status() == WL_CONNECTED) {
-        IPAddress ip = WiFi.localIP();
-        snprintf(buf, sizeof(buf), "  %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, buf);
-        y += line_h;
-      }
       conn_count++;
 
       // USB
