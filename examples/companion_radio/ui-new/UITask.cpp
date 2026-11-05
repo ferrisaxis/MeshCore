@@ -223,6 +223,8 @@ public:
   uint8_t getPage() const { return _page; }
   uint8_t getConnSelected() const { return _conn_selected; }
   void setConnSelected(uint8_t v) { _conn_selected = v; }
+  // Navigation from outside (e.g., triple-click on CONNECTIONS)
+  void stepPageNav(int dir) { _page = stepPage(dir); }
 
 private:
   AdvertPath recent[UI_RECENT_LIST_SIZE];
@@ -897,7 +899,8 @@ public:
         display.drawTextCentered(display.width() / 2, 64 - 11, "toggle: " PRESS_LABEL);
       }
     } else if (_page == HomePage::CONNECTIONS) {
-      // Connections page: show all interfaces with status, click to select, long press to toggle
+      // Connections page: show all interfaces with status
+      // click=next page, double=cycle select, long=toggle selected, triple=prev page
       int y = 18;
       int line_h = 10;
       int selected = _conn_selected;
@@ -940,7 +943,7 @@ public:
       display.setColor(UIColor::secondary_txt);
       display.setTextSize(1);
       display.drawTextCentered(display.width() / 2, display.height() - 10,
-          "click:select  long:toggle  left/right:exit");
+          "click:next  dbl:select  long:toggle  trip:prev");
 
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {
@@ -1327,9 +1330,8 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::CONNECTIONS) {
-      // cycle selection: BLE -> WiFi -> USB -> BLE
-      _conn_selected = (_conn_selected + 1) % 3;
-      return true;
+      // click = next page (standard navigation)
+      return true;  // let default page advance handle it
     }
     if (c == KEY_ENTER && _page == HomePage::RECENT) {
       _task->notify(UIEventType::ack);
@@ -2289,6 +2291,14 @@ char UITask::handleLongPress(char c) {
 char UITask::handleDoubleClick(char c) {
   MESH_DEBUG_PRINTLN("UITask: double-click triggered");
   checkDisplayOn(c);
+  // Double-click on Connections page cycles selection
+  if (curr == home) {
+    HomeScreen* hs = static_cast<HomeScreen*>(curr);
+    if (hs->getPage() == HomeScreen::HomePage::CONNECTIONS) {
+      hs->setConnSelected((hs->getConnSelected() + 1) % 3);
+      c = 0;
+    }
+  }
   return c;
 }
 
@@ -2304,6 +2314,14 @@ char UITask::handleTripleClick(char c) {
   c = checkDisplayOn(c);
   if (c == 0) return 0;
   if (curr == home || curr == msg_preview) return c;
+  // Triple-click on Connections page = previous page
+  if (curr == home) {
+    HomeScreen* hs = static_cast<HomeScreen*>(curr);
+    if (hs->getPage() == HomeScreen::HomePage::CONNECTIONS) {
+      hs->stepPageNav(-1);
+      c = 0;
+    }
+  }
   toggleBuzzer();
   return 0;
 }
