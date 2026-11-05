@@ -26,6 +26,9 @@ public:
   // LoRa FEM (front-end module) LNA control - called from the mesh CLI/UI
   bool setLoRaFemLnaEnabled(bool enable);
   bool isLoRaFemLnaEnabled() const;
+  // Report real capability: LoRaFEMControl probes the module at boot
+  // (KCT8103L PA on V4.3 can switch the RX LNA, GC1109 on V4.2 cannot).
+  bool canControlLoRaFemLna() const override { return loRaFEMControl.isLnaCanControl(); }
 
   void onBeforeTransmit(void) override;
   void onAfterTransmit(void) override;

@@ -445,7 +445,8 @@ private:
   // The gps setting is published only after the module is detected.
   // Its value is "1" only while that module is switched on.
   bool isPageVisible(uint8_t page) const {
-    if (page == HomePage::SETUP) return _task->isEink();
+    // SETUP is always reachable: on e-ink it offers Clock + ScreenMode,
+    // on OLED only Clock (ScreenMode is a panel property there).
     // CONNECTIONS is a sub-screen of BLUETOOTH: only reachable by long press,
     // never part of the click/double-click page flip cycle.
     if (page == HomePage::CONNECTIONS) return false;
@@ -455,10 +456,13 @@ private:
     return true;
   }
 
+  uint8_t setupRowCount() const { return _task->isEink() ? 2 : 1; }
+
   void stepSetupRow(int dir) {
+    int n = setupRowCount();
     int next = (int)_setup_row + dir;
-    if (next < 0) next = 1;
-    if (next > 1) next = 0;
+    if (next < 0) next = n - 1;
+    if (next >= n) next = 0;
     _setup_row = (uint8_t)next;
   }
 
@@ -603,25 +607,24 @@ public:
       display.setColor(UIColor::primary_txt);
       // MSG: still waiting for the phone / still kept on this device
       display.setTextSize(2);
-      sprintf(tmp, "MSG: %d/%d", _task->getMsgCount(), _task->getDeviceStored());
-      display.drawTextCentered(display.width() / 2, 22, tmp);
+      sprintf(tmp, "MSG %d/%d", _task->getMsgCount(), _task->getDeviceStored());
+      display.drawTextCentered(display.width() / 2, 20, tmp);
 
       bool show_date = !display.isEink() && _rtc->getCurrentTime() >= 1000000000UL;
-      #ifdef WIFI_SSID
-        IPAddress ip = WiFi.localIP();
-        snprintf(tmp, sizeof(tmp), "IP: %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        display.setTextSize(1);
-        int ip_y = display.height() - 22;
-        if (display.height() <= 64) ip_y = show_date ? -1 : 54;
-        if (ip_y >= 0) display.drawTextCentered(display.width() / 2, ip_y, tmp);
-      #endif
+      // Middle line: IP of the WiFi link while a client is attached, PIN otherwise
       if (_task->hasConnection()) {
         display.setColor(UIColor::warning_txt);
+        #ifdef WIFI_SSID
+          IPAddress ip = WiFi.localIP();
+          snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        #else
+          snprintf(tmp, sizeof(tmp), "< Connected >");
+        #endif
         display.setTextSize(1);
         #ifdef UI_SHOW_CLOCK
-        display.drawTextCentered(display.width() / 2, 110, "< Connected >");
+        display.drawTextCentered(display.width() / 2, 110, tmp);
         #else
-        display.drawTextCentered(display.width() / 2, 43, "< Connected >");
+        display.drawTextCentered(display.width() / 2, 43, tmp);
         #endif
       } else if (the_mesh.getBLEPin() != 0) { // BT pin
         display.setColor(UIColor::warning_txt);
@@ -888,24 +891,37 @@ public:
         display.drawTextCentered(display.width() / 2, display.height() - 11, "scan: " PRESS_LABEL);
       }
     } else if (_page == HomePage::BLUETOOTH) {
-      display.setColor(UIColor::corp_blue);
-      display.drawXbm((display.width() - 32) / 2, 2,
-          _task->isBluetoothEnabled() ? bluetooth_on : bluetooth_off,
-          32, 32);
-      display.setColor(UIColor::secondary_txt);
+      // Interface status board: no icon, straight rows under the page dots.
+      // Long press switches to the CONNECTIONS sub-screen for selection/toggle.
       display.setTextSize(1);
-      // PIN for pairing: always show it here, even when a client is connected
+      char buf[32];
+      int y = 18;
+      const int line_h = 12;
+
+      display.setColor(UIColor::primary_txt);
+      snprintf(buf, sizeof(buf), "BLE   %s", _task->isBluetoothEnabled() ? "ON" : "OFF");
+      display.drawTextLeftAlign(0, y, buf);
+      y += line_h;
+
+      snprintf(buf, sizeof(buf), "WiFi  %s", _task->isWiFiEnabled() ? "ON" : "OFF");
+      display.drawTextLeftAlign(0, y, buf);
+      y += line_h;
+
+      snprintf(buf, sizeof(buf), "USB   %s", _task->isUSBEnabled() ? "ON" : "OFF");
+      display.drawTextLeftAlign(0, y, buf);
+      y += line_h;
+
+      // PIN for pairing: always shown here, even while a client is attached
       if (the_mesh.getBLEPin() != 0) {
-        char pin_buf[20];
-        snprintf(pin_buf, sizeof(pin_buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
-        display.drawTextCentered(display.width() / 2, 42, pin_buf);
+        display.setColor(UIColor::secondary_txt);
+        snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
+        display.drawTextLeftAlign(0, y, buf);
       }
-      display.drawTextCentered(display.width() / 2, 54, "hold: interfaces");
     } else if (_page == HomePage::CONNECTIONS) {
       // CONNECTIONS sub-screen (long press on BLUETOOTH):
       // single click = move the marker, double click = toggle, long press = back
-      int y = 14;
-      int line_h = 14;
+      int y = 18;
+      const int line_h = 12;
       int selected = _conn_selected;
       int conn_count = 0;
       display.setTextSize(1);
@@ -1119,7 +1135,8 @@ public:
       const char* rows_l[2] = { "Clock", "ScreenMode" };
       const char* rows_r[2] = { clock_on ? "on" : "off", tmp };
       display.setTextSize(1);
-      for (int i = 0; i < 2; i++) {
+      int nrows = setupRowCount();
+      for (int i = 0; i < nrows; i++) {
         int y = 22 + i * 14;
         display.setColor(UIColor::primary_txt);
         if (_setup_edit && (uint8_t)i == _setup_row) display.drawTextLeftAlign(0, y, ">");
