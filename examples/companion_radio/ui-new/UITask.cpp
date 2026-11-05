@@ -225,6 +225,8 @@ public:
   void setConnSelected(uint8_t v) { _conn_selected = v; }
   // Navigation from outside (e.g., triple-click on CONNECTIONS)
   void stepPageNav(int dir) { _page = stepPage(dir); }
+  // Jump straight to a hidden sub-screen (CONNECTIONS), bypassing the flip cycle
+  void goToPage(uint8_t p) { _page = p; }
 
 private:
   AdvertPath recent[UI_RECENT_LIST_SIZE];
@@ -444,6 +446,9 @@ private:
   // Its value is "1" only while that module is switched on.
   bool isPageVisible(uint8_t page) const {
     if (page == HomePage::SETUP) return _task->isEink();
+    // CONNECTIONS is a sub-screen of BLUETOOTH: only reachable by long press,
+    // never part of the click/double-click page flip cycle.
+    if (page == HomePage::CONNECTIONS) return false;
 #if ENV_INCLUDE_GPS == 1
     if (page == HomePage::BEACON) return _task->getGPSState();
 #endif
@@ -550,7 +555,8 @@ public:
   }
 
   int render(DisplayDriver& display) override {
-    if (!isPageVisible(_page)) _page = stepPage(1);
+    // CONNECTIONS is a hidden sub-screen; do not kick it out of the flip cycle.
+    if (_page != HomePage::CONNECTIONS && !isPageVisible(_page)) _page = stepPage(1);
 
     display.setColor(UIColor::title_bkg);
     display.fillRect(0, 0, display.width(), 12);
@@ -743,7 +749,8 @@ public:
         sprintf(tmp, "TX: %ddBm  LNA: %s", _node_prefs->tx_power_dbm,
                 _task->isFemLnaEnabled() ? "on" : "off");
       } else {
-        sprintf(tmp, "TX: %ddBm  LNA: n/a", _node_prefs->tx_power_dbm);
+        // no controllable FEM LNA on this board - don't advertise a dead control
+        sprintf(tmp, "TX: %ddBm", _node_prefs->tx_power_dbm);
       }
       display.print(tmp);
       display.setCursor(0, 53);
@@ -891,33 +898,33 @@ public:
       if (the_mesh.getBLEPin() != 0) {
         char pin_buf[20];
         snprintf(pin_buf, sizeof(pin_buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
-        display.setTextSize(1);  // small font
-        display.drawTextCentered(display.width() / 2, 36, pin_buf);
+        display.drawTextCentered(display.width() / 2, 42, pin_buf);
       }
-      display.setTextSize(1);
-      display.drawTextCentered(display.width() / 2, 64 - 10, "long:connections");
+      display.drawTextCentered(display.width() / 2, 54, "hold: interfaces");
     } else if (_page == HomePage::CONNECTIONS) {
-      // Connections page: entered via long press on BLUETOOTH
-      // short click = cycle selection, double click = toggle, long press = exit to main
-      int y = 18;
-      int line_h = 10;
+      // CONNECTIONS sub-screen (long press on BLUETOOTH):
+      // single click = move the marker, double click = toggle, long press = back
+      int y = 14;
+      int line_h = 14;
       int selected = _conn_selected;
       int conn_count = 0;
+      display.setTextSize(1);
+      char buf[32];
 
       // BLE
       bool ble_on = _task->isBluetoothEnabled();
       display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      display.setTextSize(1);
-      char buf[32];
-      snprintf(buf, sizeof(buf), "BLE %s", ble_on ? "ON" : "OFF");
+      snprintf(buf, sizeof(buf), "%cBLE   %s", selected == conn_count ? '>' : ' ',
+               ble_on ? "ON" : "OFF");
       display.drawTextLeftAlign(0, y, buf);
       y += line_h;
       conn_count++;
 
-      // WiFi (controls both port 5000 and 5001)
+      // WiFi (drives both TCP servers: 5000 for the app, 5001 for HA)
       bool wifi_on = _task->isWiFiEnabled();
       display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "WiFi %s", wifi_on ? "ON" : "OFF");
+      snprintf(buf, sizeof(buf), "%cWiFi  %s", selected == conn_count ? '>' : ' ',
+               wifi_on ? "ON" : "OFF");
       display.drawTextLeftAlign(0, y, buf);
       y += line_h;
       conn_count++;
@@ -925,12 +932,11 @@ public:
       // USB
       bool usb_on = _task->isUSBEnabled();
       display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "USB %s", usb_on ? "ON" : "OFF");
+      snprintf(buf, sizeof(buf), "%cUSB   %s", selected == conn_count ? '>' : ' ',
+               usb_on ? "ON" : "OFF");
       display.drawTextLeftAlign(0, y, buf);
       y += line_h;
       conn_count++;
-
-      // No hint - clean UI
 
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {
@@ -1216,6 +1222,12 @@ public:
       }
       return true;
     }
+    // CONNECTIONS is a sub-screen: single click cycles the interface selection
+    // instead of flipping to the next page.
+    if (_page == HomePage::CONNECTIONS && (c == KEY_NEXT || c == KEY_RIGHT || c == KEY_ENTER)) {
+      _conn_selected = (_conn_selected + 1) % 3;
+      return true;
+    }
     if (c == KEY_NEXT || c == KEY_RIGHT) {
       if (_page == HomePage::FSCAN) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
@@ -1286,7 +1298,11 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::RADIO) {
-      _task->toggleFemLna();
+      // Long press toggles the FEM LNA, but only where the board actually has one.
+      // On boards without it (Heltec V4) stay silent instead of showing "LNA: n/a".
+      if (_task->canControlFemLna()) {
+        _task->toggleFemLna();
+      }
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::POWER) {
@@ -2254,15 +2270,15 @@ char UITask::handleLongPress(char c) {
     the_mesh.enterCLIRescue();
     c = 0;   // consume event
   }
-  // Long press on Connections page = exit to main (Bluetooth page)
+  // Long press on Connections page = leave the sub-screen back to BLUETOOTH
   if (curr == home) {
     HomeScreen* hs = static_cast<HomeScreen*>(curr);
     if (hs->getPage() == HomeScreen::HomePage::CONNECTIONS) {
-      hs->stepPageNav(-1);  // go back to Bluetooth
+      hs->goToPage(HomeScreen::HomePage::BLUETOOTH);
       c = 0;
     } else if (hs->getPage() == HomeScreen::HomePage::BLUETOOTH) {
-      // Long press on Bluetooth = enter Connections
-      hs->stepPageNav(1);  // go to Connections (next page)
+      // Long press on Bluetooth = enter the CONNECTIONS sub-screen
+      hs->goToPage(HomeScreen::HomePage::CONNECTIONS);
       c = 0;
     }
   }
