@@ -444,9 +444,42 @@ def s_setup():
     img, px = screen("Экран", sub=True)
     draw_text(px, 10, 20, "Clock", 1)
     draw_right(px, 20, "вкл", 1)
-    draw_text(px, 10, 32, "Таймаут", 1)
-    draw_right(px, 32, "60 с", 1)
+    draw_text(px, 10, 32, "Язык", 1)
+    draw_right(px, 32, "RU", 1)
+    draw_text(px, 10, 44, "Таймаут", 1)
+    draw_right(px, 44, "60 с", 1)
     draw_centered(px, 56, "держать: правка", 1)
+    return img
+
+def s_clock_nodes(names):
+    img, px = screen("Узлы", sub=True)
+    if not names:
+        draw_text(px, 0, 22, "узлы не заданы", 1)
+        draw_text(px, 0, 40, "держать: меню", 1)
+        return img
+    for i, n in enumerate(names[:3]):
+        draw_text(px, 0, 18 + i * 12, n, 1)
+    if len(names) > 3:
+        draw_right(px, 54, f"ещё {len(names) - 3}", 1)
+    draw_text(px, 0, 54, "держать: меню", 1)
+    return img
+
+def s_node_picker(names, sel=0):
+    img, px = screen("Выбор узла", sub=True)
+    total = len(names)
+    maxrows = 3
+    start = sel
+    if start + maxrows > total:
+        start = total - maxrows if total > maxrows else 0
+    rows = names[start:start + maxrows]
+    for r, n in enumerate(rows):
+        idx = start + r
+        is_sel = idx == sel
+        if is_sel:
+            draw_text(px, 0, 18 + r * 12, ">", 1)
+        draw_text(px, 10, 18 + r * 12, n[:19], 1)
+    draw_text(px, 0, 54, "держать: +", 1)
+    draw_right(px, 54, f"{sel + 1}/{total}", 1)
     return img
 
 def s_actions(title, page, items, sel=0):
@@ -491,7 +524,7 @@ def s_time():
     draw_text(px, 0, 30, "пояс: +3 ч", 1)
     draw_right(px, 30, "язык: RU", 1)
     draw_text(px, 0, 42, "источник: задано", 1)
-    draw_text(px, 0, 54, "держать: запрос", 1)
+    draw_text(px, 0, 54, "держать: меню", 1)
     return img
 
 # ----------------------------------------------------------------- build
@@ -530,6 +563,11 @@ SCREENS = [
     ("26-sub-gps",                    "Подэкран GPS: включён, есть фикс",                      s_gps(True)),
     ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
     ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
+    ("29c-sub-clock-nodes",          "Узлы времени: два доверенных узла",                    s_clock_nodes(["FDSKY-Base", "Башня-2"])),
+    ("29d-sub-clock-nodes-empty",    "Узлы времени: не заданы",                              s_clock_nodes([])),
+    ("29e-sub-node-picker",          "Выбор контакта для узла времени",                      s_node_picker(["FDSKY-Base", "Башня-2", "Дом-репитер", "Сосед-3"], 1)),
+    ("29f-sub-time-actions",         "Действия Время: запрос и узлы",                        s_actions("Время", "time",
+        ["Запрос времени", "Узлы времени"], 0)),
     ("28b-sub-beacon-actions",        "Действия Маяк: режим, интервал, стоп",                  s_actions("Маяк", "beacon",
         ["Режим: далее", "Интервал: далее", "Остановить маяк"], 0)),
     ("29-sub-screen-time",            "Подэкран Экран: Clock и Таймаут",                       s_setup()),

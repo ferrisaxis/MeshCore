@@ -41,6 +41,10 @@
 | `26-sub-gps.png` | sub-gps | Подэкран GPS: включён, есть фикс |
 | `27-sub-gps-unavailable.png` | sub-gps-unavailable | Подэкран GPS: модуль недоступен |
 | `28-sub-beacon.png` | sub-beacon | Подэкран Маяк: режим, интервал, цель |
+| `29c-sub-clock-nodes.png` | sub-clock-nodes | Узлы времени: два доверенных узла |
+| `29d-sub-clock-nodes-empty.png` | sub-clock-nodes-empty | Узлы времени: не заданы |
+| `29e-sub-node-picker.png` | sub-node-picker | Выбор контакта для узла времени |
+| `29f-sub-time-actions.png` | sub-time-actions | Действия Время: запрос и узлы |
 | `28b-sub-beacon-actions.png` | sub-beacon-actions | Действия Маяк: режим, интервал, стоп |
 | `29-sub-screen-time.png` | sub-screen-time | Подэкран Экран: Clock и Таймаут |
 | `29b-sub-about.png` | sub-about | Подэкран О прошивке: версия, сборка, узел, аптайм |

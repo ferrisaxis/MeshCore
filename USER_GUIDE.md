@@ -185,12 +185,16 @@ LNA: вкл
 ### Экран (SETUP) — подэкран меню
 ```
 Clock            вкл
+Язык              RU
 Таймаут         60 с
 держать: правка
 ```
 - `Clock` — clock on the main screen; `Таймаут` — display auto-off: `выкл` / 15 / 30 / 60 / 120 s
   (stored as `scroff` in prefs)
-- e-ink builds add `ScreenMode` (refresh mode) as the middle row
+- `Язык` — `RU` / `EN`, the same setting as the CLI command `lang`. It switches the weekday
+  and date format on the clock, the `язык:` line on the time screen and nothing else: the
+  screen labels themselves are Russian in this fork
+- e-ink builds add `ScreenMode` (refresh mode) as an extra row → 4 rows, no hint line
 - **Long press** → enter/leave edit mode; in edit mode **click** moves between rows and
   **triple click** changes the value
 
@@ -226,8 +230,39 @@ v1.18.0-0.2.0
 - live time and date in the configured timezone (`tz_offset_mins`) and language
 - `источник: задано` once the clock was set by GPS, the phone, a trusted node or CLI;
   `источник: нет` plus `время не задано` while the RTC still holds its reset value
-- **Long press** → ask the mesh for the time (`pullClock()`); the alert reports if there
-  is no node to answer
+- **Long press** → action list:
+```
+> Запрос времени
+  Узлы времени
+```
+  `Запрос времени` asks the trusted nodes for the time (`pullClock()`); the alert reports
+  `некому ответить` when no node is configured or reachable. `Узлы времени` opens the list
+  of trusted nodes.
+
+### Узлы (CLOCK_NODES) — подэкран времени
+```
+FDSKY-Base
+Башня-2
+держать: меню
+```
+- the nodes the clock is pulled from, taken from the contact book (up to 16 slots, the
+  screen shows the first three plus `ещё N`)
+- `узлы не заданы` when the list is empty — the clock is then set only by GPS, the phone
+  or the CLI
+- **Long press** → action list: `Добавить узел` · `Запрос времени` · `Очистить все`
+- `Очистить все` needs one more hold and reports `узлы очищены`
+
+### Выбор узла (NODE_PICKER) — подэкран узлов
+```
+> FDSKY-Base
+  Башня-2
+  Дом-репитер
+держать: +          1/4
+```
+- the contact book, scrolled by **click** (forward) and **double click** (back)
+- **Long press** → add the highlighted contact as a trusted time node; the alert is
+  `узел добавлен`, `уже в узлах` or `список полон`
+- the same list is managed by the CLI command `clock add|remove|list`
 
 ### Просмотр сообщения
 - sender in the top-left corner, age in the top-right corner, rule at y=11, wrapped text below

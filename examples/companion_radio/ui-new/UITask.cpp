@@ -207,6 +207,8 @@ public:
     SENSORS,
 #endif
     TIME,          // sub-screen: clock, date, timezone, clock pull
+    CLOCK_NODES,   // sub-screen: trusted nodes to pull the clock from
+    NODE_PICKER,   // sub-screen: pick a contact to trust for time
     SETUP,
     ABOUT,         // sub-screen: version, build date, node identity
     MENU,          // root: entry point for every settings sub-screen
@@ -573,6 +575,8 @@ private:
       case SENSORS: return "Датчики";
 #endif
       case TIME: return "Время";
+      case CLOCK_NODES: return "Узлы";
+      case NODE_PICKER: return "Выбор узла";
       case SETUP: return "Экран";
       case ABOUT: return "О прошивке";
       case MENU: return "Меню";
@@ -614,11 +618,48 @@ private:
   // then click moves the marker and a second hold runs the highlighted one.
   bool _act_open = false;
   uint8_t _act_idx = 0;
+  uint32_t _pick_idx = 0;   // highlighted contact in NODE_PICKER
+
+  int usedClockNodes() const {
+    if (!_node_prefs) return 0;
+    int n = 0;
+    for (int i = 0; i < CLOCK_NODE_MAX; i++) {
+      if (clockNodeSlotUsed(_node_prefs->clock_nodes[i])) n++;
+    }
+    return n;
+  }
+
+  void addClockNodeFromPicker() {
+    if (!_node_prefs) return;
+    ContactInfo c;
+    if (!the_mesh.getContactByIdx(_pick_idx, c)) {
+      _task->showAlert("нет контакта", 1200);
+      return;
+    }
+    int rc = clockNodeAdd(_node_prefs->clock_nodes, c.id.pub_key);
+    if (rc == 1) {
+      the_mesh.savePrefs();
+      _task->notify(UIEventType::ack);
+      _task->showAlert("узел добавлен", 1200);
+    } else if (rc == 0) {
+      _task->showAlert("уже в узлах", 1200);
+    } else {
+      _task->showAlert("список полон", 1200);
+    }
+  }
+
+  void requestClock() {
+    bool ok = the_mesh.pullClock();
+    _task->showAlert(ok ? "запрос времени" : "некому ответить", 1200);
+  }
 
   uint8_t actionCount() const {
     switch (_page) {
       case HomePage::RADIO:  return _task->canControlFemLna() ? 3 : 2;
       case HomePage::POWER:  return 2;
+      case HomePage::TIME:        return 2;
+      case HomePage::CLOCK_NODES: return 3;
+      case HomePage::NODE_PICKER: return 1;
 #if ENV_INCLUDE_GPS == 1
       case HomePage::BEACON: return 3;
 #endif
@@ -634,6 +675,14 @@ private:
         return (_node_prefs && _node_prefs->radio_fem_rxgain) ? "LNA: выкл" : "LNA: вкл";
       case HomePage::POWER:
         return i == 0 ? "Профиль: далее" : "Профиль: назад";
+      case HomePage::TIME:
+        return i == 0 ? "Запрос времени" : "Узлы времени";
+      case HomePage::CLOCK_NODES:
+        if (i == 0) return "Добавить узел";
+        if (i == 1) return "Запрос времени";
+        return "Очистить все";
+      case HomePage::NODE_PICKER:
+        return "Добавить в узлы";
 #if ENV_INCLUDE_GPS == 1
       case HomePage::BEACON:
         if (i == 0) return "Режим: далее";
@@ -681,6 +730,27 @@ private:
       case HomePage::POWER:
         stepPowerProfile(i == 0 ? 1 : -1);
         break;
+      case HomePage::TIME:
+        if (i == 0) requestClock();
+        else enterSub(HomePage::CLOCK_NODES);
+        break;
+      case HomePage::CLOCK_NODES:
+        if (i == 0) {
+          _pick_idx = 0;
+          enterSub(HomePage::NODE_PICKER);
+        } else if (i == 1) {
+          requestClock();
+        } else if (usedClockNodes() == 0) {
+          _task->showAlert("узлов нет", 1200);
+        } else {
+          clockNodesClear(_node_prefs->clock_nodes);
+          the_mesh.savePrefs();
+          _task->showAlert("узлы очищены", 1200);
+        }
+        break;
+      case HomePage::NODE_PICKER:
+        addClockNodeFromPicker();
+        break;
 #if ENV_INCLUDE_GPS == 1
       case HomePage::BEACON:
         if (i == 0) {
@@ -705,7 +775,7 @@ private:
     }
   }
 
-  uint8_t setupRowCount() const { return _task->isEink() ? 3 : 2; }
+  uint8_t setupRowCount() const { return _task->isEink() ? 4 : 3; }
 
   void stepSetupRow(int dir) {
     int n = setupRowCount();
@@ -718,12 +788,15 @@ private:
   void changeSetupValue() {
     if (!_node_prefs) return;
     bool eink = _task->isEink();
+    const uint8_t lang_row = eink ? 2 : 1;
     if (_setup_row == 0) {
       _node_prefs->clock_saver = _node_prefs->clock_saver ? 0 : 1;
     } else if (eink && _setup_row == 1) {
       uint8_t mode = _node_prefs->eink_refresh;
       if (mode >= EINK_REFRESH_COUNT) mode = 0;
       _node_prefs->eink_refresh = (uint8_t)((mode + 1) % EINK_REFRESH_COUNT);
+    } else if (_setup_row == lang_row) {
+      _node_prefs->ui_lang = (_node_prefs->ui_lang == UI_LANG_EN) ? UI_LANG_RU : UI_LANG_EN;
     } else {
       _node_prefs->screen_off_idx = (uint8_t)((_node_prefs->screen_off_idx + 1) % 5);
     }
@@ -1441,6 +1514,58 @@ public:
       if (sensors_scroll) sensors_scroll_offset = (sensors_scroll_offset+1)%sensors_nb;
       else sensors_scroll_offset = 0;
 #endif
+    } else if (_page == HomePage::CLOCK_NODES) {
+      display.setTextSize(1);
+      int used = usedClockNodes();
+      if (used == 0) {
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 22, "узлы не заданы");
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextLeftAlign(0, 40, "держать: меню");
+      } else {
+        display.setColor(UIColor::primary_txt);
+        char name[24];
+        int row = 0;
+        for (int i = 0; i < CLOCK_NODE_MAX && row < 3; i++) {
+          if (!clockNodeSlotUsed(_node_prefs->clock_nodes[i])) continue;
+          the_mesh.lookupClockNodeName(_node_prefs->clock_nodes[i], name, sizeof(name));
+          display.drawTextLeftAlign(0, 18 + row * 12, name[0] ? name : "(без имени)");
+          row++;
+        }
+        display.setColor(UIColor::secondary_txt);
+        if (used > 3) {
+          char more[16];
+          snprintf(more, sizeof(more), "ещё %d", used - 3);
+          display.drawTextRightAlign(display.width() - 1, 54, more);
+        }
+        display.drawTextLeftAlign(0, 54, "держать: меню");
+      }
+    } else if (_page == HomePage::NODE_PICKER) {
+      display.setTextSize(1);
+      int total = the_mesh.getNumContacts();
+      if (total <= 0) {
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextCentered(display.width() / 2, 26, "нет контактов");
+      } else {
+        if (_pick_idx >= (uint32_t)total) _pick_idx = 0;
+        int maxrows = 3;
+        int start = (int)_pick_idx;
+        if (start + maxrows > total) start = (total > maxrows) ? total - maxrows : 0;
+        for (int r = 0; r < maxrows && start + r < total; r++) {
+          int idx = start + r;
+          ContactInfo c;
+          if (!the_mesh.getContactByIdx((uint32_t)idx, c)) continue;
+          bool sel = ((uint32_t)idx == _pick_idx);
+          display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
+          if (sel) display.drawTextLeftAlign(0, 18 + r * 12, ">");
+          display.drawTextLeftAlign(10, 18 + r * 12, c.name[0] ? c.name : "(без имени)");
+        }
+        display.setColor(UIColor::secondary_txt);
+        char cnt[16];
+        snprintf(cnt, sizeof(cnt), "%d/%d", (int)_pick_idx + 1, total);
+        display.drawTextRightAlign(display.width() - 1, 54, cnt);
+        display.drawTextLeftAlign(0, 54, "держать: +");
+      }
     } else if (_page == HomePage::TIME) {
       display.setTextSize(1);
       int y = 18;
@@ -1481,10 +1606,19 @@ public:
       uint16_t secs = screenOffSeconds(off_idx);
       if (secs == 0) snprintf(off_txt, sizeof(off_txt), "выкл");
       else snprintf(off_txt, sizeof(off_txt), "%u с", (unsigned)secs);
-      const char* rows_l[3] = { "Clock", "ScreenMode", "Таймаут" };
-      const char* rows_r[3] = { clock_on ? "вкл" : "выкл", mode_txt, off_txt };
-      display.setTextSize(1);
+      const char* rows_l[4] = { "Clock", "ScreenMode", "Язык", "Таймаут" };
+      const char* rows_r[4] = { clock_on ? "вкл" : "выкл", mode_txt,
+                                (_node_prefs && _node_prefs->ui_lang == UI_LANG_EN) ? "EN" : "RU",
+                                off_txt };
       int nrows = setupRowCount();
+      if (!display.isEink()) {
+        // OLED has no ScreenMode row: shift the language row up into slot 1
+        rows_l[1] = "Язык";
+        rows_r[1] = rows_r[2];
+        rows_l[2] = "Таймаут";
+        rows_r[2] = off_txt;
+      }
+      display.setTextSize(1);
       for (int i = 0; i < nrows; i++) {
         int y = 20 + i * 12;
         display.setColor(UIColor::primary_txt);
@@ -1492,7 +1626,7 @@ public:
         display.drawTextLeftAlign(10, y, rows_l[i]);
         display.drawTextRightAlign(display.width() - 1, y, rows_r[i]);
       }
-      if (display.height() >= 64) {
+      if (display.height() >= 64 && nrows <= 3) {
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(display.width() / 2, 56, _setup_edit ? "3 клика: изменить" : "держать: правка");
       }
@@ -1719,6 +1853,11 @@ public:
         stepSetupRow(-1);
         return true;
       }
+      if (_page == HomePage::NODE_PICKER) {
+        int total = the_mesh.getNumContacts();
+        if (total > 0) _pick_idx = (uint32_t)((_pick_idx + (uint32_t)total - 1) % (uint32_t)total);
+        return true;
+      }
       if (_in_sub) {           // back to the root that opened this sub-screen
         leaveSub();
         _setup_edit = false;
@@ -1764,6 +1903,11 @@ public:
         return true;
       }
 #endif
+      if (_page == HomePage::NODE_PICKER) {
+        int total = the_mesh.getNumContacts();
+        if (total > 0) _pick_idx = (uint32_t)((_pick_idx + 1) % (uint32_t)total);
+        return true;
+      }
       if (_page == HomePage::FSCAN && !_in_sub) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
         stepSetupRow(1);

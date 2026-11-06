@@ -140,6 +140,7 @@ public:
   bool sendNeighborDiscover();
   void enterCLIRescue();
   bool pullClock();
+  void lookupClockNodeName(const uint8_t* pub, char* dest, size_t dest_len);
 
   int  getRecentlyHeard(AdvertPath dest[], int max_num);
   int  getNeighbors(NeighborInfo dest[], int max_num);
@@ -306,7 +307,6 @@ private:
   unsigned long _clock_reply_after;
 
   bool resolveClockNode(const uint8_t* prefix, int len, uint8_t dest[32]);
-  void lookupClockNodeName(const uint8_t* pub, char* dest, size_t dest_len);
   bool sendClockPull();
   bool sendClockPullTo(const uint8_t* pub);
   void onClockResponse(const uint8_t* data, size_t len);
