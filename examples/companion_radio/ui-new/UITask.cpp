@@ -236,12 +236,19 @@ private:
   uint16_t _adc_mv = 4200;       // reference voltage being entered
 #endif
   uint8_t _conn_selected = 0;
-  // Two-level navigation: five root screens, everything else is a sub-screen
-  // opened from МЕНЮ (or СВЯЗЬ from Связь), left again with a double click.
-  bool _in_sub = false;
-  uint8_t _sub_parent = HomePage::MENU;
+  // One entry per nested screen; a double click always returns one level.
+  uint8_t _sub_stack[4] = {};
+  uint8_t _sub_depth = 0;
   uint8_t _menu_index = 0;
   uint8_t _menu_scroll = 0;
+  bool _radio_details = false;
+  bool _radio_confirm = false;
+  bool _radio_apply = false;
+  uint8_t _radio_target = RADIO_PROFILE_NORMAL;
+  int16_t _nf_history[12] = {};
+  uint8_t _nf_count = 0;
+  uint8_t _nf_next = 0;
+  unsigned long _nf_sample_at = 0;
 
 public:
   // Accessors for UITask
@@ -251,10 +258,19 @@ public:
   // Navigation from outside (e.g., triple-click on CONNECTIONS)
   void stepPageNav(int dir) { _page = stepPage(dir); }
   // Jump straight to a sub-screen, bypassing the root flip cycle
-  void enterSub(uint8_t p) { _sub_parent = _in_sub ? _sub_parent : _page; _in_sub = true; _act_open = false; _page = p; }
-  void leaveSub() { _page = _sub_parent; _in_sub = false; _act_open = false; }
-  void goToPage(uint8_t p) { _page = p; _in_sub = true; }
-  bool isInSub() const { return _in_sub; }
+  void enterSub(uint8_t p) {
+    if (_sub_depth >= sizeof(_sub_stack)) return;
+    _sub_stack[_sub_depth++] = _page;
+    _act_open = false;
+    _page = p;
+    if (p == HomePage::RADIO) _radio_details = false;
+  }
+  void leaveSub() {
+    if (_sub_depth) _page = _sub_stack[--_sub_depth];
+    _act_open = false;
+  }
+  void goToPage(uint8_t p) { enterSub(p); }
+  bool isInSub() const { return _sub_depth != 0; }
   uint8_t getMenuIndex() const { return _menu_index; }
   void setMenuIndex(uint8_t v) { _menu_index = v; }
 
@@ -734,7 +750,11 @@ private:
   void runAction(uint8_t i) {
     switch (_page) {
       case HomePage::RADIO:
-        if (i == 0) _task->cycleRadioProfile();
+        if (i == 0) {
+          _radio_target = radioNextProfile(the_mesh.radioProfile());
+          _radio_apply = false;
+          _radio_confirm = true;
+        }
         else if (i == 1) toggleRxBoost();
         else _task->toggleFemLna();
         break;
@@ -898,7 +918,7 @@ public:
     setUiLang(_node_prefs ? _node_prefs->ui_lang : UI_LANG_EN);
     // Sub-screens are not part of the root cycle; only kick a page when we are
     // on a root screen that is not visible in this build.
-    if (!_in_sub && !isPageVisible(_page)) _page = stepPage(1);
+    if (!isInSub() && !isPageVisible(_page)) _page = stepPage(1);
 
     display.setColor(UIColor::title_bkg);
     display.fillRect(0, 0, display.width(), 12);
@@ -934,7 +954,7 @@ public:
     }
     if (compact_header) {
       display.setColor(UIColor::title_txt);
-      if (_in_sub) {
+      if (isInSub()) {
         display.drawTextRightAlign(97, 2, "<");
       } else {
         snprintf(tmp, sizeof(tmp), "%u/%u", visible_index + 1, visible_count);
@@ -1055,7 +1075,7 @@ public:
       }
       if (shown == 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 28, "no adverts");
+        display.drawTextCentered(display.width() / 2, 28, _("no adverts"));
       }
       // last slot stays free until the list is full, so real data fits there
       if (recent[UI_RECENT_LIST_SIZE - 1].name[0] == 0) {
@@ -1071,8 +1091,7 @@ public:
         neighbors_scroll_offset = 0;
         neighbors_next_scroll = 0;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 28, "no neighbors");
-        display.drawTextCentered(display.width() / 2, 64 - 11, "poll: " PRESS_LABEL);
+        display.drawTextCentered(display.width() / 2, 28, _("no neighbors"));
       } else {
         const int line_h = 11;
         const int y0 = 20;
@@ -1111,6 +1130,70 @@ public:
     } else if (_page == HomePage::RADIO) {
       display.setColor(UIColor::primary_txt);
       display.setTextSize(1);
+      if (_radio_confirm) {
+        float freq = _node_prefs->freq, bw = _node_prefs->bw;
+        float home_freq = _node_prefs->home_freq, home_bw = _node_prefs->home_bw;
+        uint8_t sf = _node_prefs->sf, cr = _node_prefs->cr;
+        uint8_t home_sf = _node_prefs->home_sf, home_cr = _node_prefs->home_cr;
+        bool repeat = applyRadioProfileChoice(_radio_target, freq, bw, sf, cr,
+                                              home_freq, home_bw, home_sf, home_cr);
+        repeat = repeat && the_mesh.isValidClientRepeatFreq((uint32_t)(freq * 1000.0f + 0.5f));
+        snprintf(tmp, sizeof(tmp), "%s > %s", radioProfileLabel(the_mesh.radioProfile()),
+                 radioProfileLabel(_radio_target));
+        display.drawTextEllipsized(0, 17, display.width(), tmp);
+        snprintf(tmp, sizeof(tmp), "%.3f BW%g", freq, bw);
+        display.drawTextEllipsized(0, 29, display.width(), tmp);
+        snprintf(tmp, sizeof(tmp), "SF%u CR%u  %s", (unsigned)sf, (unsigned)cr,
+                 repeat ? _("RPT on") : _("RPT off"));
+        display.drawTextEllipsized(0, 41, display.width(), tmp);
+        display.setColor(_radio_apply ? UIColor::primary_txt : UIColor::warning_txt);
+        display.drawTextLeftAlign(0, 53, _radio_apply ? _("Cancel") : _("> Cancel"));
+        display.setColor(_radio_apply ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextRightAlign(display.width() - 1, 53, _radio_apply ? _("> Apply") : _("Apply"));
+      } else if (compact_header) {
+        if (!_radio_details) {
+          // The receiver already maintains this estimate; do not tune away or
+          // start a scan merely to populate the tiny history graph.
+          int nf = radio_driver.getNoiseFloor();
+          if (nf != 0 && (_nf_count == 0 || (long)(millis() - _nf_sample_at) >= 0)) {
+            _nf_history[_nf_next] = (int16_t)nf;
+            _nf_next = (_nf_next + 1) % 12;
+            if (_nf_count < 12) _nf_count++;
+            _nf_sample_at = millis() + 2000;
+          }
+          display.setTextSize(2);
+          snprintf(tmp, sizeof(tmp), "%.3f", _node_prefs->freq);
+          display.drawTextCentered(display.width() / 2, 17, tmp);
+          display.setTextSize(1);
+          snprintf(tmp, sizeof(tmp), "BW%g SF%u CR%u TX%d", _node_prefs->bw,
+                   (unsigned)_node_prefs->sf, (unsigned)_node_prefs->cr,
+                   (int)_node_prefs->tx_power_dbm);
+          display.drawTextCentered(display.width() / 2, 39, tmp);
+          display.setColor(UIColor::secondary_txt);
+          if (nf != 0) snprintf(tmp, sizeof(tmp), "NF %d dBm", nf);
+          else snprintf(tmp, sizeof(tmp), "NF --");
+          display.drawTextLeftAlign(0, 53, tmp);
+          display.drawRect(78, 50, 50, 13);
+          for (uint8_t i = 0; i < _nf_count; i++) {
+            int v = _nf_history[(_nf_next + 12 - _nf_count + i) % 12];
+            int h = constrain((v + 125) * 10 / 55, 1, 10);
+            display.fillRect(80 + i * 4, 61 - h, 3, h);
+          }
+        } else {
+          display.drawTextLeftAlign(0, 18, radioProfileLabel(the_mesh.radioProfile()));
+          display.drawTextRightAlign(127, 18, _node_prefs->isRepeatEn() ? _("Repeat: on") : _("Repeat: off"));
+          display.drawTextLeftAlign(0, 30, _node_prefs->rx_boosted_gain ? _("RXB: on") : _("RXB: off"));
+          if (_task->canControlFemLna()) {
+            display.drawTextRightAlign(127, 30, _task->isFemLnaEnabled() ? _("LNA: on") : _("LNA: off"));
+          }
+          snprintf(tmp, sizeof(tmp), "%.3f MHz", _node_prefs->freq);
+          display.drawTextLeftAlign(0, 42, tmp);
+          snprintf(tmp, sizeof(tmp), "BW%g SF%u CR%u TX%d", _node_prefs->bw,
+                   (unsigned)_node_prefs->sf, (unsigned)_node_prefs->cr,
+                   (int)_node_prefs->tx_power_dbm);
+          display.drawTextLeftAlign(0, 54, tmp);
+        }
+      } else {
       // freq / sf
       display.setCursor(0, 20);
       sprintf(tmp, "FQ: %06.3f   SF: %d", _node_prefs->freq, _node_prefs->sf);
@@ -1137,6 +1220,7 @@ public:
       display.setColor(UIColor::secondary_txt);
       display.drawTextRightAlign(display.width() - 1, 53,
         (_node_prefs && _node_prefs->rx_boosted_gain) ? _("RXB: on") : _("RXB: off"));
+      }
     } else if (_page == HomePage::POWER) {
       bool fem = _task->canControlFemLna();
       bool cpu_hw = _task->canSelectMcuSleep();
@@ -1269,8 +1353,7 @@ public:
         }
       } else {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 28, "find quiet freq");
-        display.drawTextCentered(display.width() / 2, display.height() - 11, "scan: " PRESS_LABEL);
+        display.drawTextCentered(display.width() / 2, 28, _("find quiet freq"));
       }
     } else if (_page == HomePage::BLUETOOTH) {
       // Adapter state and link state are different things: the middle column is
@@ -1342,7 +1425,7 @@ public:
       (void)conn_count;
 
       // Data row: the two TCP servers are separate links, so report them apart.
-      // 5000 = app, 5001 = Home Assistant; "-" means the server has no client.
+      // 5000 and 5001 are separate client ports; the peer identity is unknown.
       display.setColor(UIColor::secondary_txt);
       if (_task->isWiFiEnabled()) {
         snprintf(buf, sizeof(buf), "5000:%s 5001:%s",
@@ -1388,25 +1471,22 @@ public:
         sprintf(buf, _("sats %d"), nmea->satellitesCount());
         display.drawTextRightAlign(display.width() - 1, y, buf);
         y += 12;
-        display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, _("pos"));
-        display.setColor(UIColor::primary_txt);
-        sprintf(buf, "%.4f %.4f",
-          nmea->getLatitude() / 1000000., nmea->getLongitude() / 1000000.);
-        display.drawTextRightAlign(display.width() - 1, y, buf);
-        y += 12;
-        if (y + 8 <= display.height()) {
+        if (nmea->isValid()) {
           display.setColor(UIColor::secondary_txt);
-          display.drawTextLeftAlign(0, y, _("alt"));
+          display.drawTextLeftAlign(0, y, _("pos"));
           display.setColor(UIColor::primary_txt);
-          sprintf(buf, "%.2f", nmea->getAltitude() / 1000.);
+          sprintf(buf, "%.4f %.4f",
+            nmea->getLatitude() / 1000000., nmea->getLongitude() / 1000000.);
           display.drawTextRightAlign(display.width() - 1, y, buf);
           y += 12;
+          if (y + 8 <= display.height()) {
+            display.setColor(UIColor::secondary_txt);
+            display.drawTextLeftAlign(0, y, _("alt"));
+            display.setColor(UIColor::primary_txt);
+            sprintf(buf, "%.2f", nmea->getAltitude() / 1000.);
+            display.drawTextRightAlign(display.width() - 1, y, buf);
+          }
         }
-      }
-      if (display.height() - 11 >= y) {
-        display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, display.height() - 11, _("hold: on/off"));
       }
     } else if (_page == HomePage::BEACON) {
       char mode[20];
@@ -1529,8 +1609,6 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(display.width() / 2, 30, _("no sensors"));
       }
-      display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, 54, sensors_scroll ? _("list scrolls") : _("hold: refresh"));
 #endif
     } else if (_page == HomePage::CLOCK_NODES) {
       display.setTextSize(1);
@@ -1538,8 +1616,6 @@ public:
       if (used == 0) {
         display.setColor(UIColor::primary_txt);
         display.drawTextLeftAlign(0, 22, _("no nodes set"));
-        display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, 40, _("hold: menu"));
       } else {
         display.setColor(UIColor::primary_txt);
         char name[24];
@@ -1556,7 +1632,6 @@ public:
           snprintf(more, sizeof(more), _("+%d more"), used - 3);
           display.drawTextRightAlign(display.width() - 1, 54, more);
         }
-        display.drawTextLeftAlign(0, 54, _("hold: menu"));
       }
     } else if (_page == HomePage::NODE_PICKER) {
       display.setTextSize(1);
@@ -1610,9 +1685,6 @@ public:
       y += 12;
       display.setColor(UIColor::secondary_txt);
       display.drawTextLeftAlign(0, y, valid ? _("source: set") : _("source: none"));
-      y += 12;
-      display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, _("hold: request"));
     } else if (_page == HomePage::SETUP) {
       uint8_t mode = _node_prefs ? _node_prefs->eink_refresh : EINK_REFRESH_CLEAR;
       if (mode >= EINK_REFRESH_COUNT) mode = EINK_REFRESH_CLEAR;
@@ -1644,20 +1716,18 @@ public:
         display.drawTextLeftAlign(10, y, rows_l[i]);
         display.drawTextRightAlign(display.width() - 1, y, rows_r[i]);
       }
-      if (display.height() >= 64 && nrows <= 3) {
+      if (_setup_edit && display.height() >= 64 && nrows <= 3) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 56, _setup_edit ? _("3 clicks: change") : _("hold: edit"));
+        display.drawTextCentered(display.width() / 2, 56, _("3 clicks: change"));
       }
 #ifdef HELTEC_LORA_V4
     } else if (_page == HomePage::BATTERY) {
       display.setColor(UIColor::primary_txt);
       display.setTextSize(1);
-      display.drawTextLeftAlign(0, 21, "Battery / ADC");
-      snprintf(tmp, sizeof(tmp), "Voltage: %.3f V", _task->getBattMilliVolts() / 1000.0f);
-      display.drawTextLeftAlign(0, 32, tmp);
+      snprintf(tmp, sizeof(tmp), _("Voltage: %.3f V"), _task->getBattMilliVolts() / 1000.0f);
+      display.drawTextLeftAlign(0, 24, tmp);
       snprintf(tmp, sizeof(tmp), "ADC: %.3f", board.getAdcMultiplier());
-      display.drawTextLeftAlign(0, 43, tmp);
-      display.drawTextCentered(display.width()/2, 53, "calibrate: long press");
+      display.drawTextLeftAlign(0, 42, tmp);
     } else if (_page == HomePage::BATTERY_CAL) {
       display.setTextSize(1);
       if (_adc_edit) {
@@ -1688,7 +1758,7 @@ public:
       } else {
         display.setColor(UIColor::primary_txt);
         display.drawTextLeftAlign(0, 18, _("ADC calibration"));
-        static const char* items[3] = { _("Full 4.20 V"), _("Multimeter"), _("Reset ADC") };
+        const char* items[3] = { _("Full 4.20 V"), _("Multimeter"), _("Reset ADC") };
         for (uint8_t i = 0; i < 3; i++) {
           bool sel = (i == _battery_choice);
           display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
@@ -1725,12 +1795,16 @@ public:
         if (idx >= total) break;
         uint8_t page = menuPageAt(idx);
         bool sel = idx == _menu_index;
-        display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18 + r * 12, sel ? ">" : " ");
-        display.drawTextLeftAlign(10, 18 + r * 12, menuLabel(page));
+        int y = 18 + r * 12;
+        if (sel) {
+          display.setColor(UIColor::primary_txt);
+          display.fillRect(0, y - 1, display.width(), 11);
+        }
+        display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
+        display.drawTextEllipsized(4, y, display.width() - 8, menuLabel(page));
       }
       if (_menu_scroll + rows < total) {
-        display.setColor(UIColor::secondary_txt);
+        display.setColor((_menu_index == _menu_scroll + rows - 1) ? UIColor::window_bkg : UIColor::secondary_txt);
         display.drawTextRightAlign(display.width() - 1, 18 + (rows - 1) * 12, "v");
       }
     } else if (_page == HomePage::SHUTDOWN) {
@@ -1746,8 +1820,6 @@ public:
         display.drawTextLeftAlign(4, 34, _shutdown_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_shutdown_apply ? UIColor::warning_txt : UIColor::primary_txt);
         display.drawTextLeftAlign(4, 46, _shutdown_apply ? _("> Apply") : _("Apply"));
-        display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, 56, _("click: pick  hold: ok"));
       }
     }
     if (_act_open) {
@@ -1761,12 +1833,14 @@ public:
       display.setTextSize(1);
       for (uint8_t i = 0; i < total && i < 4; i++) {
         bool sel = i == _act_idx;
-        display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18 + i * 12, sel ? ">" : " ");
-        display.drawTextLeftAlign(10, 18 + i * 12, actionLabel(i));
+        int y = 18 + i * 12;
+        if (sel) {
+          display.setColor(UIColor::primary_txt);
+          display.fillRect(0, y - 1, display.width(), 11);
+        }
+        display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
+        display.drawTextEllipsized(4, y, display.width() - 8, actionLabel(i));
       }
-      display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, 62 - 8, _("hold: run"));
       return 2000;
     }
     if (_page == HomePage::SCAN) {
@@ -1783,6 +1857,7 @@ public:
       return wait;
     }
     if (_page == HomePage::NEIGHBORS) return 1000;
+    if (_page == HomePage::RADIO && compact_header) return 2000;
 #if ENV_INCLUDE_GPS == 1
     if (_page == HomePage::BEACON) return 1000;
 #endif
@@ -1791,6 +1866,29 @@ public:
 
   bool handleInput(char c) override {
     setUiLang(_node_prefs ? _node_prefs->ui_lang : UI_LANG_EN);
+    // A modal action list consumes every gesture before page shortcuts can run.
+    if (_act_open) {
+      uint8_t total = actionCount();
+      if (c == KEY_NEXT || c == KEY_RIGHT) {
+        if (total > 0) _act_idx = (uint8_t)((_act_idx + 1) % total);
+      } else if (c == KEY_LEFT || c == KEY_PREV) {
+        _act_open = false;
+      } else if (c == KEY_ENTER) {
+        uint8_t idx = _act_idx;
+        _act_open = false;
+        runAction(idx);
+      }
+      return true;
+    }
+    if (_radio_confirm && _page == HomePage::RADIO) {
+      if (c == KEY_NEXT || c == KEY_RIGHT) _radio_apply = !_radio_apply;
+      else if (c == KEY_LEFT || c == KEY_PREV) _radio_confirm = false;
+      else if (c == KEY_ENTER) {
+        if (_radio_apply) _task->cycleRadioProfile();
+        _radio_confirm = false;
+      }
+      return true;
+    }
     if (c == KEY_QUAD) {
 #if ENV_INCLUDE_GPS == 1
       if (_page != HomePage::BEACON) return false;
@@ -1805,7 +1903,8 @@ public:
     }
     if (c == KEY_SELECT) {
       if (_page == HomePage::RADIO) {
-        _task->cycleRadioProfile();
+        _act_idx = 0;
+        _act_open = true;
         return true;
       }
       if (_page == HomePage::SETUP && _setup_edit) {
@@ -1833,25 +1932,6 @@ public:
       stepSetupRow(c == KEY_UP ? -1 : 1);
       return true;
     }
-    // Action menu: it owns every gesture while open.
-    if (_act_open) {
-      uint8_t total = actionCount();
-      if (c == KEY_NEXT || c == KEY_RIGHT) {
-        if (total > 0) _act_idx = (uint8_t)((_act_idx + 1) % total);
-        return true;
-      }
-      if (c == KEY_LEFT || c == KEY_PREV) {
-        _act_open = false;
-        return true;
-      }
-      if (c == KEY_ENTER) {
-        uint8_t idx = _act_idx;
-        _act_open = false;
-        runAction(idx);
-        return true;
-      }
-      return true;
-    }
     // Screens with more than one action open the list instead of guessing.
     if (c == KEY_ENTER && actionCount() > 0) {
       _act_open = true;
@@ -1869,15 +1949,10 @@ public:
 #endif
       if (_page == HomePage::FSCAN) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
-        stepSetupRow(-1);
+        _setup_edit = false;
         return true;
       }
-      if (_page == HomePage::NODE_PICKER) {
-        int total = the_mesh.getNumContacts();
-        if (total > 0) _pick_idx = (uint32_t)((_pick_idx + (uint32_t)total - 1) % (uint32_t)total);
-        return true;
-      }
-      if (_in_sub) {           // back to the root that opened this sub-screen
+      if (isInSub()) {
         leaveSub();
         _setup_edit = false;
         return true;
@@ -1910,6 +1985,10 @@ public:
       return true;
     }
     if (c == KEY_NEXT || c == KEY_RIGHT) {
+      if (_page == HomePage::RADIO) {
+        _radio_details = !_radio_details;
+        return true;
+      }
 #ifdef HELTEC_LORA_V4
       if (_page == HomePage::BATTERY_CAL) {
         if (_adc_edit) {
@@ -1927,12 +2006,12 @@ public:
         if (total > 0) _pick_idx = (uint32_t)((_pick_idx + 1) % (uint32_t)total);
         return true;
       }
-      if (_page == HomePage::FSCAN && !_in_sub) stopFreqScan();
+      if (_page == HomePage::FSCAN && !isInSub()) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
         stepSetupRow(1);
         return true;
       }
-      if (_in_sub) return true;   // sub-screens stay put; double click goes back
+      if (isInSub()) return true;   // sub-screens stay put; double click goes back
       _page = stepPage(1);
       if (_page == HomePage::SETUP) {
         _setup_row = 0;
