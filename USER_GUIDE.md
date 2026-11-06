@@ -11,7 +11,7 @@
 1. **Power on** — hold USER button (GPIO0) if needed
 2. **Pair via BLE** — open MeshCore app, find device `MC-XXXXXX`, enter PIN from screen
 3. **Configure WiFi** (optional) — in app: Settings → WiFi, or CLI: `wifi <ssid> <pwd>`
-4. **Calibrate battery** — measure with multimeter, set `adc.multiplier <value>`
+4. **Calibrate battery** — read `get battery`, then use `calibrate battery <measured_mV>` with a multimeter reading, or the on-device 4.20 V option only for a fully charged 1-cell Li-ion/LiPo pack.
 
 ---
 
@@ -154,6 +154,9 @@ click:select  long:toggle  left/right:exit
 | `power.profile <0-5>` | Set power profile |
 | `adc.multiplier <float>` | Set battery ADC multiplier |
 | `get adc.multiplier` | Read current multiplier |
+| `get battery` | Read battery voltage and current ADC multiplier |
+| `calibrate battery <mV>` | Calibrate against a multimeter reading (3000–4250 mV) |
+| `reset adc.multiplier` | Restore the Heltec V4 board default |
 | `pin <6-digit>` | Set BLE PIN (0 = random each boot) |
 | `get pin` | Read current PIN |
 | `wifi <ssid> <pwd>` | Set WiFi credentials |
@@ -171,14 +174,14 @@ click:select  long:toggle  left/right:exit
 
 ## Battery Calibration
 
-1. Measure actual battery voltage with multimeter
-2. Read reported: `get adc.multiplier` (default 5.42)
-3. Calculate: `new_mult = current_mult * actual_mV / reported_mV`
-4. Set: `adc.multiplier <new_mult>`
+1. Measure the battery with a multimeter while the board is running in the same charging state as the reading.
+2. Check `get battery` (board default multiplier: 5.42).
+3. Send `calibrate battery <actual_mV>`. The firmware averages eight readings, checks stability, computes `new_mult = current_mult * actual_mV / reported_mV`, applies and saves it. Alternatively, set a checked multiplier with `set adc.multiplier <value>` (the old `adc.multiplier <value>` form also works).
+4. Verify `get battery` again and repeat after reboot. `reset adc.multiplier` restores the board default without resetting other settings.
 
 Example: multimeter 4100mV, device reports 3950mV
 ```
-adc.multiplier 5.62
+calibrate battery 4100
 ```
 
 ---

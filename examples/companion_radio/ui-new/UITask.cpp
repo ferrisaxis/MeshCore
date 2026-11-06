@@ -124,7 +124,7 @@ public:
 
     display.setColor(UIColor::secondary_txt);
     display.setTextSize(1);
-    display.drawTextCentered(display.width()/2, 48, "by Termin36");
+    display.drawTextCentered(display.width()/2, 48, "by FDSKY");
 
     return 1000;
   }
@@ -190,6 +190,10 @@ public:
     NEIGHBORS,
     RADIO,
     POWER,
+#ifdef HELTEC_LORA_V4
+    BATTERY,
+    BATTERY_CAL,
+#endif
     SCAN,
     FSCAN,
     BLUETOOTH,
@@ -216,6 +220,11 @@ private:
   uint8_t _setup_row;
   bool _setup_edit;
   bool _shutdown_init;
+#ifdef HELTEC_LORA_V4
+  uint8_t _battery_choice = 0; // full charge, reset, CLI instructions
+  bool _battery_confirm = false;
+  bool _battery_apply = false;
+#endif
   uint8_t _conn_selected = 0;
 
 public:
@@ -363,7 +372,8 @@ private:
 
 
   void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts) {
-    // Convert millivolts to percentage
+    // Display a smoothed one-percent estimate; ADC calibration corrects the
+    // voltage first. This is a voltage estimate, not a capacity measurement.
 #ifndef BATT_MIN_MILLIVOLTS
   #define BATT_MIN_MILLIVOLTS 3000
 #endif
@@ -372,45 +382,37 @@ private:
 #endif
     const int minMilliVolts = BATT_MIN_MILLIVOLTS;
     const int maxMilliVolts = BATT_MAX_MILLIVOLTS;
-    static BatteryLevelFilter batt_filter;
-    int batteryPercentage = batt_filter.push(batteryMilliVolts, minMilliVolts, maxMilliVolts)
-                            * 100 / BatteryLevelFilter::LEVELS;
-
-    // battery icon
-    int iconWidth = 24;
-    int iconHeight = 10;
-    int iconX = display.width() - iconWidth - 5; // Position the icon near the top-right corner
-    int iconY = 0;
+    static uint16_t samples[5] = {};
+    static uint8_t count = 0, index = 0;
+    static int displayed = -1;
     display.setColor(UIColor::title_txt);
-
-    // battery outline
-    display.drawRect(iconX, iconY, iconWidth, iconHeight);
-
-    // battery "cap"
-    display.fillRect(iconX + iconWidth, iconY + (iconHeight / 4), 3, iconHeight / 2);
-
-    // fill the battery based on the percentage
-    int fillWidth = (batteryPercentage * (iconWidth - 4)) / 100;
-    display.fillRect(iconX + 2, iconY + 2, fillWidth, iconHeight - 4);
-
-    // while charging, show a bolt (or a plug once full) just left of the battery,
-    // keeping the fill bar itself clean and uninterrupted
-    bool charging = board.isExternalPowered();
-    if (charging) {
-      // There's no charge-complete signal on most boards, so "full" is a high
-      // voltage band rather than an exact 100% (a real pack rarely reads 4.2V).
-      const int BATT_FULL_PCT = 95;
-      const uint8_t* symbol = (batteryPercentage >= BATT_FULL_PCT) ? plug_icon : charging_icon;
-      display.setColor(UIColor::title_txt);
-      display.drawXbm(iconX - 9, iconY + 1, symbol, 8, 8);
+    if (batteryMilliVolts < 2000 || maxMilliVolts <= minMilliVolts) {
+      displayed = -1;
+      count = index = 0;
+      display.drawTextRightAlign(display.width() - 2, 1, "--%");
+      return;
     }
-
-    // show muted icon if buzzer is muted (shifted further left when the charging
-    // icon already occupies the slot immediately left of the battery)
+    samples[index] = batteryMilliVolts;
+    index = (index + 1) % 5;
+    if (count < 5) count++;
+    uint16_t ordered[5];
+    for (int i = 0; i < count; i++) ordered[i] = samples[i];
+    for (int i = 1; i < count; i++) {
+      uint16_t sample = ordered[i];
+      int j = i;
+      while (j > 0 && ordered[j - 1] > sample) { ordered[j] = ordered[j - 1]; j--; }
+      ordered[j] = sample;
+    }
+    int median = ordered[count / 2];
+    int pct = constrain((median - minMilliVolts) * 100 / (maxMilliVolts - minMilliVolts), 0, 100);
+    if (displayed < 0 || abs(pct - displayed) >= 2) displayed = pct;
+    char label[6];
+    snprintf(label, sizeof(label), "%d%%", displayed);
+    display.drawTextRightAlign(display.width() - 2, 1, label);
 #ifdef PIN_BUZZER
     if (_task->isBuzzerQuiet()) {
       display.setColor(UIColor::warning_txt);
-      display.drawXbm(iconX - (charging ? 18 : 9), iconY + 1, muted_icon, 8, 8);
+      display.drawXbm(display.width() - 37, 2, muted_icon, 8, 8);
     }
 #endif
   }
@@ -450,6 +452,9 @@ private:
     // CONNECTIONS is a sub-screen of BLUETOOTH: only reachable by long press,
     // never part of the click/double-click page flip cycle.
     if (page == HomePage::CONNECTIONS) return false;
+#ifdef HELTEC_LORA_V4
+    if (page == HomePage::BATTERY_CAL) return false;
+#endif
 #if ENV_INCLUDE_GPS == 1
     if (page == HomePage::BEACON) return _task->getGPSState();
 #endif
@@ -560,7 +565,11 @@ public:
 
   int render(DisplayDriver& display) override {
     // CONNECTIONS is a hidden sub-screen; do not kick it out of the flip cycle.
-    if (_page != HomePage::CONNECTIONS && !isPageVisible(_page)) _page = stepPage(1);
+    if (_page != HomePage::CONNECTIONS
+#ifdef HELTEC_LORA_V4
+        && _page != HomePage::BATTERY_CAL
+#endif
+        && !isPageVisible(_page)) _page = stepPage(1);
 
     display.setColor(UIColor::title_bkg);
     display.fillRect(0, 0, display.width(), 12);
@@ -570,8 +579,7 @@ public:
     display.setColor(UIColor::title_txt);
     char filtered_name[sizeof(_node_prefs->node_name)];
     display.translateUTF8ToBlocks(filtered_name, _node_prefs->node_name, sizeof(filtered_name));
-    display.setCursor(0, 2);
-    display.print(filtered_name);
+    display.drawTextEllipsized(0, 2, display.width() - 40, filtered_name);
 
     // battery voltage
     renderBatteryIndicator(display, _task->getBattMilliVolts());
@@ -1147,6 +1155,31 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(display.width() / 2, 52, _setup_edit ? "triple click" : PRESS_LABEL);
       }
+#ifdef HELTEC_LORA_V4
+    } else if (_page == HomePage::BATTERY) {
+      display.setColor(UIColor::primary_txt);
+      display.setTextSize(1);
+      display.drawTextLeftAlign(0, 21, "Battery / ADC");
+      snprintf(tmp, sizeof(tmp), "Voltage: %.3f V", _task->getBattMilliVolts() / 1000.0f);
+      display.drawTextLeftAlign(0, 32, tmp);
+      snprintf(tmp, sizeof(tmp), "ADC: %.3f", board.getAdcMultiplier());
+      display.drawTextLeftAlign(0, 43, tmp);
+      display.drawTextCentered(display.width()/2, 53, "calibrate: long press");
+    } else if (_page == HomePage::BATTERY_CAL) {
+      display.setColor(UIColor::primary_txt);
+      display.setTextSize(1);
+      display.drawTextLeftAlign(0, 21, "Battery calibration");
+      if (_battery_confirm) {
+        display.drawTextLeftAlign(0, 32, _battery_choice == 0 ? "Reference: 4.200 V" : "Reset ADC to default?");
+        display.drawTextLeftAlign(0, 43, _battery_apply ? "> Apply" : "> Cancel");
+        display.drawTextCentered(display.width()/2, 53, "click: select  hold: OK");
+      } else {
+        static const char* choices[] = { "Full 4.20V", "Reset ADC", "Meter: use CLI" };
+        snprintf(tmp, sizeof(tmp), "> %s", choices[_battery_choice]);
+        display.drawTextLeftAlign(0, 34, tmp);
+        display.drawTextCentered(display.width()/2, 53, "click: next  hold: OK");
+      }
+#endif
     } else if (_page == HomePage::SHUTDOWN) {
       display.setColor(UIColor::corp_blue);
       display.setTextSize(1);
@@ -1223,6 +1256,13 @@ public:
       return true;
     }
     if (c == KEY_LEFT || c == KEY_PREV) {
+#ifdef HELTEC_LORA_V4
+      if (_page == HomePage::BATTERY_CAL) {
+        _battery_confirm = false;
+        _page = HomePage::BATTERY;
+        return true;
+      }
+#endif
       if (_page == HomePage::FSCAN) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
         stepSetupRow(-1);
@@ -1246,6 +1286,13 @@ public:
       return true;
     }
     if (c == KEY_NEXT || c == KEY_RIGHT) {
+#ifdef HELTEC_LORA_V4
+      if (_page == HomePage::BATTERY_CAL) {
+        if (_battery_confirm) _battery_apply = !_battery_apply;
+        else _battery_choice = (_battery_choice + 1) % 3;
+        return true;
+      }
+#endif
       if (_page == HomePage::FSCAN) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
         stepSetupRow(1);
@@ -1341,6 +1388,33 @@ public:
       _task->applyPowerProfile(choices[next].boost, choices[next].lna, choices[next].cpu);
       return true;
     }
+#ifdef HELTEC_LORA_V4
+    if (c == KEY_ENTER && _page == HomePage::BATTERY) {
+      _page = HomePage::BATTERY_CAL;
+      _battery_choice = 0;
+      _battery_confirm = false;
+      return true;
+    }
+    if (c == KEY_ENTER && _page == HomePage::BATTERY_CAL) {
+      if (_battery_choice == 2) {
+        _task->showAlert("CLI: calibrate battery <mV>", 2000);
+        return true;
+      }
+      if (!_battery_confirm) {
+        _battery_confirm = true;
+        _battery_apply = false;
+        return true;
+      }
+      if (_battery_apply) {
+        char result[160] = {0};
+        the_mesh.handleCommand(_battery_choice == 0 ? "calibrate battery 4200" : "reset adc.multiplier", 0, result);
+        _task->showAlert(strncmp(result, "OK", 2) == 0 ? "ADC saved" : "ADC not saved", 1600);
+      }
+      _battery_confirm = false;
+      _page = HomePage::BATTERY;
+      return true;
+    }
+#endif
     if (c == KEY_ENTER && _page == HomePage::BLUETOOTH) {
       if (_task->isBluetoothEnabled()) {  // toggle Bluetooth on/off
         _task->disableBluetooth();

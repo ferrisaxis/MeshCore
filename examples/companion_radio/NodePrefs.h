@@ -65,6 +65,7 @@ public:
   uint8_t rx_boosted_gain = 0; // SX126x RX boosted gain mode (0=power saving, 1=boosted)
   uint8_t mcu_sleep = 0;       // 1 = light-sleep the MCU while idle (ESP32)
   uint8_t radio_fem_rxgain = 0; // external LoRa FEM RX gain (LNA)
+  float adc_multiplier = 0; // 0 uses the board default; saved with companion prefs
   uint8_t radio_fem_txgain = 0; // external LoRa FEM TX gain (low by default)
 #ifdef ENABLE_WIFI_INTERFACE
   char wifi_ssid[33] = {0};   // if empty, the compile-time WIFI_SSID is used
@@ -211,6 +212,7 @@ private:
       def("clk", _parent->clock_saver);   // e-ink clock screensaver
       def("eref", _parent->eink_refresh); // e-ink refresh choice, see EINK_REFRESH_*
       def("tvalid", _parent->time_valid);
+      def("adc_mult", _parent->adc_multiplier);
       for (int i = 0; i < CLOCK_NODE_MAX; i++) {
         char key[8];
         clockNodePrefKey(key, sizeof(key), i);

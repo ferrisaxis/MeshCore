@@ -1196,6 +1196,9 @@ void MyMesh::begin() {
   radio_driver.setRxBoostedGainMode(_prefs.rx_boosted_gain);
 
   board.attachDynamicPrefs(_prefs.getCustom());
+  if (isfinite(_prefs.adc_multiplier) && _prefs.adc_multiplier >= 1.0f && _prefs.adc_multiplier <= 10.0f) {
+    board.setAdcMultiplier(_prefs.adc_multiplier);
+  }
 
   MESH_DEBUG_PRINTLN("RX Boosted Gain Mode: %s",
                      radio_driver.getRxBoostedGainMode() ? "Enabled" : "Disabled");
@@ -2350,6 +2353,75 @@ bool MyMesh::handleCommand(const char* command, uint32_t sender_timestamp, char*
     if (_prefs.isDirty()) { savePrefs(); }
     return true;
   }
+
+#ifdef HELTEC_LORA_V4
+  if (strcmp(command, "get adc.multiplier") == 0) {
+    snprintf(reply, 160, "> %.3f", board.getAdcMultiplier());
+    return true;
+  }
+  if (strcmp(command, "get battery") == 0) {
+    snprintf(reply, 160, "> %u mV, ADC %.3f", board.getBattMilliVolts(), board.getAdcMultiplier());
+    return true;
+  }
+  float next_adc = 0;
+  bool set_adc = false;
+  if (strcmp(command, "reset adc.multiplier") == 0) {
+    set_adc = true; // zero asks HeltecV4Board for its compiled default
+  } else if (strncmp(command, "set adc.multiplier ", 19) == 0 ||
+             strncmp(command, "adc.multiplier ", 15) == 0) {
+    const char* arg = command + (command[0] == 's' ? 19 : 15);
+    char* end = nullptr;
+    next_adc = strtof(arg, &end);
+    while (*end == ' ') end++;
+    if (end == arg || *end || !isfinite(next_adc) || next_adc < 1.0f || next_adc > 10.0f) {
+      strcpy(reply, "Error: ADC multiplier must be 1.0..10.0");
+      return true;
+    }
+    set_adc = true;
+  } else if (strncmp(command, "calibrate battery ", 18) == 0) {
+    const char* arg = command + 18;
+    char* end = nullptr;
+    long reference_mv = strtol(arg, &end, 10);
+    while (*end == ' ') end++;
+    if (end == arg || *end || reference_mv < 3000 || reference_mv > 4250) {
+      strcpy(reply, "Error: reference must be 3000..4250 mV");
+      return true;
+    }
+    uint32_t total = 0;
+    uint16_t low = UINT16_MAX, high = 0;
+    for (int i = 0; i < 8; i++) {
+      uint16_t sample = board.getBattMilliVolts();
+      if (sample < low) low = sample;
+      if (sample > high) high = sample;
+      total += sample;
+    }
+    uint32_t measured = total / 8;
+    if (measured < 2500 || measured > 5000 || high - low > 80) {
+      strcpy(reply, "Error: battery reading invalid or unstable");
+      return true;
+    }
+    next_adc = board.getAdcMultiplier() * (float)reference_mv / (float)measured;
+    if (!isfinite(next_adc) || next_adc < 1.0f || next_adc > 10.0f) {
+      strcpy(reply, "Error: calculated ADC multiplier out of range");
+      return true;
+    }
+    set_adc = true;
+  }
+  if (set_adc) {
+    float previous = board.getAdcMultiplier();
+    float saved = _prefs.adc_multiplier;
+    board.setAdcMultiplier(next_adc);
+    _prefs.adc_multiplier = next_adc;
+    if (!_store->savePrefs(_prefs)) {
+      _prefs.adc_multiplier = saved;
+      board.setAdcMultiplier(previous);
+      strcpy(reply, "Error: ADC calibration not saved");
+    } else {
+      snprintf(reply, 160, "OK - ADC %.3f, battery %u mV", board.getAdcMultiplier(), board.getBattMilliVolts());
+    }
+    return true;
+  }
+#endif
 
   if (strcmp(command, "reboot") == 0) {
     board.reboot(); // doesn't return
