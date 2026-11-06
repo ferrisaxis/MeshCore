@@ -23,8 +23,10 @@
 | `12-sub-interfaces-toggle-wifi.png` | sub-interfaces-toggle-wifi | Подэкран Связи: маркер на WiFi |
 | `13-sub-radio.png` | sub-radio | Подэкран Радио: параметры и LNA |
 | `14-sub-radio-no-lna.png` | sub-radio-no-lna | Подэкран Радио: плата без управляемого LNA |
+| `14b-sub-radio-actions.png` | sub-radio-actions | Действия Радио: профиль, RX Boost, LNA |
 | `15-sub-power.png` | sub-power | Подэкран Питание: профиль и состояние сна |
 | `16-sub-power-blocked.png` | sub-power-blocked | Подэкран Питание: сон держит BLE |
+| `16b-sub-power-actions.png` | sub-power-actions | Действия Питание: профиль вперёд/назад |
 | `17-sub-battery.png` | sub-battery | Подэкран Батарея: напряжение и множитель АЦП |
 | `18-sub-battery-calibration.png` | sub-battery-calibration | Подэкран калибровки: выбор операции |
 | `18b-sub-battery-meter.png` | sub-battery-meter | Подэкран калибровки: маркер на Мультиметре |
@@ -39,6 +41,7 @@
 | `26-sub-gps.png` | sub-gps | Подэкран GPS: включён, есть фикс |
 | `27-sub-gps-unavailable.png` | sub-gps-unavailable | Подэкран GPS: модуль недоступен |
 | `28-sub-beacon.png` | sub-beacon | Подэкран Маяк: режим, интервал, цель |
+| `28b-sub-beacon-actions.png` | sub-beacon-actions | Действия Маяк: режим, интервал, стоп |
 | `29-sub-screen-time.png` | sub-screen-time | Подэкран Экран: Clock и Таймаут |
 | `29b-sub-about.png` | sub-about | Подэкран О прошивке: версия, сборка, узел, аптайм |
 | `30-sub-time.png` | sub-time | Подэкран Время: часы, пояс, источник |

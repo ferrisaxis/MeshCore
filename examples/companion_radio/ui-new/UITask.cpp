@@ -248,8 +248,8 @@ public:
   // Navigation from outside (e.g., triple-click on CONNECTIONS)
   void stepPageNav(int dir) { _page = stepPage(dir); }
   // Jump straight to a sub-screen, bypassing the root flip cycle
-  void enterSub(uint8_t p) { _sub_parent = _in_sub ? _sub_parent : _page; _in_sub = true; _page = p; }
-  void leaveSub() { _page = _sub_parent; _in_sub = false; }
+  void enterSub(uint8_t p) { _sub_parent = _in_sub ? _sub_parent : _page; _in_sub = true; _act_open = false; _page = p; }
+  void leaveSub() { _page = _sub_parent; _in_sub = false; _act_open = false; }
   void goToPage(uint8_t p) { _page = p; _in_sub = true; }
   bool isInSub() const { return _in_sub; }
   uint8_t getMenuIndex() const { return _menu_index; }
@@ -610,6 +610,101 @@ private:
     return secs[idx < 5 ? idx : 3];
   }
 
+  // ---- action menu: a hold on a sub-screen opens the list of its actions,
+  // then click moves the marker and a second hold runs the highlighted one.
+  bool _act_open = false;
+  uint8_t _act_idx = 0;
+
+  uint8_t actionCount() const {
+    switch (_page) {
+      case HomePage::RADIO:  return _task->canControlFemLna() ? 3 : 2;
+      case HomePage::POWER:  return 2;
+#if ENV_INCLUDE_GPS == 1
+      case HomePage::BEACON: return 3;
+#endif
+      default: return 0;
+    }
+  }
+
+  const char* actionLabel(uint8_t i) const {
+    switch (_page) {
+      case HomePage::RADIO:
+        if (i == 0) return "Профиль: далее";
+        if (i == 1) return (_node_prefs && _node_prefs->rx_boosted_gain) ? "RX Boost: выкл" : "RX Boost: вкл";
+        return (_node_prefs && _node_prefs->radio_fem_rxgain) ? "LNA: выкл" : "LNA: вкл";
+      case HomePage::POWER:
+        return i == 0 ? "Профиль: далее" : "Профиль: назад";
+#if ENV_INCLUDE_GPS == 1
+      case HomePage::BEACON:
+        if (i == 0) return "Режим: далее";
+        if (i == 1) return "Интервал: далее";
+        return "Остановить маяк";
+#endif
+      default: return "";
+    }
+  }
+
+  void stepPowerProfile(int dir) {
+    if (!_node_prefs) return;
+    bool fem = _task->canControlFemLna();
+    bool cpu_ok = _task->canSelectMcuSleep() && !_task->gpsBlocksCpuSleep() && !_task->bleBlocksCpuSleep();
+    bool boost = _node_prefs->rx_boosted_gain != 0;
+    bool lna = fem && _node_prefs->radio_fem_rxgain != 0;
+    bool cpu = cpu_ok && _node_prefs->mcu_sleep != 0;
+    PowerChoice choices[6];
+    int n = buildPowerChoices(fem, cpu_ok, choices);
+    if (n <= 0) return;
+    int cur = -1;
+    for (int i = 0; i < n; i++) {
+      if (choices[i].boost == boost && choices[i].lna == lna && choices[i].cpu == cpu) { cur = i; break; }
+    }
+    int next = (cur < 0) ? 0 : ((cur + (dir >= 0 ? 1 : n - 1)) % n);
+    _task->applyPowerProfile(choices[next].boost, choices[next].lna, choices[next].cpu);
+  }
+
+  void toggleRxBoost() {
+    if (!_node_prefs) return;
+    bool fem = _task->canControlFemLna();
+    bool lna = fem && _node_prefs->radio_fem_rxgain != 0;
+    bool cpu = _task->canSelectMcuSleep() && !_task->gpsBlocksCpuSleep() && !_task->bleBlocksCpuSleep()
+               && _node_prefs->mcu_sleep != 0;
+    _task->applyPowerProfile(_node_prefs->rx_boosted_gain == 0, lna, cpu);
+  }
+
+  void runAction(uint8_t i) {
+    switch (_page) {
+      case HomePage::RADIO:
+        if (i == 0) _task->cycleRadioProfile();
+        else if (i == 1) toggleRxBoost();
+        else _task->toggleFemLna();
+        break;
+      case HomePage::POWER:
+        stepPowerProfile(i == 0 ? 1 : -1);
+        break;
+#if ENV_INCLUDE_GPS == 1
+      case HomePage::BEACON:
+        if (i == 0) {
+          the_mesh.cycleBeacon();
+        } else if (i == 1) {
+          the_mesh.cycleBeaconInterval();
+        } else {
+          the_mesh.stopBeacon();
+          _task->showAlert("маяк выключен", 900);
+          break;
+        }
+        {
+          char mode[20], target[32], pos[40], sent[24], alert[48];
+          the_mesh.formatBeacon(mode, sizeof(mode), target, sizeof(target), pos, sizeof(pos), sent, sizeof(sent));
+          snprintf(alert, sizeof(alert), "%s", mode);
+          _task->notify(UIEventType::ack);
+          _task->showAlert(alert, 900);
+        }
+        break;
+#endif
+      default: break;
+    }
+  }
+
   uint8_t setupRowCount() const { return _task->isEink() ? 3 : 2; }
 
   void stepSetupRow(int dir) {
@@ -952,8 +1047,11 @@ public:
       display.print(tmp);
       display.setCursor(0, 53);
       display.drawTextLeftAlign(0, 53, radioProfileLabel(the_mesh.radioProfile()));
+      // RX Boost is an SX1262 gain setting, unrelated to the FEM LNA: keep it
+      // on its own row instead of hiding it behind a gesture hint.
       display.setColor(UIColor::secondary_txt);
-      display.drawTextRightAlign(display.width() - 1, 53, "3x: profile");
+      display.drawTextRightAlign(display.width() - 1, 53,
+        (_node_prefs && _node_prefs->rx_boosted_gain) ? "RXB: вкл" : "RXB: выкл");
     } else if (_page == HomePage::POWER) {
       bool fem = _task->canControlFemLna();
       bool cpu_hw = _task->canSelectMcuSleep();
@@ -1500,6 +1598,25 @@ public:
         display.drawTextLeftAlign(0, 56, "клик: выбор  держ: ок");
       }
     }
+    if (_act_open) {
+      // Action list replaces the body while it is open; the header keeps the
+      // screen name so it is obvious which screen the actions belong to.
+      uint8_t total = actionCount();
+      if (_act_idx >= total) _act_idx = 0;
+      // wipe the body first: the screen render below already painted it
+      display.setColor(UIColor::window_bkg);
+      display.fillRect(0, 13, display.width(), display.height() - 13);
+      display.setTextSize(1);
+      for (uint8_t i = 0; i < total && i < 4; i++) {
+        bool sel = i == _act_idx;
+        display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18 + i * 12, sel ? ">" : " ");
+        display.drawTextLeftAlign(10, 18 + i * 12, actionLabel(i));
+      }
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, 62 - 8, "держать: выполнить");
+      return 2000;
+    }
     if (_page == HomePage::SCAN) {
       return display.isEink() ? SCAN_REFRESH_MILLIS_EINK : SCAN_REFRESH_MILLIS;
     }
@@ -1561,6 +1678,31 @@ public:
     }
     if ((c == KEY_UP || c == KEY_DOWN) && _page == HomePage::SETUP && _setup_edit) {
       stepSetupRow(c == KEY_UP ? -1 : 1);
+      return true;
+    }
+    // Action menu: it owns every gesture while open.
+    if (_act_open) {
+      uint8_t total = actionCount();
+      if (c == KEY_NEXT || c == KEY_RIGHT) {
+        if (total > 0) _act_idx = (uint8_t)((_act_idx + 1) % total);
+        return true;
+      }
+      if (c == KEY_LEFT || c == KEY_PREV) {
+        _act_open = false;
+        return true;
+      }
+      if (c == KEY_ENTER) {
+        uint8_t idx = _act_idx;
+        _act_open = false;
+        runAction(idx);
+        return true;
+      }
+      return true;
+    }
+    // Screens with more than one action open the list instead of guessing.
+    if (c == KEY_ENTER && actionCount() > 0) {
+      _act_open = true;
+      _act_idx = 0;
       return true;
     }
     if (c == KEY_LEFT || c == KEY_PREV) {

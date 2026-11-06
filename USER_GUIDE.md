@@ -25,7 +25,7 @@ goes back, a long press performs that screen's action.
 |---|---|---|---|
 | **Click** | — | next root | `Меню` / `Связь`: move the `>` marker; otherwise nothing |
 | **Double click** | < 280 ms between clicks | previous root | back to the parent screen |
-| **Long press** | 1000 ms | `Меню`: open the selected screen, `Связь`: open `Интерфейсы`, `Сообщения`/главная: message preview | the screen's own action (toggle, scan, calibrate); on the power-off dialog — apply the highlighted choice |
+| **Long press** | 1000 ms | `Меню`: open the selected screen, `Связь`: open `Интерфейсы`, `Сообщения`/главная: message preview | screens with several actions (Радио, Питание, Маяк) open the **action list**; single-action screens execute right away |
 | **Triple click** | — | `Радио`: next radio profile, `Маяк`: next interval | same |
 | **Quad click** | — | `Маяк`: stop the beacon | same |
 | **Boot rescue** | long press within 8 s after power-on | CLI rescue mode | — |
@@ -104,24 +104,34 @@ Pin:123456
 - **Long press** → send an advert
 
 ### Радио (RADIO) — подэкран меню
-- `FQ` frequency, `SF` spreading factor, `BW` bandwidth, `CR` coding rate
-- `TX: NNdBm` and `LNA: on/off` — the LNA part only on boards that can switch it
-- current radio profile on the bottom line
-- **Triple click** → next radio profile (`LongFast`, `LongSlow`, ...)
-- **Long press** → toggle the FEM LNA (silent no-op if the board has none)
+```
+FQ: 868.731   SF: 7
+BW: 62.50     CR: 7
+TX: 10dBm  LNA: вкл
+LongFast        RXB: вкл
+```
+- live frequency, bandwidth, spreading factor, coding rate and TX power
+- `LNA` — external FEM amplifier, shown only when the board has a controllable one
+- `RXB` — SX1262 boosted receive gain, a **separate** setting from the FEM LNA
+- profile name in the bottom-left corner
+- **Long press** → action list:
+```
+> Профиль: далее
+  RX Boost: выкл
+  LNA: выкл
+```
+  click moves the marker, a second hold runs the action, a double click closes the list
 
 ### Питание (POWER) — подэкран меню
 ```
-Power                       Eco max
-CPU on                  RX on
-LNA on
-              mode: hold
+Режим                   Eco max
+Сон: да               RX: вкл
+LNA: вкл
 ```
-- `Режим` + profile name, generated from the available options (`Eco max` … `Eco min`)
-- `Сон: да/нет/н/д` — whether light sleep is permitted (the CPU still runs while the UI draws), `RX: вкл/выкл` — SX1262 boosted gain, separate from the FEM LNA
-- `LNA: вкл/выкл` only on boards with a controllable FEM
-- bottom line is a real reason, not a hint: `GPS держит CPU`, `BLE держит CPU` or `сон недоступен`
-- **Long press** → apply the next power profile
+- `Режим` + generated profile name, `Сон: да/нет/н/д` (light sleep permitted — the CPU still
+  runs while the UI draws), `RX: вкл/выкл`, `LNA: вкл/выкл`
+- bottom line only appears as a real reason: `GPS держит CPU`, `BLE держит CPU`, `сон недоступен`
+- **Long press** → action list `Профиль: далее` / `Профиль: назад`
 
 ### Батарея (BATTERY) — подэкран меню, Heltec V4
 - `Voltage: 4.012 V` and `ADC: 5.420` (the multiplier the calibration changes)
@@ -168,10 +178,9 @@ LNA on
 - **Long press** → toggle GPS
 
 ### Маяк (BEACON) — подэкран меню
-- mode, interval and target
-- **Long press** → next mode (OFF → Local → Flood → Group → Chat)
-- **Triple click** → next interval
-- **Quad click** → stop the beacon
+- mode, interval, target and the last-sent time for the mesh beacon
+- **Long press** → action list: `Режим: далее`, `Интервал: далее`, `Остановить маяк`
+- interval applies to group/chat modes only (5/10/15/30/60/120 min)
 
 ### Экран (SETUP) — подэкран меню
 ```

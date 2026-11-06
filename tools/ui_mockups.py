@@ -318,7 +318,7 @@ def s_radio(lna=True):
     draw_text(px, 0, 31, "BW: 62.50     CR: 7", 1)
     draw_text(px, 0, 42, "TX: 10dBm  LNA: on" if lna else "TX: 10dBm", 1)
     draw_text(px, 0, 53, "LongFast", 1)
-    draw_right(px, 53, "3x: profile", 1)
+    draw_right(px, 53, "RXB: вкл", 1)
     return img
 
 def s_power(blocked=False):
@@ -449,6 +449,15 @@ def s_setup():
     draw_centered(px, 56, "держать: правка", 1)
     return img
 
+def s_actions(title, page, items, sel=0):
+    img, px = screen(title, sub=True)
+    for i, name in enumerate(items[:4]):
+        y = 18 + i * 12
+        draw_text(px, 0, y, ">" if i == sel else " ", 1)
+        draw_text(px, 10, y, name, 1)
+    draw_text(px, 0, 54, "держать: выполнить", 1)
+    return img
+
 def s_about():
     img, px = screen("О прошивке", sub=True)
     draw_centered(px, 18, "v1.18.0-0.2.0", 1)
@@ -501,8 +510,12 @@ SCREENS = [
     ("12-sub-interfaces-toggle-wifi", "Подэкран Связи: маркер на WiFi",                        s_interfaces_select(1)),
     ("13-sub-radio",                  "Подэкран Радио: параметры и LNA",                       s_radio(True)),
     ("14-sub-radio-no-lna",           "Подэкран Радио: плата без управляемого LNA",            s_radio(False)),
+    ("14b-sub-radio-actions",         "Действия Радио: профиль, RX Boost, LNA",                s_actions("Радио", "radio",
+        ["Профиль: далее", "RX Boost: выкл", "LNA: выкл"], 0)),
     ("15-sub-power",                  "Подэкран Питание: профиль и состояние сна",             s_power(False)),
     ("16-sub-power-blocked",          "Подэкран Питание: сон держит BLE",                      s_power(True)),
+    ("16b-sub-power-actions",         "Действия Питание: профиль вперёд/назад",                s_actions("Питание", "power",
+        ["Профиль: далее", "Профиль: назад"], 0)),
     ("17-sub-battery",                "Подэкран Батарея: напряжение и множитель АЦП",          s_battery()),
     ("18-sub-battery-calibration",    "Подэкран калибровки: выбор операции",                   s_battery_cal(0)),
     ("18b-sub-battery-meter",         "Подэкран калибровки: маркер на Мультиметре",            s_battery_cal(1)),
@@ -517,6 +530,8 @@ SCREENS = [
     ("26-sub-gps",                    "Подэкран GPS: включён, есть фикс",                      s_gps(True)),
     ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
     ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
+    ("28b-sub-beacon-actions",        "Действия Маяк: режим, интервал, стоп",                  s_actions("Маяк", "beacon",
+        ["Режим: далее", "Интервал: далее", "Остановить маяк"], 0)),
     ("29-sub-screen-time",            "Подэкран Экран: Clock и Таймаут",                       s_setup()),
     ("29b-sub-about",                 "Подэкран О прошивке: версия, сборка, узел, аптайм",     s_about()),
     ("30-sub-time",                   "Подэкран Время: часы, пояс, источник",                    s_time()),
