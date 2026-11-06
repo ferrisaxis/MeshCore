@@ -1407,7 +1407,7 @@ public:
       }
       if (_battery_apply) {
         char result[160] = {0};
-        the_mesh.handleCommand(_battery_choice == 0 ? "calibrate battery 4200" : "reset adc.multiplier", 0, result);
+        the_mesh.calibrateBatteryFromUI(_battery_choice == 0, result);
         _task->showAlert(strncmp(result, "OK", 2) == 0 ? "ADC saved" : "ADC not saved", 1600);
       }
       _battery_confirm = false;

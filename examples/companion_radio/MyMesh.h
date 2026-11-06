@@ -220,6 +220,10 @@ public:
   }
   uint8_t radioProfile() const;
   void applyRadioProfile(uint8_t profile);
+#ifdef HELTEC_LORA_V4
+  // UI entry point; keep CLI parsing private to MyMesh.
+  bool calibrateBatteryFromUI(bool full_charge, char* reply);
+#endif
 
 #if ENV_INCLUDE_GPS == 1
   void applyGpsPrefs() {

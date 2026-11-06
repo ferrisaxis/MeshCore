@@ -2333,6 +2333,12 @@ void MyMesh::enterCLIRescue() {
   Serial.println("========= CLI Rescue =========");
 }
 
+#ifdef HELTEC_LORA_V4
+bool MyMesh::calibrateBatteryFromUI(bool full_charge, char* reply) {
+  return handleCommand(full_charge ? "calibrate battery 4200" : "reset adc.multiplier", 0, reply);
+}
+#endif
+
 bool MyMesh::handleCommand(const char* command, uint32_t sender_timestamp, char* reply) {
   while (*command == ' ') command++; // skip leading spaces
 
