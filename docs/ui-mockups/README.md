@@ -41,6 +41,8 @@
 | `26-sub-gps.png` | sub-gps | Подэкран GPS: включён, есть фикс |
 | `27-sub-gps-unavailable.png` | sub-gps-unavailable | Подэкран GPS: модуль недоступен |
 | `28-sub-beacon.png` | sub-beacon | Подэкран Маяк: режим, интервал, цель |
+| `25a-sub-sensors.png` | sub-sensors | Датчики: напряжение, температура, давление |
+| `25b-sub-sensors-empty.png` | sub-sensors-empty | Датчики: данных нет |
 | `29c-sub-clock-nodes.png` | sub-clock-nodes | Узлы времени: два доверенных узла |
 | `29d-sub-clock-nodes-empty.png` | sub-clock-nodes-empty | Узлы времени: не заданы |
 | `29e-sub-node-picker.png` | sub-node-picker | Выбор контакта для узла времени |

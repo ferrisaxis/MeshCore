@@ -469,6 +469,7 @@ private:
   bool sensors_scroll = false;
   int sensors_scroll_offset = 0;
   int next_sensors_refresh = 0;
+  static const int UI_SENSORS_ROWS = 3;   // 3 rows of 12 px fit under the header
 
   void refresh_sensors() {
     if (millis() > next_sensors_refresh) {
@@ -521,6 +522,9 @@ private:
     n++;  // Шум
     n++;  // Частоты
     n++;  // Недавние
+#if UI_SENSORS_PAGE == 1
+    n++;  // Датчики
+#endif
 #if ENV_INCLUDE_GPS == 1
     n++;  // GPS
     n++;  // Маяк
@@ -542,6 +546,9 @@ private:
     if (idx == i++) return HomePage::SCAN;
     if (idx == i++) return HomePage::FSCAN;
     if (idx == i++) return HomePage::RECENT;
+#if UI_SENSORS_PAGE == 1
+    if (idx == i++) return HomePage::SENSORS;
+#endif
 #if ENV_INCLUDE_GPS == 1
     if (idx == i++) return HomePage::GPS;
     if (idx == i++) return HomePage::BEACON;
@@ -596,6 +603,9 @@ private:
       case HomePage::SCAN: return "Шум";
       case HomePage::FSCAN: return "Частоты";
       case HomePage::RECENT: return "Недавние";
+#if UI_SENSORS_PAGE == 1
+      case HomePage::SENSORS: return "Датчики";
+#endif
 #if ENV_INCLUDE_GPS == 1
       case HomePage::GPS: return _task->getGPSState() ? "GPS: вкл" : "GPS: выкл";
       case HomePage::BEACON: return "Маяк";
@@ -1454,7 +1464,7 @@ public:
         r.skipData(type);
       }
 
-      for (int i = 0; i < (sensors_scroll?UI_RECENT_LIST_SIZE:sensors_nb); i++) {
+      for (int i = 0; i < (sensors_scroll?UI_SENSORS_ROWS:sensors_nb); i++) {
         uint8_t channel, type;
         if (!r.readHeader(channel, type)) { // reached end, reset
           r.reset();
@@ -1467,39 +1477,39 @@ public:
           case LPP_GPS: // GPS
             float lat, lon, alt;
             r.readGPS(lat, lon, alt);
-            strcpy(name, "gps"); sprintf(buf, "%.4f %.4f", lat, lon);
+            strcpy(name, "GPS"); sprintf(buf, "%.4f %.4f", lat, lon);
             break;
           case LPP_VOLTAGE:
             r.readVoltage(v);
-            strcpy(name, "voltage"); sprintf(buf, "%6.2f", v);
+            strcpy(name, "напряж"); sprintf(buf, "%5.2f В", v);
             break;
           case LPP_CURRENT:
             r.readCurrent(v);
-            strcpy(name, "current"); sprintf(buf, "%.3f", v);
+            strcpy(name, "ток"); sprintf(buf, "%.2f А", v);
             break;
           case LPP_TEMPERATURE:
             r.readTemperature(v);
-            strcpy(name, "temperature"); sprintf(buf, "%.2f", v);
+            strcpy(name, "темп"); sprintf(buf, "%.1f C", v);
             break;
           case LPP_RELATIVE_HUMIDITY:
             r.readRelativeHumidity(v);
-            strcpy(name, "humidity"); sprintf(buf, "%.2f", v);
+            strcpy(name, "влажн"); sprintf(buf, "%.0f %%", v);
             break;
           case LPP_BAROMETRIC_PRESSURE:
             r.readPressure(v);
-            strcpy(name, "pressure"); sprintf(buf, "%.2f", v);
+            strcpy(name, "давл"); sprintf(buf, "%.0f гПа", v);
             break;
           case LPP_ALTITUDE:
             r.readAltitude(v);
-            strcpy(name, "altitude"); sprintf(buf, "%.0f", v);
+            strcpy(name, "высота"); sprintf(buf, "%.0f м", v);
             break;
           case LPP_POWER:
             r.readPower(v);
-            strcpy(name, "power"); sprintf(buf, "%6.2f", v);
+            strcpy(name, "мощн"); sprintf(buf, "%5.2f Вт", v);
             break;
           default:
             r.skipData(type);
-            strcpy(name, "unk"); sprintf(buf, "");
+            strcpy(name, "?"); sprintf(buf, "");
         }
         display.setCursor(0, y);
         display.setColor(UIColor::secondary_txt);
@@ -1513,6 +1523,12 @@ public:
       }
       if (sensors_scroll) sensors_scroll_offset = (sensors_scroll_offset+1)%sensors_nb;
       else sensors_scroll_offset = 0;
+      if (sensors_nb == 0) {
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextCentered(display.width() / 2, 30, "датчиков нет");
+      }
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, 54, sensors_scroll ? "список листается" : "держать: обновить");
 #endif
     } else if (_page == HomePage::CLOCK_NODES) {
       display.setTextSize(1);
@@ -2072,8 +2088,10 @@ public:
 #endif
 #if UI_SENSORS_PAGE == 1
     if (c == KEY_ENTER && _page == HomePage::SENSORS) {
-      _task->toggleGPS();
-      next_sensors_refresh=0;
+      // read the sensors right now instead of waiting for the 5 s timer
+      sensors_lpp.reset();
+      next_sensors_refresh = 0;
+      sensors_scroll_offset = 0;
       return true;
     }
 #endif

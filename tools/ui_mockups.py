@@ -269,7 +269,7 @@ def s_messages():
     return img
 
 def s_menu(sel=0):
-    items = ["Радио", "Питание", "Батарея", "Шум", "Частоты", "Недавние",
+    items = ["Радио", "Питание", "Батарея", "Шум", "Частоты", "Недавние", "Датчики",
              "GPS: выкл", "Маяк", "Время", "Экран", "О прошивке", "Выключить"]
     img, px = screen("Меню", 5)
     start = 0
@@ -284,6 +284,18 @@ def s_menu(sel=0):
         draw_text(px, 10, y, items[idx], 1)
     if start + 4 < len(items):
         draw_right(px, 18 + 3 * 12, "v", 1)
+    return img
+
+def s_sensors(rows=None):
+    img, px = screen("Датчики", sub=True)
+    if rows is None:
+        rows = [("напряж", "3.87 В"), ("темп", "21.4 C"), ("давл", "1013 гПа")]
+    if not rows:
+        draw_centered(px, 30, "датчиков нет", 1)
+    for i, (n, v) in enumerate(rows[:3]):
+        draw_text(px, 0, 18 + i * 12, n, 1)
+        draw_right(px, 18 + i * 12, v, 1)
+    draw_text(px, 0, 54, "держать: обновить", 1)
     return img
 
 def s_recent(full=True):
@@ -563,6 +575,8 @@ SCREENS = [
     ("26-sub-gps",                    "Подэкран GPS: включён, есть фикс",                      s_gps(True)),
     ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
     ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
+    ("25a-sub-sensors",              "Датчики: напряжение, температура, давление",              s_sensors()),
+    ("25b-sub-sensors-empty",        "Датчики: данных нет",                                   s_sensors([])),
     ("29c-sub-clock-nodes",          "Узлы времени: два доверенных узла",                    s_clock_nodes(["FDSKY-Base", "Башня-2"])),
     ("29d-sub-clock-nodes-empty",    "Узлы времени: не заданы",                              s_clock_nodes([])),
     ("29e-sub-node-picker",          "Выбор контакта для узла времени",                      s_node_picker(["FDSKY-Base", "Башня-2", "Дом-репитер", "Сосед-3"], 1)),

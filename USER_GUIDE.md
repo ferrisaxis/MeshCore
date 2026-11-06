@@ -160,6 +160,22 @@ LNA: вкл
 - finished: `now <freq>` and the three quietest channels, the current one marked `*`
 - **Long press** → start the scan
 
+### Датчики (SENSORS) — подэкран меню
+```
+напряж                   3.87 В
+темп                      21.4 C
+давл                    1013 гПа
+держать: обновить
+```
+- live telemetry read from the board's own sensors plus everything received from
+  contacts (CayenneLPP): `напряж`, `ток`, `темп`, `влажн`, `давл`, `высота`, `мощн`, `GPS`
+- three rows at a time; a longer list scrolls by one row every 5 s and the footer says
+  `список листается` instead of `держать: обновить`
+- values refresh every 5 s while the screen is open; **long press** forces a read now
+- `датчиков нет` when nothing but the board battery answers
+- this page is enabled per environment (`-D UI_SENSORS_PAGE=1`); the Heltec V4 companion
+  build has it compiled in
+
 ### Интерфейсы (CONNECTIONS) — подэкран «Связи»
 ```
 >BLE   ON
