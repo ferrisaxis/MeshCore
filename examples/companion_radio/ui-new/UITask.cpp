@@ -1357,37 +1357,37 @@ public:
       char buf[50];
       int y = 20;
       bool gps_state = _task->getGPSState();
-      const char* module = gps_state ? "on" : "off";
+      const char* module = gps_state ? "вкл" : "выкл";
 #ifdef PIN_GPS_SWITCH
       bool hw_gps_state = digitalRead(PIN_GPS_SWITCH);
       if (gps_state != hw_gps_state) {
-        module = gps_state ? "off(hw)" : "off(sw)";
+        module = gps_state ? "выкл(hw)" : "выкл(sw)";
       }
 #endif
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, "module");
+      display.drawTextLeftAlign(0, y, "модуль");
       display.setColor(gps_state ? UIColor::primary_txt : UIColor::warning_txt);
       display.drawTextRightAlign(display.width() - 1, y, module);
       y += 12;
       if (nmea == NULL) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "Can't access GPS");
+        display.drawTextLeftAlign(0, y, "нет доступа к GPS");
       } else if (!gps_state) {
         // isEnabled() reads the enable pin. With no pin it stays true, so the
         // chip can keep drawing current after the software switch is off.
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, nmea->isEnabled() ? "stays powered" : "power off");
+        display.drawTextLeftAlign(0, y, nmea->isEnabled() ? "питание осталось" : "питание снято");
         y += 12;
       } else {
         display.setColor(UIColor::secondary_txt);
-        sprintf(buf, "fix %s", nmea->isValid() ? "yes" : "no");
+        sprintf(buf, "фикс: %s", nmea->isValid() ? "есть" : "нет");
         display.drawTextLeftAlign(0, y, buf);
         display.setColor(UIColor::primary_txt);
-        sprintf(buf, "sat %d", nmea->satellitesCount());
+        sprintf(buf, "спутн %d", nmea->satellitesCount());
         display.drawTextRightAlign(display.width() - 1, y, buf);
         y += 12;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "pos");
+        display.drawTextLeftAlign(0, y, "коорд");
         display.setColor(UIColor::primary_txt);
         sprintf(buf, "%.4f %.4f",
           nmea->getLatitude() / 1000000., nmea->getLongitude() / 1000000.);
@@ -1395,7 +1395,7 @@ public:
         y += 12;
         if (y + 8 <= display.height()) {
           display.setColor(UIColor::secondary_txt);
-          display.drawTextLeftAlign(0, y, "alt");
+          display.drawTextLeftAlign(0, y, "выс");
           display.setColor(UIColor::primary_txt);
           sprintf(buf, "%.2f", nmea->getAltitude() / 1000.);
           display.drawTextRightAlign(display.width() - 1, y, buf);
@@ -1404,7 +1404,7 @@ public:
       }
       if (display.height() - 11 >= y) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, display.height() - 11, "toggle: " PRESS_LABEL);
+        display.drawTextCentered(display.width() / 2, display.height() - 11, "держать: вкл/выкл");
       }
     } else if (_page == HomePage::BEACON) {
       char mode[20];
@@ -1440,7 +1440,7 @@ public:
       display.setColor(UIColor::primary_txt);
       display.drawTextEllipsized(0, y, display.width() - 1, shown);
       y += 12;
-      display.setColor(strcmp(pos, "no fix") == 0 || strcmp(pos, "no gps") == 0
+      display.setColor(strcmp(pos, "нет фикса") == 0 || strcmp(pos, "нет GPS") == 0
           ? UIColor::warning_txt : UIColor::secondary_txt);
       display.drawTextEllipsized(0, y, display.width() - 1, pos);
       y += 12;

@@ -47,6 +47,7 @@
 | `29d-sub-clock-nodes-empty.png` | sub-clock-nodes-empty | Узлы времени: не заданы |
 | `29e-sub-node-picker.png` | sub-node-picker | Выбор контакта для узла времени |
 | `29f-sub-time-actions.png` | sub-time-actions | Действия Время: запрос и узлы |
+| `28c-sub-beacon-no-fix.png` | sub-beacon-no-fix | Маяк: нет фикса GPS |
 | `28b-sub-beacon-actions.png` | sub-beacon-actions | Действия Маяк: режим, интервал, стоп |
 | `29-sub-screen-time.png` | sub-screen-time | Подэкран Экран: Clock и Таймаут |
 | `29b-sub-about.png` | sub-about | Подэкран О прошивке: версия, сборка, узел, аптайм |

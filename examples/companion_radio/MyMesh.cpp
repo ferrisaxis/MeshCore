@@ -3445,11 +3445,11 @@ void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t targe
     uint32_t secs = (now >= _beacon_sent_at) ? (now - _beacon_sent_at) : 0;
     char age[8];
     formatBeaconAge(age, sizeof(age), secs);
-    snprintf(sent, sent_sz, "sent %s ago", age);
+    snprintf(sent, sent_sz, "отправлен %s назад", age);
   } else if (_prefs.beacon_mode == BEACON_OFF) {
     beaconCopy(sent, sent_sz, "");
   } else {
-    beaconCopy(sent, sent_sz, "not sent");
+    beaconCopy(sent, sent_sz, "не отправлен");
   }
 
   if (_prefs.beacon_mode == BEACON_OFF) {
@@ -3458,7 +3458,7 @@ void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t targe
   }
   if (!beaconHasFix()) {
     LocationProvider* loc = sensors.getLocationProvider();
-    beaconCopy(pos, pos_sz, (loc == NULL) ? "no gps" : "no fix");
+    beaconCopy(pos, pos_sz, (loc == NULL) ? "нет GPS" : "нет фикса");
     return;
   }
   snprintf(pos, pos_sz, "%.4f  %.4f", sensors.node_lat, sensors.node_lon);

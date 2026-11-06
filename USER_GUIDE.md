@@ -189,14 +189,31 @@ LNA: вкл
 - header shows `<` instead of the page counter
 
 ### GPS — подэкран меню
-- `module on/off` (may show `off(hw)` when a hardware switch disagrees)
-- `fix yes/no`, `sats N`; `Can't access GPS` when no module answers
-- **Long press** → toggle GPS
+```
+модуль                  вкл
+фикс: есть          спутн 7
+коорд      55.9165 37.7601
+выс                 156.20
+```
+- `модуль` — GPS powered on/off; a hardware switch that disagrees shows `выкл(hw)` / `выкл(sw)`
+- `фикс: есть/нет` and the satellite count; `питание снято` / `питание осталось` when the module
+  is switched off; `нет доступа к GPS` when a build has no module driver
+- coordinates and altitude once there is a fix
+- **Long press** → toggle GPS on/off
+- GPS pins for this board: RX 38, TX 39, reset 42, enable 34 (`-D ENV_INCLUDE_GPS=1`)
 
 ### Маяк (BEACON) — подэкран меню
-- mode, interval, target and the last-sent time for the mesh beacon
+```
+группа                      30м
+FDSKY-Base
+55.9165  37.7601
+отправлен 4м назад
+```
+- mode and interval, target name, position and the age of the last beacon
+- `нет фикса` (position unknown) / `нет GPS` (no module) and `не отправлен` until the first send
 - **Long press** → action list: `Режим: далее`, `Интервал: далее`, `Остановить маяк`
 - interval applies to group/chat modes only (5/10/15/30/60/120 min)
+- needs a valid fix; the beacon is sent by the mesh task, so the screen only reports state
 
 ### Экран (SETUP) — подэкран меню
 ```

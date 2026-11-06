@@ -433,23 +433,35 @@ def s_interfaces_select(sel):
 
 def s_gps(available=True):
     img, px = screen("GPS", sub=True)
-    draw_text(px, 0, 20, "module", 1)
-    draw_right(px, 20, "on" if available else "off", 1)
+    draw_text(px, 0, 20, "модуль", 1)
+    draw_right(px, 20, "вкл" if available else "выкл", 1)
     if available:
-        draw_text(px, 0, 32, "fix yes", 1)
-        draw_text(px, 0, 44, "sats 7", 1)
+        draw_text(px, 0, 32, "фикс: есть", 1)
+        draw_right(px, 32, "спутн 7", 1)
+        draw_text(px, 0, 44, "коорд", 1)
+        draw_right(px, 44, "55.9165 37.7601", 1)
+        draw_text(px, 0, 56, "выс", 1)
+        draw_right(px, 56, "156.20", 1)
     else:
-        draw_text(px, 0, 32, "Can't access GPS", 1)
+        draw_text(px, 0, 32, "питание снято", 1)
     return img
 
 def s_beacon():
     img, px = screen("Маяк", sub=True)
-    draw_text(px, 0, 20, "mode", 1)
-    draw_right(px, 20, "2", 1)
-    draw_text(px, 0, 32, "interval", 1)
-    draw_right(px, 32, "30m", 1)
-    draw_text(px, 0, 44, "target", 1)
-    draw_right(px, 44, "55.9165", 1)
+    draw_text(px, 0, 18, "группа", 1)
+    draw_right(px, 18, "30м", 1)
+    draw_text(px, 0, 30, "FDSKY-Base", 1)
+    draw_text(px, 0, 42, "55.9165  37.7601", 1)
+    draw_text(px, 0, 54, "отправлен 4м назад", 1)
+    return img
+
+def s_beacon_no_fix():
+    img, px = screen("Маяк", sub=True)
+    draw_text(px, 0, 18, "группа", 1)
+    draw_right(px, 18, "30м", 1)
+    draw_text(px, 0, 30, "FDSKY-Base", 1)
+    draw_text(px, 0, 42, "нет фикса", 1)
+    draw_text(px, 0, 54, "не отправлен", 1)
     return img
 
 def s_setup():
@@ -582,6 +594,7 @@ SCREENS = [
     ("29e-sub-node-picker",          "Выбор контакта для узла времени",                      s_node_picker(["FDSKY-Base", "Башня-2", "Дом-репитер", "Сосед-3"], 1)),
     ("29f-sub-time-actions",         "Действия Время: запрос и узлы",                        s_actions("Время", "time",
         ["Запрос времени", "Узлы времени"], 0)),
+    ("28c-sub-beacon-no-fix",         "Маяк: нет фикса GPS",                                  s_beacon_no_fix()),
     ("28b-sub-beacon-actions",        "Действия Маяк: режим, интервал, стоп",                  s_actions("Маяк", "beacon",
         ["Режим: далее", "Интервал: далее", "Остановить маяк"], 0)),
     ("29-sub-screen-time",            "Подэкран Экран: Clock и Таймаут",                       s_setup()),
