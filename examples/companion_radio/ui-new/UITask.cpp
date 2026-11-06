@@ -612,7 +612,7 @@ public:
 #ifdef PIN_BUZZER
     if (compact_header && _task->isBuzzerQuiet()) title_x = 10;
 #endif
-    display.drawTextEllipsized(title_x, 2, compact_header ? 70 - title_x : display.width() - 40, filtered_name);
+    display.drawTextEllipsized(title_x, 2, compact_header ? 64 - title_x : display.width() - 40, filtered_name);
 
     // battery voltage
     renderBatteryIndicator(display, _task->getBattMilliVolts());
@@ -638,10 +638,10 @@ public:
           || _page == HomePage::BATTERY_CAL
 #endif
           ) {
-        display.drawTextRightAlign(101, 2, "<");
+        display.drawTextRightAlign(97, 2, "<");
       } else {
         snprintf(tmp, sizeof(tmp), "%u/%u", visible_index + 1, visible_count);
-        display.drawTextRightAlign(101, 2, tmp);
+        display.drawTextRightAlign(97, 2, tmp);
       }
       display.fillRect(0, 12, display.width(), 1);
     } else {

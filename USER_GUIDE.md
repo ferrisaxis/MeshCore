@@ -15,131 +15,140 @@
 
 ---
 
-## Controls
+## Controls (single button, GPIO0)
 
-| Button | Action |
-|---|---|
-| **Click** (short) | Next page / Confirm / Cycle selection |
-| **Double click** | Previous page |
-| **Long press** (1.2s) | Page-specific action (toggle, start scan, etc.) |
-| **Triple click** | Drop message / Toggle buzzer |
-| **Boot rescue** | Long press in first 8s after boot → CLI rescue mode |
+| Gesture | Timing | Action |
+|---|---|---|
+| **Click** | — | Next page. On a sub-screen (`Связь`, `Батарея` calibration) — move the `>` marker |
+| **Double click** | < 280 ms between clicks | Previous page. On `Связь` — leave the sub-screen |
+| **Long press** | 1000 ms | Page action (see the table below). On `Связь` — toggle the selected interface |
+| **Triple click** | — | Context: `Радио` — next radio profile, `Маяк` — next interval, message preview — drop message |
+| **Quad click** | — | `Маяк` only: stop the beacon |
+| **Boot rescue** | long press within 8 s after power-on | CLI rescue mode |
+
+Header on every screen: **page title** on the left, **`N/12`** page counter (or **`<`** on a sub-screen) at x=97, **battery icon** on the right, separator rule at y=12.
 
 ---
 
-## Screen Map (circular navigation)
+## Screen Map (circular, click forward / double click back)
 
 ```
-FIRST → RECENT → NEIGHBORS → RADIO → POWER → SCAN → FSCAN
-  ↑                                                                   ↓
-SHUTDOWN ← SETUP ← SENSORS ← BEACON ← GPS ← CONNECTIONS ← BLUETOOTH
+FIRST → RECENT → NEIGHBORS → RADIO → POWER → BATTERY → SCAN → FSCAN
+  ↑                                                                 ↓
+SHUTDOWN ← SETUP ← GPS ← BLUETOOTH ←────────────────────────────────┘
+
+Hidden sub-screens (not in the rotation):
+  BLUETOOTH --long press--> СВЯЗЬ (interfaces) --double click--> back
+  BATTERY   --long press--> BATTERY CALIBRATION --double click--> back
 ```
+`BEACON` appears between GPS and SETUP, but only while GPS is switched on.
+`SETUP` on OLED shows one row (Clock); the e-ink build adds ScreenMode.
 
 ---
 
 ## Page Reference
 
 ### FIRST — Main Screen
-- **MSG: X/Y** — unread / stored messages
-- **IP: x.x.x.x** — WiFi IP (if connected)
-- **< Connected >** — BLE client connected
-- **Pin:XXXXXX** — BLE PIN (if no client connected)
-- **Date/Time** — bottom line (RU locale)
+- `MSG n/m` — messages waiting for the phone / still stored on the device (size 2)
+- middle line, one of:
+  - **Wi-Fi address** (`192.168.1.42`) — Wi-Fi link is up
+  - `< Connected >` — a client is attached over BLE or USB, but Wi-Fi is down
+  - `Pin:XXXXXX` — nothing is connected; PIN for pairing
+- bottom line — time and date (RU locale)
 
 ### RECENT — Recent Adverts
-- List of recently heard nodes
-- **Click** → Send advert
+- Up to 5 recently heard nodes with age (`12s`, `4m`, `1h`)
+- Empty list shows `no adverts` and the `advert: hold` hint
+- **Long press** → send an advert
 
 ### NEIGHBORS — Known Neighbors
-- Nodes with established routes
-- Signal strength, last heard
+- Direct neighbors with SNR in dB, auto-scrolls when the list is longer than the screen
+- Empty list shows `no neighbors` and `poll: hold`
+- **Long press** → poll neighbors (`Polling...`)
 
-### RADIO — Radio Profile
-- **Normal** — balanced (default)
-- **Long** — max range, lower data rate
-- **HiNoise** — noisy environments
-- **Click** → Cycle profile
-- **Long press** → Toggle FEM LNA (if supported)
+### RADIO — Radio Parameters
+- `FQ` frequency, `SF` spreading factor, `BW` bandwidth, `CR` coding rate
+- `TX: NNdBm` and `LNA: on/off` — the LNA part only on boards that can switch it
+- current radio profile on the bottom line
+- **Triple click** → next radio profile (`LongFast`, `LongSlow`, ...)
+- **Long press** → toggle the FEM LNA (silent no-op if the board has none)
 
 ### POWER — Power Profile
-| Profile | CPU | RF Boost | LNA | Battery Life |
-|---|---|---|---|---|
-| Eco max | Sleep | Off | Off | Maximum |
-| Eco high | Sleep | On | Off | Long |
-| Eco good | Sleep | On | On | Balanced |
-| Eco fair | Active | Off | Off | Standard |
-| Eco min | Active | On | Off | TX priority |
-| Active | Active | On | On | Maximum perf |
+```
+Power                       Eco max
+CPU on                  RX on
+LNA on
+              mode: hold
+```
+- profile name is generated from the available options (`Eco max` … `Eco min`)
+- second row: CPU sleep and RX boost, third row: LNA (only with a FEM)
+- bottom line warns `GPS needs CPU on` / `BLE needs CPU on` when the profile is blocked
+- **Long press** → apply the next power profile
 
-- **Click** → Cycle profile
-- Auto-shutdown at 3.4V
+### BATTERY — Battery / ADC (Heltec V4)
+- `Voltage: 4.012 V` and `ADC: 5.420`
+- **Long press** → open calibration:
+  - `Full 4.20V` — only for a fully charged single-cell Li-ion/LiPo pack
+  - `Reset ADC` — restore the board default
+  - `Meter: use CLI` — tells you to send `calibrate battery <mV>`
+  - inside: **click** moves/selects, **long press** confirms, **double click** cancels
 
 ### SCAN — Noise Scan
-- Real-time RSSI noise floor graph
-- **Click** → Start/stop scan
+- live RSSI (size 2), noise floor `NL`, peak `pk`, `PKT` flag on reception, bar scale
+- **Long press** → reset the peak
 
 ### FSCAN — Frequency Scan
-- Sweeps LoRa channels, shows activity
-- **Click** → Start scan
+- idle: `find quiet freq` and `scan: hold`
+- running: `scan N/M`, current frequency, progress bar
+- finished: `now <freq>` and the three quietest channels, the current one marked `*`
+- **Long press** → start the scan
 
-### BLUETOOTH — BLE Status
-- Large icon: ON / OFF
-- **Pin:XXXXXX** — pairing PIN
-- **Long press** → Toggle BLE on/off
-
-### CONNECTIONS — Interface Manager (NEW)
+### BLUETOOTH — Interface Status
 ```
-BLE  ON
-WiFi ON
-    192.168.1.42
-USB  ON
-
-click:select  long:toggle  left/right:exit
+BLE   ON
+WiFi  OFF
+USB   ON
+Pin:123456
 ```
-- **Click** → Cycle selection (highlighted line): BLE → WiFi → USB
-- **Long press** → Toggle selected interface ON/OFF
-- **Left/Right** (prev/next page) → Exit to menu
-- WiFi shows IP when connected
+- status of the three transports, PIN underneath in the small font
+- **Long press** → open the `СВЯЗЬ` sub-screen
+
+### СВЯЗЬ — Interface Manager (sub-screen of BLUETOOTH)
+```
+>BLE   ON
+ WiFi  OFF
+ USB   ON
+```
+- **Click** → move the `>` marker (BLE → WiFi → USB)
+- **Long press** → toggle the selected interface (Wi-Fi switches both TCP servers, 5000 and 5001)
+- **Double click** → back to BLUETOOTH
+- header shows `<` instead of the page counter
 
 ### GPS — GPS Module
-- **module on/off** — software state
-- **fix yes/no** — satellite fix
-- **sat N** — satellites count
-- **pos** — lat/lon
-- **alt** — altitude (m)
-- **Long press** → Toggle GPS power
+- `module on/off` (may show `off(hw)` when a hardware switch disagrees)
+- `fix yes/no`, `sats N`; `Can't access GPS` when no module answers
+- **Long press** → toggle GPS
 
-### BEACON — Mayak (Position Beacon)
-*Requires GPS fix to operate*
-
-| Mode | Interval | Description |
-|---|---|---|
-| **OFF** | — | Disabled |
-| **Advert Local** | 10 min | Self-advert, 1 hop |
-| **Advert Flood** | 30 min | Self-advert, network flood |
-| **Group** | 5–180 min | To group channel |
-| **Chat** | 5–180 min | Direct to contact (ACK) |
-
-- **Click** → Cycle mode: OFF → Local → Flood → Group → Chat → OFF
-- **Long press** → Cycle interval (Group/Chat): 5 → 10 → 15 → 30 → 60 → 120 min
-- Auto-enables GPS when activated
-
-### SENSORS — Sensor Data (Cayenne LPP)
-- Temperature, humidity, pressure, battery, etc.
-- **Click** → Toggle GPS
-- Auto-scrolls if multiple sensors
+### BEACON — Маяк (needs GPS)
+- mode, interval and target
+- **Long press** → next mode (OFF → Local → Flood → Group → Chat)
+- **Triple click** → next interval
+- **Quad click** → stop the beacon
 
 ### SETUP — Device Settings
-- **Clock** — on/off (shows on FIRST page)
-- **ScreenMode** — 1/2/3 (e-ink refresh mode)
-- **Click** → Enter edit mode
-- **Up/Down** (in edit) → Change value
-- **Click** → Save & exit edit
+- `Clock on/off` (controls the clock on FIRST); e-ink build also has `ScreenMode`
+- **Long press** → enter/leave edit mode
+- in edit mode: **click** → next row, **triple click** → change value
 
 ### SHUTDOWN — Hibernate
-- **Click** → Enter hibernation (deep sleep)
-- Wake: LoRa packet (DIO1) or USER button
-- Preserves RAM, restores mesh state
+- power icon and `hibernate: hold`
+- **Long press** → power off (executes on button release)
+- wake sources: LoRa packet on DIO1 or the USER button
+
+### Message preview (opened from FIRST)
+- sender in the top-left corner, age in the top-right corner, rule at y=11, wrapped text below
+- **Click** → next message / close, **double click** → next page of a long text,
+  **triple click** → drop the message from the buffer
 
 ---
 

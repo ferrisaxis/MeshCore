@@ -2,40 +2,48 @@
 
 Сгенерировано из кода прошивки: `tools/ui_mockups.py`.
 
-Шрифт — настоящий 5x7 из Adafruit GFX (glcdfont.c), координаты — как в `UITask.cpp`.
+- Латинский шрифт — 5x7 из Adafruit GFX (`glcdfont.c`)
+- Кириллица — лицо CYR_OLED из `src/helpers/ui/CyrillicGlyphs.inc`
+- Шапка: название экрана слева, счётчик `3/12` (или `<` на подэкранах) у x=101,
+  иконка батареи справа, разделительная линия на y=12
 
 | Файл | Экран | Описание |
 |---|---|---|
-| `01-main-screen-connected.png` | main-screen-connected | Главный экран: телефон подключён, показан IP |
-| `02-main-screen-pin.png` | main-screen-pin | Главный экран: подключения нет, показан PIN |
-| `03-boot-splash.png` | boot-splash | Заставка при загрузке: лого, версия |
-| `04-message-preview.png` | message-preview | Превью входящего сообщения (долгое нажатие на главном) |
-| `05-recent-nodes.png` | recent-nodes | RECENT: недавно слышанные ноды и возраст |
-| `06-recent-nodes-empty.png` | recent-nodes-empty | RECENT: список пуст, подсказка advert |
-| `07-neighbors-snr.png` | neighbors-snr | NEIGHBORS: соседи и SNR |
-| `08-neighbors-empty.png` | neighbors-empty | NEIGHBORS: пусто, подсказка poll |
-| `09-radio-settings-lna.png` | radio-settings-lna | RADIO: частота/SF/BW/CR, мощность, LNA доступен |
-| `10-radio-settings-no-lna.png` | radio-settings-no-lna | RADIO: плата без управляемого LNA |
-| `11-power-profile.png` | power-profile | POWER: профиль питания и подсказка |
-| `12-power-profile-blocked.png` | power-profile-blocked | POWER: профиль упирается в ресурс (BLE держит CPU) |
-| `13-noise-scan.png` | noise-scan | SCAN: уровень шума, пик, шкала |
-| `14-freq-scan-idle.png` | freq-scan-idle | FSCAN: ожидание запуска |
-| `15-freq-scan-running.png` | freq-scan-running | FSCAN: идёт сканирование, прогресс |
-| `16-freq-scan-result.png` | freq-scan-result | FSCAN: результат, топ-3 частоты |
-| `17-interfaces-status.png` | interfaces-status | Экран интерфейсов: BLE/WiFi/USB ON-OFF + PIN |
-| `18-interfaces-select-ble.png` | interfaces-select-ble | Подэкран выбора: маркер на BLE |
-| `19-interfaces-select-wifi.png` | interfaces-select-wifi | Подэкран выбора: маркер на WiFi |
-| `20-interfaces-select-usb.png` | interfaces-select-usb | Подэкран выбора: маркер на USB |
-| `21-gps-status.png` | gps-status | GPS: модуль включён, есть фикс |
-| `22-gps-unavailable.png` | gps-unavailable | GPS: модуль недоступен |
-| `23-beacon.png` | beacon | BEACON: режим, интервал, цель |
-| `24-setup.png` | setup | SETUP: Clock (на OLED одна строка) |
-| `25-shutdown.png` | shutdown | SHUTDOWN: иконка питания |
-| `26-shutdown-hibernating.png` | shutdown-hibernating | SHUTDOWN: идёт выключение |
-| `27-alert-advert-sent.png` | alert-advert-sent | Всплывающее подтверждение: advert отправлен |
-| `28-alert-power-mode.png` | alert-power-mode | Всплывающее подтверждение: смена профиля питания |
-| `29-alert-radio-profile.png` | alert-radio-profile | Всплывающее подтверждение: смена радио-профиля |
-| `30-alert-polling.png` | alert-polling | Всплывающее подтверждение: опрос соседей |
+| `01-main-screen-wifi-ip.png` | main-screen-wifi-ip | Главный: Wi-Fi поднят, показан IP |
+| `02-main-screen-ble-client.png` | main-screen-ble-client | Главный: подключён USB/BLE клиент, без Wi-Fi |
+| `03-main-screen-pin.png` | main-screen-pin | Главный: подключения нет, показан PIN |
+| `04-boot-splash.png` | boot-splash | Заставка при загрузке |
+| `05-message-preview.png` | message-preview | Превью входящего сообщения |
+| `06-recent-nodes.png` | recent-nodes | Недавние: список и возраст |
+| `07-recent-nodes-empty.png` | recent-nodes-empty | Недавние: пусто |
+| `08-neighbors-snr.png` | neighbors-snr | Соседи: список и SNR |
+| `09-neighbors-empty.png` | neighbors-empty | Соседи: пусто |
+| `10-radio-settings-lna.png` | radio-settings-lna | Радио: параметры, LNA есть |
+| `11-radio-settings-no-lna.png` | radio-settings-no-lna | Радио: без управляемого LNA |
+| `12-power-profile.png` | power-profile | Питание: профиль и подсказка |
+| `13-power-profile-blocked.png` | power-profile-blocked | Питание: профиль упирается в ресурс |
+| `14-battery-adc.png` | battery-adc | Батарея: напряжение и множитель АЦП |
+| `15-battery-calibration.png` | battery-calibration | Батарея: выбор калибровки |
+| `16-battery-calibration-confirm.png` | battery-calibration-confirm | Батарея: подтверждение |
+| `17-noise-scan.png` | noise-scan | Шум: уровень, пик, шкала |
+| `18-freq-scan-idle.png` | freq-scan-idle | Частоты: ожидание |
+| `19-freq-scan-running.png` | freq-scan-running | Частоты: идёт скан |
+| `20-freq-scan-result.png` | freq-scan-result | Частоты: результат |
+| `21-interfaces-status.png` | interfaces-status | Bluetooth: статус BLE/WiFi/USB и PIN |
+| `22-interfaces-select-ble.png` | interfaces-select-ble | Связь: маркер на BLE |
+| `23-interfaces-select-wifi.png` | interfaces-select-wifi | Связь: маркер на WiFi |
+| `24-interfaces-select-usb.png` | interfaces-select-usb | Связь: маркер на USB |
+| `25-gps-status.png` | gps-status | GPS: включён, есть фикс |
+| `26-gps-unavailable.png` | gps-unavailable | GPS: модуль недоступен |
+| `27-beacon.png` | beacon | Маяк: режим, интервал, цель |
+| `28-setup.png` | setup | Настройки: Clock |
+| `29-shutdown.png` | shutdown | Выключение: иконка питания |
+| `30-shutdown-hibernating.png` | shutdown-hibernating | Выключение: идёт процесс |
+| `31-alert-advert-sent.png` | alert-advert-sent | Всплывающее: advert отправлен |
+| `32-alert-power-mode.png` | alert-power-mode | Всплывающее: смена профиля |
+| `33-alert-radio-profile.png` | alert-radio-profile | Всплывающее: смена радио-профиля |
+| `34-alert-polling.png` | alert-polling | Всплывающее: опрос соседей |
+| `35-alert-adc-saved.png` | alert-adc-saved | Всплывающее: АЦП сохранён |
 
 Каждый PNG — 128x64 (1x) и `<имя>@4x.png` (увеличение x4 без сглаживания).
 
