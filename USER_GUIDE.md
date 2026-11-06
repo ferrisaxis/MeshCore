@@ -143,7 +143,7 @@ Pin:123456
 ### SHUTDOWN — Hibernate
 - power icon and `hibernate: hold`
 - **Long press** → power off (executes on button release)
-- wake sources: LoRa packet on DIO1 or the USER button
+- wake after hibernate: none. `powerOff()` routes to `enterDeepSleep(0)`, which calls `esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL)`, so only a physical reset / power cycle brings the board back. Wake-on-LoRa (DIO1) is not enabled by this build.
 
 ### Message preview (opened from FIRST)
 - sender in the top-left corner, age in the top-right corner, rule at y=11, wrapped text below
