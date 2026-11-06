@@ -192,11 +192,8 @@ def wrap(s, chars):
 
 # ----------------------------------------------------------------- chrome
 def battery(px, pct=78):
-    iw, ih = 24, 10
-    ix, iy = W - iw - 5, 0
-    rect(px, ix, iy, iw, ih)
-    fill_rect(px, ix + iw, iy + ih // 4, 3, ih // 2)
-    fill_rect(px, ix + 2, iy + 2, (pct * (iw - 4)) // 100, ih - 4)
+    """P1: charge is a text percentage in the header, no icon."""
+    draw_right(px, 1, f"{pct}%", 1, margin=2)
 
 def header(px, title, page=None, total=None, sub=False, pct=78):
     """Codex layout: title left, counter (or '<') at x=101, battery right, rule at y=12."""
@@ -273,7 +270,7 @@ def s_recent(full=True):
             draw_right(px, y, t, 1)
     else:
         draw_centered(px, 28, "no adverts", 1)
-        draw_centered(px, 20 + 4 * 11, "advert: hold", 1)
+        draw_centered(px, 20 + 4 * 11, "В списке: 0", 1)
     return img
 
 def s_neighbors(full=True):
@@ -300,12 +297,13 @@ def s_radio(lna=True):
 
 def s_power(blocked=False):
     img, px = screen("Питание", 5)
-    draw_text(px, 0, 18, "Power", 1)
+    draw_text(px, 0, 18, "Режим", 1)
     draw_right(px, 18, "Eco max", 1)
-    draw_text(px, 0, 30, "CPU on", 1)
-    draw_right(px, 30, "RX on", 1)
-    draw_text(px, 0, 42, "LNA on", 1)
-    draw_centered(px, 54, "BLE needs CPU on" if blocked else "mode: hold", 1)
+    draw_text(px, 0, 30, "Сон: да", 1)
+    draw_right(px, 30, "RX: вкл", 1)
+    draw_text(px, 0, 42, "LNA: вкл", 1)
+    if blocked:
+        draw_centered(px, 54, "BLE держит CPU", 1)
     return img
 
 def s_battery():
@@ -360,22 +358,28 @@ def s_fscan(state="done"):
         draw_text(px, 0, 29 + i * 11, row, 1)
     return img
 
-def s_interfaces_status():
+def s_interfaces_status(pin=True):
     img, px = screen("Bluetooth", 9)
+    rows = [("BLE", "вкл", "нет"), ("WiFi", "выкл", ""), ("USB", "вкл", "?")]
     y = 18
-    for name, st in [("BLE", "ON"), ("WiFi", "OFF"), ("USB", "ON")]:
-        draw_text(px, 0, y, f"{name:<6}{st}", 1)
+    for name, st, link in rows:
+        draw_text(px, 0, y, name, 1)
+        draw_text(px, 36, y, st, 1)
+        if link:
+            draw_text(px, 72, y, link, 1)
         y += 12
-    draw_text(px, 0, y, "Pin:123456", 1)
+    draw_text(px, 0, y, "Pin:123456" if pin else "ntoas-home", 1)
     return img
 
 def s_interfaces_select(sel):
     img, px = screen("Связь", sub=True)
     y = 18
-    for i, (name, st) in enumerate([("BLE", "ON"), ("WiFi", "OFF"), ("USB", "ON")]):
-        mark = ">" if i == sel else " "
-        draw_text(px, 0, y, f"{mark}{name:<6}{st}", 1)
+    for i, (name, st) in enumerate([("BLE", "вкл"), ("WiFi", "выкл"), ("USB", "вкл")]):
+        draw_text(px, 0, y, ">" if i == sel else " ", 1)
+        draw_text(px, 10, y, name, 1)
+        draw_text(px, 46, y, st, 1)
         y += 12
+    draw_text(px, 0, y, "порты: --", 1)
     return img
 
 def s_gps(available=True):

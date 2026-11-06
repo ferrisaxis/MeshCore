@@ -39,6 +39,11 @@ public:
   bool isWiFiEnabled() const { return _interfaceManager->isWiFiEnabled(); }
   bool isWiFi2Enabled() const { return _interfaceManager->isWiFi2Enabled(); }
   bool isUSBEnabled() const { return _interfaceManager->isUSBEnabled(); }
+  // Link state per transport: adapter on/off is separate from "someone is attached".
+  bool isBluetoothConnected() const { return _interfaceManager->isInterfaceConnected(InterfaceType::Bluetooth); }
+  bool isWiFiConnected() const { return _interfaceManager->isInterfaceConnected(InterfaceType::WiFi); }
+  bool isWiFi2Connected() const { return _interfaceManager->isInterfaceConnected(InterfaceType::WiFi2); }
+  bool hasWiFi2() const { return _interfaceManager->isTransportPresent(InterfaceType::WiFi2); }
   virtual bool isDisplayOn() const { return false; }
   void enableBluetooth() { _interfaceManager->enableBluetooth(); }
   void disableBluetooth() { _interfaceManager->disableBluetooth(); }

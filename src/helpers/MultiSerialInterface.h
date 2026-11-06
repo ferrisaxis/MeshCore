@@ -166,6 +166,25 @@ public:
     return false; 
   }
 
+  // Per-transport link state. "Enabled" only says the adapter is up; these say
+  // whether a peer actually holds the link. USB has no way to know (the serial
+  // transport always reports connected), so callers must treat it as unknown.
+  bool isInterfaceConnected(InterfaceType type) const {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == type){
+        return iface.instance->isConnected();
+      }
+    }
+    return false;
+  }
+
+  bool isTransportPresent(InterfaceType type) const {
+    for(auto iface : _interfaces){
+      if(iface.instance && iface.type == type) return true;
+    }
+    return false;
+  }
+
   // enable all interfaces
   void enable() override {
     _enabled = true;

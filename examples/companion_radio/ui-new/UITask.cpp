@@ -404,7 +404,33 @@ private:
       ordered[j] = sample;
     }
     int median = ordered[count / 2];
-    int pct = constrain((median - minMilliVolts) * 100 / (maxMilliVolts - minMilliVolts), 0, 100);
+    // 1S Li-ion/LiPo discharge curve. A straight 3000..4200 mV line badly
+    // under-reports the long plateau around 3.7..3.9 V, so interpolate a table
+    // whenever the build keeps the stock range; custom ranges stay linear.
+    static const uint16_t lipo_mv[] = {3300, 3500, 3650, 3740, 3800, 3870,
+                                       3950, 4030, 4100, 4170, 4200};
+    static const uint8_t lipo_pc[] = {   0,    5,   15,   30,   45,   60,
+                                        72,   82,   90,   97,  100};
+    int pct;
+    if (minMilliVolts == 3000 && maxMilliVolts == 4200) {
+      const int n = (int)(sizeof(lipo_pc) / sizeof(lipo_pc[0]));
+      pct = 0;
+      if (median >= lipo_mv[n - 1]) {
+        pct = 100;
+      } else if (median > lipo_mv[0]) {
+        for (int i = 1; i < n; i++) {
+          if (median <= lipo_mv[i]) {
+            int span_mv = lipo_mv[i] - lipo_mv[i - 1];
+            int span_pc = lipo_pc[i] - lipo_pc[i - 1];
+            pct = lipo_pc[i - 1] + (median - lipo_mv[i - 1]) * span_pc / span_mv;
+            break;
+          }
+        }
+      }
+    } else {
+      pct = (median - minMilliVolts) * 100 / (maxMilliVolts - minMilliVolts);
+    }
+    pct = constrain(pct, 0, 100);
     if (displayed < 0 || abs(pct - displayed) >= 2) displayed = pct;
     char label[6];
     snprintf(label, sizeof(label), "%d%%", displayed);
@@ -744,10 +770,11 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(display.width() / 2, 28, "no adverts");
       }
-      // last slot stays free until the list is full, so the send hint fits there
+      // last slot stays free until the list is full, so real data fits there
       if (recent[UI_RECENT_LIST_SIZE - 1].name[0] == 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 20 + (UI_RECENT_LIST_SIZE - 1) * 11, "advert: " PRESS_LABEL);
+        snprintf(tmp, sizeof(tmp), "В списке: %d", shown);
+        display.drawTextCentered(display.width() / 2, 20 + (UI_RECENT_LIST_SIZE - 1) * 11, tmp);
       }
     } else if (_page == HomePage::NEIGHBORS) {
       int n = the_mesh.getNeighbors(neighbor_list, NEIGHBOR_TABLE_SIZE);
@@ -841,25 +868,30 @@ public:
       display.setTextSize(1);
       int y = 18;
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, "Power");
+      display.drawTextLeftAlign(0, y, "Режим");
       display.setColor(UIColor::secondary_txt);
       display.drawTextRightAlign(display.width() - 1, y, name);
       y += 12;
+      // "Sleep allowed" is the honest wording: the CPU still runs while the UI
+      // is being drawn, the profile only permits light sleep between frames.
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, cpu ? "CPU off" : "CPU on");
-      display.drawTextRightAlign(display.width() - 1, y, boost ? "RX on" : "RX off");
+      display.drawTextLeftAlign(0, y, !cpu_hw ? "Сон: н/д" : (cpu ? "Сон: да" : "Сон: нет"));
+      display.drawTextRightAlign(display.width() - 1, y, boost ? "RX: вкл" : "RX: выкл");
       y += 12;
       if (fem) {
-        display.drawTextLeftAlign(0, y, lna ? "LNA on" : "LNA off");
+        display.drawTextLeftAlign(0, y, lna ? "LNA: вкл" : "LNA: выкл");
         y += 12;
       }
       if (y + 8 <= display.height()) {
+        // A real reason instead of a gesture hint.
         const char* hold = NULL;
-        if (cpu_hw && _task->gpsBlocksCpuSleep()) hold = "GPS needs CPU on";
-        else if (cpu_hw && _task->bleBlocksCpuSleep()) hold = "BLE needs CPU on";
-        display.setColor(hold ? UIColor::warning_txt : UIColor::secondary_txt);
-        const char* hint = hold ? hold : "mode: " PRESS_LABEL;
-        display.drawTextCentered(display.width() / 2, y, hint);
+        if (!cpu_hw) hold = "сон недоступен";
+        else if (_task->gpsBlocksCpuSleep()) hold = "GPS держит CPU";
+        else if (_task->bleBlocksCpuSleep()) hold = "BLE держит CPU";
+        if (hold) {
+          display.setColor(UIColor::warning_txt);
+          display.drawTextCentered(display.width() / 2, y, hold);
+        }
       }
     } else if (_page == HomePage::SCAN) {
       if (scan_cnt == 0) sampleNoise();
@@ -951,68 +983,85 @@ public:
         display.drawTextCentered(display.width() / 2, display.height() - 11, "scan: " PRESS_LABEL);
       }
     } else if (_page == HomePage::BLUETOOTH) {
-      // Interface status board: no icon, straight rows under the page dots.
-      // Long press switches to the CONNECTIONS sub-screen for selection/toggle.
+      // Adapter state and link state are different things: the middle column is
+      // the radio being enabled, the right column says whether a peer is attached.
+      // USB has no client detector in this firmware, so it is reported as unknown.
       display.setTextSize(1);
-      char buf[32];
+      char buf[40];
       int y = 18;
       const int line_h = 12;
 
+      bool ble_on = _task->isBluetoothEnabled();
+      bool wifi_on = _task->isWiFiEnabled();
+      bool usb_on = _task->isUSBEnabled();
+      bool ble_link = _task->isBluetoothConnected();
+      bool wifi_link = _task->isWiFiConnected() || _task->isWiFi2Connected();
+
+      // Fixed columns: Cyrillic is multi-byte in UTF-8, so printf field widths
+      // would misalign the rows. Draw each column at an explicit x instead.
       display.setColor(UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "BLE   %s", _task->isBluetoothEnabled() ? "ON" : "OFF");
-      display.drawTextLeftAlign(0, y, buf);
+      display.drawTextLeftAlign(0, y, "BLE");
+      display.drawTextLeftAlign(36, y, ble_on ? "вкл" : "выкл");
+      if (ble_on) display.drawTextLeftAlign(72, y, ble_link ? "клиент" : "нет");
       y += line_h;
 
-      snprintf(buf, sizeof(buf), "WiFi  %s", _task->isWiFiEnabled() ? "ON" : "OFF");
-      display.drawTextLeftAlign(0, y, buf);
+      display.drawTextLeftAlign(0, y, "WiFi");
+      display.drawTextLeftAlign(36, y, wifi_on ? "вкл" : "выкл");
+      if (wifi_on) display.drawTextLeftAlign(72, y, wifi_link ? "клиент" : "нет");
       y += line_h;
 
-      snprintf(buf, sizeof(buf), "USB   %s", _task->isUSBEnabled() ? "ON" : "OFF");
-      display.drawTextLeftAlign(0, y, buf);
+      // USB: the serial transport always reports "connected", so show "?"
+      display.drawTextLeftAlign(0, y, "USB");
+      display.drawTextLeftAlign(36, y, usb_on ? "вкл" : "выкл");
+      if (usb_on) display.drawTextLeftAlign(72, y, "?");
       y += line_h;
 
-      // PIN for pairing: always shown here, even while a client is attached
+      display.setColor(UIColor::secondary_txt);
       if (the_mesh.getBLEPin() != 0) {
-        display.setColor(UIColor::secondary_txt);
-        snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
+        // While a client holds the link the PIN is not needed, so the row shows
+        // the Wi-Fi network name instead of repeating the pairing code.
+        if (ble_link || wifi_link) {
+          snprintf(buf, sizeof(buf), "%.20s", wifi_on ? WiFi.SSID().c_str() : "подключено");
+        } else {
+          snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
+        }
         display.drawTextLeftAlign(0, y, buf);
       }
     } else if (_page == HomePage::CONNECTIONS) {
       // CONNECTIONS sub-screen (long press on BLUETOOTH):
-      // single click = move the marker, double click = toggle, long press = back
+      // click = move the marker, hold = toggle the selected interface,
+      // double click = back to BLUETOOTH
       int y = 18;
       const int line_h = 12;
       int selected = _conn_selected;
       int conn_count = 0;
       display.setTextSize(1);
-      char buf[32];
+      char buf[40];
 
-      // BLE
-      bool ble_on = _task->isBluetoothEnabled();
-      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "%cBLE   %s", selected == conn_count ? '>' : ' ',
-               ble_on ? "ON" : "OFF");
-      display.drawTextLeftAlign(0, y, buf);
-      y += line_h;
-      conn_count++;
+      const char* names[3] = { "BLE", "WiFi", "USB" };
+      bool states[3] = { _task->isBluetoothEnabled(), _task->isWiFiEnabled(),
+                         _task->isUSBEnabled() };
+      for (int i = 0; i < 3; i++) {
+        display.setColor(selected == i ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(0, y, selected == i ? ">" : " ");
+        display.drawTextLeftAlign(10, y, names[i]);
+        display.drawTextLeftAlign(46, y, states[i] ? "вкл" : "выкл");
+        y += line_h;
+        conn_count++;
+      }
+      (void)conn_count;
 
-      // WiFi (drives both TCP servers: 5000 for the app, 5001 for HA)
-      bool wifi_on = _task->isWiFiEnabled();
-      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "%cWiFi  %s", selected == conn_count ? '>' : ' ',
-               wifi_on ? "ON" : "OFF");
+      // Data row: the two TCP servers are separate links, so report them apart.
+      // 5000 = app, 5001 = Home Assistant; "-" means the server has no client.
+      display.setColor(UIColor::secondary_txt);
+      if (_task->isWiFiEnabled()) {
+        snprintf(buf, sizeof(buf), "5000:%s 5001:%s",
+                 _task->isWiFiConnected() ? "+" : "-",
+                 _task->hasWiFi2() ? (_task->isWiFi2Connected() ? "+" : "-") : "н/д");
+      } else {
+        snprintf(buf, sizeof(buf), "порты: --");
+      }
       display.drawTextLeftAlign(0, y, buf);
-      y += line_h;
-      conn_count++;
-
-      // USB
-      bool usb_on = _task->isUSBEnabled();
-      display.setColor(selected == conn_count ? UIColor::warning_txt : UIColor::primary_txt);
-      snprintf(buf, sizeof(buf), "%cUSB   %s", selected == conn_count ? '>' : ' ',
-               usb_on ? "ON" : "OFF");
-      display.drawTextLeftAlign(0, y, buf);
-      y += line_h;
-      conn_count++;
 
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {

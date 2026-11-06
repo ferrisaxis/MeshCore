@@ -80,9 +80,10 @@ CPU on                  RX on
 LNA on
               mode: hold
 ```
-- profile name is generated from the available options (`Eco max` … `Eco min`)
-- second row: CPU sleep and RX boost, third row: LNA (only with a FEM)
-- bottom line warns `GPS needs CPU on` / `BLE needs CPU on` when the profile is blocked
+- `Режим` + profile name, generated from the available options (`Eco max` … `Eco min`)
+- `Сон: да/нет/н/д` — whether light sleep is permitted (the CPU still runs while the UI draws), `RX: вкл/выкл` — SX1262 boosted gain, separate from the FEM LNA
+- `LNA: вкл/выкл` only on boards with a controllable FEM
+- bottom line is a real reason, not a hint: `GPS держит CPU`, `BLE держит CPU` or `сон недоступен`
 - **Long press** → apply the next power profile
 
 ### BATTERY — Battery / ADC (Heltec V4)
@@ -105,12 +106,16 @@ LNA on
 
 ### BLUETOOTH — Interface Status
 ```
-BLE   ON
-WiFi  OFF
-USB   ON
+BLE   вкл   нет
+WiFi  вкл   клиент
+USB   вкл   ?
 Pin:123456
 ```
-- status of the three transports, PIN underneath in the small font
+- three columns: transport · adapter state (`вкл`/`выкл`) · link state
+- `клиент` — a peer actually holds the link, `нет` — adapter is up but nobody is attached
+- `USB` link is always `?`: the serial transport reports "connected" unconditionally, so the firmware cannot know
+- 4th row shows the PIN for pairing; while a client is attached it shows the Wi-Fi network name instead
+- header shows the charge as a percentage (`86%` or `--%` when the ADC reading is invalid)
 - **Long press** → open the `СВЯЗЬ` sub-screen
 
 ### СВЯЗЬ — Interface Manager (sub-screen of BLUETOOTH)
@@ -122,6 +127,7 @@ Pin:123456
 - **Click** → move the `>` marker (BLE → WiFi → USB)
 - **Long press** → toggle the selected interface (Wi-Fi switches both TCP servers, 5000 and 5001)
 - **Double click** → back to BLUETOOTH
+- bottom row reports the two TCP servers separately: `5000:+ 5001:-` (`+` client attached, `-` none, `н/д` no such server); `порты: --` while Wi-Fi is off
 - header shows `<` instead of the page counter
 
 ### GPS — GPS Module
