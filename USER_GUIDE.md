@@ -17,63 +17,100 @@
 
 ## Controls (single button, GPIO0)
 
-| Gesture | Timing | Action |
-|---|---|---|
-| **Click** | — | Next page. On a sub-screen (`Связь`, `Батарея` calibration) — move the `>` marker |
-| **Double click** | < 280 ms between clicks | Previous page. On `Связь` — leave the sub-screen |
-| **Long press** | 1000 ms | Page action (see the table below). On `Связь` — toggle the selected interface |
-| **Triple click** | — | Context: `Радио` — next radio profile, `Маяк` — next interval, message preview — drop message |
-| **Quad click** | — | `Маяк` only: stop the beacon |
-| **Boot rescue** | long press within 8 s after power-on | CLI rescue mode |
+Navigaion is two-level: **5 root screens** flip with click / double click, and every
+settings screen lives one level down in `Меню`. Inside a sub-screen a double click
+goes back, a long press performs that screen's action.
 
-Header on every screen: **page title** on the left, **`N/12`** page counter (or **`<`** on a sub-screen) at x=97, **battery icon** on the right, separator rule at y=12.
+| Gesture | Timing | Root screens | Sub-screens |
+|---|---|---|---|
+| **Click** | — | next root | `Меню` / `Связь`: move the `>` marker; otherwise nothing |
+| **Double click** | < 280 ms between clicks | previous root | back to the parent screen |
+| **Long press** | 1000 ms | `Меню`: open the selected screen, `Связь`: open `Интерфейсы`, `Сообщения`/главная: message preview | the screen's own action (toggle, scan, calibrate) |
+| **Triple click** | — | `Радио`: next radio profile, `Маяк`: next interval | same |
+| **Quad click** | — | `Маяк`: stop the beacon | same |
+| **Boot rescue** | long press within 8 s after power-on | CLI rescue mode | — |
+
+Header on every screen: **page title** on the left, **`N/5`** on root screens or **`<`**
+on a sub-screen at x=97, **charge percentage** (`86%`, `--%` when the ADC reading is
+invalid) on the right, separator rule at y=12.
 
 ---
 
-## Screen Map (circular, click forward / double click back)
+## Screen Map
+
+Roots (click forward, double click back):
 
 ```
-FIRST → RECENT → NEIGHBORS → RADIO → POWER → BATTERY → SCAN → FSCAN
-  ↑                                                                 ↓
-SHUTDOWN ← SETUP ← GPS ← BLUETOOTH ←────────────────────────────────┘
-
-Hidden sub-screens (not in the rotation):
-  BLUETOOTH --long press--> СВЯЗЬ (interfaces) --double click--> back
-  BATTERY   --long press--> BATTERY CALIBRATION --double click--> back
+1 Главная (FDSKY) → 2 Сообщения → 3 Связь → 4 Сеть → 5 Меню → back to 1
 ```
-`BEACON` appears between GPS and SETUP, but only while GPS is switched on.
-`SETUP` on OLED shows one row (Clock); the e-ink build adds ScreenMode.
+
+Sub-screens — entered from a root, left with a double click:
+
+```
+1 Главная   --hold--> просмотр сообщений
+2 Сообщения --hold--> просмотр сообщений
+3 Связь     --hold--> Интерфейсы (BLE / WiFi / USB, порты 5000 и 5001)
+5 Меню      --hold--> Радио · Питание · Батарея · Шум · Частоты · Недавние
+                      GPS · Маяк · Экран · Выключить
+                Батарея --hold--> Калибровка АЦП
+```
+
+`Beacon` появляется в меню только при включённом GPS; `Батарея` — только на плате
+Heltec V4. Датчики (`UI_SENSORS_PAGE`) в эту сборку не входят.
 
 ---
 
 ## Page Reference
 
-### FIRST — Main Screen
+### 1 · Главная (FIRST)
 - `MSG n/m` — messages waiting for the phone / still stored on the device (size 2)
 - middle line, one of:
   - **Wi-Fi address** (`192.168.1.42`) — Wi-Fi link is up
   - `< Connected >` — a client is attached over BLE or USB, but Wi-Fi is down
   - `Pin:XXXXXX` — nothing is connected; PIN for pairing
 - bottom line — time and date (RU locale)
+- **Long press** → message preview
 
-### RECENT — Recent Adverts
+### 2 · Сообщения (MESSAGES)
+- `В памяти: n` — messages held on the device, `На телефон: m` — queued for the app
+- `держать: читать` when there is anything to read, otherwise `Сообщений нет`
+- **Long press** → message preview
+
+### 3 · Связь (BLUETOOTH)
+```
+BLE   вкл   нет
+WiFi  вкл   клиент
+USB   вкл   ?
+Pin:123456
+```
+- three columns: transport · adapter state · link state
+- `клиент` — a peer actually holds the link, `нет` — adapter up but nobody attached
+- `USB` link is always `?`: the serial transport reports "connected" unconditionally
+- 4th row shows the PIN; while a client is attached it shows the Wi-Fi network name
+- **Long press** → `Интерфейсы` sub-screen
+
+### 4 · Сеть (NEIGHBORS)
+- Direct neighbors with SNR, auto-scrolls when the list is longer than the screen
+- Empty list shows `no neighbors`
+- **Long press** → poll neighbors (`Polling...`)
+
+### 5 · Меню (MENU)
+- Scrolling list with a `>` marker; `v` on the right while more items follow
+- **Click** → move the marker, **long press** → open the selected screen
+
+### Недавние (RECENT) — подэкран меню
 - Up to 5 recently heard nodes with age (`12s`, `4m`, `1h`)
 - Empty list shows `no adverts` and the `advert: hold` hint
 - **Long press** → send an advert
 
-### NEIGHBORS — Known Neighbors
-- Direct neighbors with SNR in dB, auto-scrolls when the list is longer than the screen
-- Empty list shows `no neighbors` and `poll: hold`
-- **Long press** → poll neighbors (`Polling...`)
-
-### RADIO — Radio Parameters
+### Радио (RADIO) — подэкран меню
 - `FQ` frequency, `SF` spreading factor, `BW` bandwidth, `CR` coding rate
 - `TX: NNdBm` and `LNA: on/off` — the LNA part only on boards that can switch it
 - current radio profile on the bottom line
 - **Triple click** → next radio profile (`LongFast`, `LongSlow`, ...)
 - **Long press** → toggle the FEM LNA (silent no-op if the board has none)
 
-### POWER — Power Profile
+### Питание (POWER) — подэкран меню
 ```
 Power                       Eco max
 CPU on                  RX on
@@ -86,7 +123,7 @@ LNA on
 - bottom line is a real reason, not a hint: `GPS держит CPU`, `BLE держит CPU` or `сон недоступен`
 - **Long press** → apply the next power profile
 
-### BATTERY — Battery / ADC (Heltec V4)
+### Батарея (BATTERY) — подэкран меню, Heltec V4
 - `Voltage: 4.012 V` and `ADC: 5.420`
 - **Long press** → open calibration:
   - `Full 4.20V` — only for a fully charged single-cell Li-ion/LiPo pack
@@ -94,31 +131,17 @@ LNA on
   - `Meter: use CLI` — tells you to send `calibrate battery <mV>`
   - inside: **click** moves/selects, **long press** confirms, **double click** cancels
 
-### SCAN — Noise Scan
+### Шум (SCAN) — подэкран меню
 - live RSSI (size 2), noise floor `NL`, peak `pk`, `PKT` flag on reception, bar scale
 - **Long press** → reset the peak
 
-### FSCAN — Frequency Scan
+### Частоты (FSCAN) — подэкран меню
 - idle: `find quiet freq` and `scan: hold`
 - running: `scan N/M`, current frequency, progress bar
 - finished: `now <freq>` and the three quietest channels, the current one marked `*`
 - **Long press** → start the scan
 
-### BLUETOOTH — Interface Status
-```
-BLE   вкл   нет
-WiFi  вкл   клиент
-USB   вкл   ?
-Pin:123456
-```
-- three columns: transport · adapter state (`вкл`/`выкл`) · link state
-- `клиент` — a peer actually holds the link, `нет` — adapter is up but nobody is attached
-- `USB` link is always `?`: the serial transport reports "connected" unconditionally, so the firmware cannot know
-- 4th row shows the PIN for pairing; while a client is attached it shows the Wi-Fi network name instead
-- header shows the charge as a percentage (`86%` or `--%` when the ADC reading is invalid)
-- **Long press** → open the `СВЯЗЬ` sub-screen
-
-### СВЯЗЬ — Interface Manager (sub-screen of BLUETOOTH)
+### Интерфейсы (CONNECTIONS) — подэкран «Связи»
 ```
 >BLE   ON
  WiFi  OFF
@@ -130,28 +153,28 @@ Pin:123456
 - bottom row reports the two TCP servers separately: `5000:+ 5001:-` (`+` client attached, `-` none, `н/д` no such server); `порты: --` while Wi-Fi is off
 - header shows `<` instead of the page counter
 
-### GPS — GPS Module
+### GPS — подэкран меню
 - `module on/off` (may show `off(hw)` when a hardware switch disagrees)
 - `fix yes/no`, `sats N`; `Can't access GPS` when no module answers
 - **Long press** → toggle GPS
 
-### BEACON — Маяк (needs GPS)
+### Маяк (BEACON) — подэкран меню
 - mode, interval and target
 - **Long press** → next mode (OFF → Local → Flood → Group → Chat)
 - **Triple click** → next interval
 - **Quad click** → stop the beacon
 
-### SETUP — Device Settings
+### Экран (SETUP) — подэкран меню
 - `Clock on/off` (controls the clock on FIRST); e-ink build also has `ScreenMode`
 - **Long press** → enter/leave edit mode
 - in edit mode: **click** → next row, **triple click** → change value
 
-### SHUTDOWN — Hibernate
+### Выключить (SHUTDOWN) — подэкран меню
 - power icon and `hibernate: hold`
 - **Long press** → power off (executes on button release)
 - wake after hibernate: none. `powerOff()` routes to `enterDeepSleep(0)`, which calls `esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL)`, so only a physical reset / power cycle brings the board back. Wake-on-LoRa (DIO1) is not enabled by this build.
 
-### Message preview (opened from FIRST)
+### Просмотр сообщения
 - sender in the top-left corner, age in the top-right corner, rule at y=11, wrapped text below
 - **Click** → next message / close, **double click** → next page of a long text,
   **triple click** → drop the message from the buffer

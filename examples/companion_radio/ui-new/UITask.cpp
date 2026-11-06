@@ -186,8 +186,11 @@ class HomeScreen : public UIScreen {
 public:
   enum HomePage {
     FIRST,
+    MESSAGES,      // root: message counters, opens the preview
+    BLUETOOTH,     // root: interface status ("Связь")
+    CONNECTIONS,   // sub-screen of BLUETOOTH: toggle the transports
     RECENT,
-    NEIGHBORS,
+    NEIGHBORS,     // root: network ("Сеть")
     RADIO,
     POWER,
 #ifdef HELTEC_LORA_V4
@@ -196,8 +199,6 @@ public:
 #endif
     SCAN,
     FSCAN,
-    BLUETOOTH,
-    CONNECTIONS,
 #if ENV_INCLUDE_GPS == 1
     GPS,
     BEACON,
@@ -206,6 +207,7 @@ public:
     SENSORS,
 #endif
     SETUP,
+    MENU,          // root: entry point for every settings sub-screen
     SHUTDOWN,
     Count    // keep as last
   };
@@ -226,6 +228,12 @@ private:
   bool _battery_apply = false;
 #endif
   uint8_t _conn_selected = 0;
+  // Two-level navigation: five root screens, everything else is a sub-screen
+  // opened from МЕНЮ (or СВЯЗЬ from Связь), left again with a double click.
+  bool _in_sub = false;
+  uint8_t _sub_parent = HomePage::MENU;
+  uint8_t _menu_index = 0;
+  uint8_t _menu_scroll = 0;
 
 public:
   // Accessors for UITask
@@ -234,8 +242,13 @@ public:
   void setConnSelected(uint8_t v) { _conn_selected = v; }
   // Navigation from outside (e.g., triple-click on CONNECTIONS)
   void stepPageNav(int dir) { _page = stepPage(dir); }
-  // Jump straight to a hidden sub-screen (CONNECTIONS), bypassing the flip cycle
-  void goToPage(uint8_t p) { _page = p; }
+  // Jump straight to a sub-screen, bypassing the root flip cycle
+  void enterSub(uint8_t p) { _sub_parent = _in_sub ? _sub_parent : _page; _in_sub = true; _page = p; }
+  void leaveSub() { _page = _sub_parent; _in_sub = false; }
+  void goToPage(uint8_t p) { _page = p; _in_sub = true; }
+  bool isInSub() const { return _in_sub; }
+  uint8_t getMenuIndex() const { return _menu_index; }
+  void setMenuIndex(uint8_t v) { _menu_index = v; }
 
 private:
   AdvertPath recent[UI_RECENT_LIST_SIZE];
@@ -473,26 +486,67 @@ private:
 
   // The gps setting is published only after the module is detected.
   // Its value is "1" only while that module is switched on.
+  // Only five root screens take part in the click / double-click cycle.
+  // Every other page is a sub-screen reached from МЕНЮ (or СВЯЗЬ from Связь)
+  // and left with a double click.
   bool isPageVisible(uint8_t page) const {
-    // SETUP is always reachable: on e-ink it offers Clock + ScreenMode,
-    // on OLED only Clock (ScreenMode is a panel property there).
-    // CONNECTIONS is a sub-screen of BLUETOOTH: only reachable by long press,
-    // never part of the click/double-click page flip cycle.
-    if (page == HomePage::CONNECTIONS) return false;
+    switch (page) {
+      case HomePage::FIRST:
+      case HomePage::MESSAGES:
+      case HomePage::BLUETOOTH:
+      case HomePage::NEIGHBORS:
+      case HomePage::MENU:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  // Entries of the МЕНЮ list, in display order. Conditional ones are dropped
+  // when the build or the hardware does not provide them.
+  uint8_t menuCount() const {
+    uint8_t n = 0;
+    n++;  // Радио
+    n++;  // Питание
 #ifdef HELTEC_LORA_V4
-    if (page == HomePage::BATTERY_CAL) return false;
+    n++;  // Батарея
 #endif
+    n++;  // Шум
+    n++;  // Частоты
+    n++;  // Недавние
 #if ENV_INCLUDE_GPS == 1
-    if (page == HomePage::BEACON) return _task->getGPSState();
+    n++;  // GPS
+    n++;  // Маяк
 #endif
-    return true;
+    n++;  // Экран
+    n++;  // Выключить
+    return n;
+  }
+
+  uint8_t menuPageAt(uint8_t idx) const {
+    uint8_t i = 0;
+    if (idx == i++) return HomePage::RADIO;
+    if (idx == i++) return HomePage::POWER;
+#ifdef HELTEC_LORA_V4
+    if (idx == i++) return HomePage::BATTERY;
+#endif
+    if (idx == i++) return HomePage::SCAN;
+    if (idx == i++) return HomePage::FSCAN;
+    if (idx == i++) return HomePage::RECENT;
+#if ENV_INCLUDE_GPS == 1
+    if (idx == i++) return HomePage::GPS;
+    if (idx == i++) return HomePage::BEACON;
+#endif
+    if (idx == i++) return HomePage::SETUP;
+    return HomePage::SHUTDOWN;
   }
 
   const char* pageTitle() const {
     switch (_page) {
       case FIRST: return _node_prefs->node_name;
+      case MESSAGES: return "Сообщения";
       case RECENT: return "Недавние";
-      case NEIGHBORS: return "Соседи";
+      case NEIGHBORS: return "Сеть";
       case RADIO: return "Радио";
       case POWER: return "Питание";
 #ifdef HELTEC_LORA_V4
@@ -500,8 +554,8 @@ private:
 #endif
       case SCAN: return "Шум";
       case FSCAN: return "Частоты";
-      case BLUETOOTH: return "Bluetooth";
-      case CONNECTIONS: return "Связь";
+      case BLUETOOTH: return "Связь";
+      case CONNECTIONS: return "Интерфейсы";
 #if ENV_INCLUDE_GPS == 1
       case GPS: return "GPS";
       case BEACON: return "Маяк";
@@ -509,9 +563,31 @@ private:
 #if UI_SENSORS_PAGE == 1
       case SENSORS: return "Датчики";
 #endif
-      case SETUP: return "Настройки";
+      case SETUP: return "Экран";
+      case MENU: return "Меню";
       case SHUTDOWN: return "Выключить";
       default: return "MeshCore";
+    }
+  }
+
+  // Short names for the МЕНЮ list; keep them under 19 characters.
+  const char* menuLabel(uint8_t page) const {
+    switch (page) {
+      case HomePage::RADIO: return "Радио";
+      case HomePage::POWER: return "Питание";
+#ifdef HELTEC_LORA_V4
+      case HomePage::BATTERY: return "Батарея";
+#endif
+      case HomePage::SCAN: return "Шум";
+      case HomePage::FSCAN: return "Частоты";
+      case HomePage::RECENT: return "Недавние";
+#if ENV_INCLUDE_GPS == 1
+      case HomePage::GPS: return _task->getGPSState() ? "GPS: вкл" : "GPS: выкл";
+      case HomePage::BEACON: return "Маяк";
+#endif
+      case HomePage::SETUP: return "Экран";
+      case HomePage::SHUTDOWN: return "Выключить";
+      default: return "?";
     }
   }
 
@@ -618,12 +694,9 @@ public:
   }
 
   int render(DisplayDriver& display) override {
-    // CONNECTIONS is a hidden sub-screen; do not kick it out of the flip cycle.
-    if (_page != HomePage::CONNECTIONS
-#ifdef HELTEC_LORA_V4
-        && _page != HomePage::BATTERY_CAL
-#endif
-        && !isPageVisible(_page)) _page = stepPage(1);
+    // Sub-screens are not part of the root cycle; only kick a page when we are
+    // on a root screen that is not visible in this build.
+    if (!_in_sub && !isPageVisible(_page)) _page = stepPage(1);
 
     display.setColor(UIColor::title_bkg);
     display.fillRect(0, 0, display.width(), 12);
@@ -659,11 +732,7 @@ public:
     }
     if (compact_header) {
       display.setColor(UIColor::title_txt);
-      if (_page == HomePage::CONNECTIONS
-#ifdef HELTEC_LORA_V4
-          || _page == HomePage::BATTERY_CAL
-#endif
-          ) {
+      if (_in_sub) {
         display.drawTextRightAlign(97, 2, "<");
       } else {
         snprintf(tmp, sizeof(tmp), "%u/%u", visible_index + 1, visible_count);
@@ -739,6 +808,22 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(display.width() / 2, display.height() - 11, line);
       }
+    } else if (_page == HomePage::MESSAGES) {
+      // Root 2: message counters only. The preview itself is a separate screen
+      // (long press here or on the main screen).
+      display.setTextSize(1);
+      int y = 20;
+      char mbuf[32];
+      display.setColor(UIColor::primary_txt);
+      snprintf(mbuf, sizeof(mbuf), "В памяти: %d", _task->getDeviceStored());
+      display.drawTextLeftAlign(0, y, mbuf);
+      y += 12;
+      snprintf(mbuf, sizeof(mbuf), "На телефон: %d", _task->getMsgCount());
+      display.drawTextLeftAlign(0, y, mbuf);
+      y += 12;
+      bool any = _task->getDeviceStored() > 0 || _task->getMsgCount() > 0;
+      display.setColor(any ? UIColor::primary_txt : UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, y, any ? "держать: читать" : "Сообщений нет");
     } else if (_page == HomePage::RECENT) {
       the_mesh.getRecentlyHeard(recent, UI_RECENT_LIST_SIZE);
       int shown = 0;
@@ -1281,6 +1366,28 @@ public:
         display.drawTextCentered(display.width()/2, 53, "click: next  hold: OK");
       }
 #endif
+    } else if (_page == HomePage::MENU) {
+      // Root 5: the only way into the settings sub-screens.
+      // click moves the marker, hold opens the selected page.
+      const uint8_t total = menuCount();
+      if (_menu_index >= total) _menu_index = 0;
+      const uint8_t rows = 4;
+      if (_menu_index < _menu_scroll) _menu_scroll = _menu_index;
+      if (_menu_index >= _menu_scroll + rows) _menu_scroll = _menu_index - rows + 1;
+      display.setTextSize(1);
+      for (uint8_t r = 0; r < rows; r++) {
+        uint8_t idx = _menu_scroll + r;
+        if (idx >= total) break;
+        uint8_t page = menuPageAt(idx);
+        bool sel = idx == _menu_index;
+        display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18 + r * 12, sel ? ">" : " ");
+        display.drawTextLeftAlign(10, 18 + r * 12, menuLabel(page));
+      }
+      if (_menu_scroll + rows < total) {
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextRightAlign(display.width() - 1, 18 + (rows - 1) * 12, "v");
+      }
     } else if (_page == HomePage::SHUTDOWN) {
       display.setColor(UIColor::corp_blue);
       display.setTextSize(1);
@@ -1369,6 +1476,11 @@ public:
         stepSetupRow(-1);
         return true;
       }
+      if (_in_sub) {           // back to the root that opened this sub-screen
+        leaveSub();
+        _setup_edit = false;
+        return true;
+      }
       _page = stepPage(-1);
       if (_page == HomePage::SETUP) {
         _setup_row = 0;
@@ -1378,6 +1490,12 @@ public:
         neighbors_scroll_offset = 0;
         neighbors_next_scroll = 0;
       }
+      return true;
+    }
+    // МЕНЮ: click moves the marker, hold opens the selected sub-screen.
+    if (_page == HomePage::MENU && (c == KEY_NEXT || c == KEY_RIGHT)) {
+      uint8_t total = menuCount();
+      if (total > 0) _menu_index = (_menu_index + 1) % total;
       return true;
     }
     // CONNECTIONS: click selects, double click exits, hold toggles selection.
@@ -1398,6 +1516,7 @@ public:
         stepSetupRow(1);
         return true;
       }
+      if (_in_sub) return true;   // sub-screens stay put; double click goes back
       _page = stepPage(1);
       if (_page == HomePage::SETUP) {
         _setup_row = 0;
@@ -1406,32 +1525,6 @@ public:
       if (_page == HomePage::NEIGHBORS) {
         neighbors_scroll_offset = 0;
         neighbors_next_scroll = 0;
-      }
-      // Page-name plaques force a second full refresh on e-ink.
-      if (!_task->isEink()) {
-        if (_page == HomePage::RECENT) {
-          _task->showAlert("Recent adverts", 800);
-        }
-        if (_page == HomePage::NEIGHBORS) {
-          _task->showAlert("Neighbors", 800);
-        }
-        if (_page == HomePage::RADIO) {
-          _task->showAlert("Radio", 800);
-        }
-        if (_page == HomePage::POWER) {
-          _task->showAlert("Power", 800);
-        }
-        if (_page == HomePage::SCAN) {
-          _task->showAlert("Noise scan", 800);
-        }
-        if (_page == HomePage::FSCAN) {
-          _task->showAlert("Freq scan", 800);
-        }
-#if ENV_INCLUDE_GPS == 1
-        if (_page == HomePage::BEACON) {
-          _task->showAlert("Beacon", 800);
-        }
-#endif
       }
       return true;
     }
@@ -1586,8 +1679,14 @@ public:
       return true;
     }
     // long press on the main page reopens messages already previewed or dismissed
-    if (c == KEY_ENTER && _page == HomePage::FIRST) {
+    if (c == KEY_ENTER && (_page == HomePage::FIRST || _page == HomePage::MESSAGES)) {
       return _task->reopenMsgPreview();
+    }
+    // МЕНЮ: hold opens the highlighted sub-screen
+    if (c == KEY_ENTER && _page == HomePage::MENU) {
+      if (_menu_index >= menuCount()) _menu_index = 0;
+      enterSub(menuPageAt(_menu_index));
+      return true;
     }
     return false;
   }
@@ -2475,7 +2574,7 @@ char UITask::handleLongPress(char c) {
     HomeScreen* hs = static_cast<HomeScreen*>(curr);
     if (hs->getPage() == HomeScreen::HomePage::BLUETOOTH) {
       // Long press on Bluetooth = enter the CONNECTIONS sub-screen
-      hs->goToPage(HomeScreen::HomePage::CONNECTIONS);
+      hs->enterSub(HomeScreen::HomePage::CONNECTIONS);
       c = 0;
     }
   }

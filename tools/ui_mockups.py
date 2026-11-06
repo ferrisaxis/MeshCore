@@ -205,7 +205,7 @@ def header(px, title, page=None, total=None, sub=False, pct=78):
     battery(px, pct)
     fill_rect(px, 0, 12, W, 1)
 
-TOTAL = 12   # visible pages with GPS off: FIRST..SHUTDOWN
+TOTAL = 5    # root screens: Главная, Сообщения, Связь, Сеть, Меню
 
 def screen(title, page=None, sub=False, pct=78):
     img, px = canvas()
@@ -260,8 +260,34 @@ def s_msg_preview():
         draw_text(px, 0, 14 + i * 10, line, 1)
     return img
 
+
+def s_messages():
+    img, px = screen("Сообщения", 2)
+    draw_text(px, 0, 20, "В памяти: 5", 1)
+    draw_text(px, 0, 32, "На телефон: 3", 1)
+    draw_text(px, 0, 44, "держать: читать", 1)
+    return img
+
+def s_menu(sel=0):
+    items = ["Радио", "Питание", "Батарея", "Шум", "Частоты", "Недавние",
+             "GPS: выкл", "Маяк", "Экран", "Выключить"]
+    img, px = screen("Меню", 5)
+    start = 0
+    if sel >= 4:
+        start = sel - 3
+    for r in range(4):
+        idx = start + r
+        if idx >= len(items):
+            break
+        y = 18 + r * 12
+        draw_text(px, 0, y, ">" if idx == sel else " ", 1)
+        draw_text(px, 10, y, items[idx], 1)
+    if start + 4 < len(items):
+        draw_right(px, 18 + 3 * 12, "v", 1)
+    return img
+
 def s_recent(full=True):
-    img, px = screen("Недавние", 2)
+    img, px = screen("Недавние", sub=True)
     if full:
         for i, (nm, t) in enumerate([("MO Mytischi-4", "12s"), ("CAO Taganka", "4m"),
                                      ("Zelenograd 23", "1h"), ("MO Klyazma", "3h")]):
@@ -274,7 +300,7 @@ def s_recent(full=True):
     return img
 
 def s_neighbors(full=True):
-    img, px = screen("Соседи", 3)
+    img, px = screen("Сеть", 4)
     if full:
         for i, (nm, snr) in enumerate([("MO Mytischi Mira 37", "+9"), ("FDSKY-2", "+7"),
                                        ("CAO Moscow-City", "+5"), ("TROYAN-Repeater", "+3")]):
@@ -287,7 +313,7 @@ def s_neighbors(full=True):
     return img
 
 def s_radio(lna=True):
-    img, px = screen("Радио", 4)
+    img, px = screen("Радио", sub=True)
     draw_text(px, 0, 20, "FQ: 868.731   SF: 7", 1)
     draw_text(px, 0, 31, "BW: 62.50     CR: 7", 1)
     draw_text(px, 0, 42, "TX: 10dBm  LNA: on" if lna else "TX: 10dBm", 1)
@@ -296,7 +322,7 @@ def s_radio(lna=True):
     return img
 
 def s_power(blocked=False):
-    img, px = screen("Питание", 5)
+    img, px = screen("Питание", sub=True)
     draw_text(px, 0, 18, "Режим", 1)
     draw_right(px, 18, "Eco max", 1)
     draw_text(px, 0, 30, "Сон: да", 1)
@@ -307,7 +333,7 @@ def s_power(blocked=False):
     return img
 
 def s_battery():
-    img, px = screen("Батарея", 6)
+    img, px = screen("Батарея", sub=True)
     draw_text(px, 0, 21, "Battery / ADC", 1)
     draw_text(px, 0, 32, "Voltage: 4.012 V", 1)
     draw_text(px, 0, 43, "ADC: 5.420", 1)
@@ -330,7 +356,7 @@ def s_battery_confirm():
     return img
 
 def s_scan():
-    img, px = screen("Шум", 7)
+    img, px = screen("Шум", sub=True)
     draw_centered(px, 18, "-97", 2)
     draw_right(px, 18, "PKT", 1)
     draw_text(px, 0, 36, "NL -105", 1)
@@ -341,7 +367,7 @@ def s_scan():
     return img
 
 def s_fscan(state="done"):
-    img, px = screen("Частоты", 8)
+    img, px = screen("Частоты", sub=True)
     if state == "idle":
         draw_centered(px, 28, "find quiet freq", 1)
         draw_centered(px, 53, "scan: hold", 1)
@@ -359,7 +385,7 @@ def s_fscan(state="done"):
     return img
 
 def s_interfaces_status(pin=True):
-    img, px = screen("Bluetooth", 9)
+    img, px = screen("Связь", 3)
     rows = [("BLE", "вкл", "нет"), ("WiFi", "выкл", ""), ("USB", "вкл", "?")]
     y = 18
     for name, st, link in rows:
@@ -372,7 +398,7 @@ def s_interfaces_status(pin=True):
     return img
 
 def s_interfaces_select(sel):
-    img, px = screen("Связь", sub=True)
+    img, px = screen("Интерфейсы", sub=True)
     y = 18
     for i, (name, st) in enumerate([("BLE", "вкл"), ("WiFi", "выкл"), ("USB", "вкл")]):
         draw_text(px, 0, y, ">" if i == sel else " ", 1)
@@ -383,7 +409,7 @@ def s_interfaces_select(sel):
     return img
 
 def s_gps(available=True):
-    img, px = screen("GPS", 10)
+    img, px = screen("GPS", sub=True)
     draw_text(px, 0, 20, "module", 1)
     draw_right(px, 20, "on" if available else "off", 1)
     if available:
@@ -394,7 +420,7 @@ def s_gps(available=True):
     return img
 
 def s_beacon():
-    img, px = screen("Маяк", 11)
+    img, px = screen("Маяк", sub=True)
     draw_text(px, 0, 20, "mode", 1)
     draw_right(px, 20, "2", 1)
     draw_text(px, 0, 32, "interval", 1)
@@ -404,14 +430,14 @@ def s_beacon():
     return img
 
 def s_setup():
-    img, px = screen("Настройки", 11)
+    img, px = screen("Экран", sub=True)
     draw_text(px, 10, 22, "Clock", 1)
     draw_right(px, 22, "on", 1, margin=8)
     draw_centered(px, 52, "hold", 1)
     return img
 
 def s_shutdown(state="ready"):
-    img, px = screen("Выключить", 12)
+    img, px = screen("Выключить", sub=True)
     if state == "hibernating":
         draw_centered(px, 34, "hibernating...", 1)
         return img
@@ -426,36 +452,39 @@ def s_shutdown(state="ready"):
 
 # ----------------------------------------------------------------- build
 SCREENS = [
-    ("01-main-screen-wifi-ip",        "Главный: Wi-Fi поднят, показан IP",                     s_main_connected()),
-    ("02-main-screen-ble-client",     "Главный: подключён USB/BLE клиент, без Wi-Fi",          s_main_usb()),
-    ("03-main-screen-pin",            "Главный: подключения нет, показан PIN",                 s_main_pin()),
-    ("04-boot-splash",                "Заставка при загрузке",                                 s_splash()),
-    ("05-message-preview",            "Превью входящего сообщения",                            s_msg_preview()),
-    ("06-recent-nodes",               "Недавние: список и возраст",                            s_recent(True)),
-    ("07-recent-nodes-empty",         "Недавние: пусто",                                       s_recent(False)),
-    ("08-neighbors-snr",              "Соседи: список и SNR",                                  s_neighbors(True)),
-    ("09-neighbors-empty",            "Соседи: пусто",                                         s_neighbors(False)),
-    ("10-radio-settings-lna",         "Радио: параметры, LNA есть",                            s_radio(True)),
-    ("11-radio-settings-no-lna",      "Радио: без управляемого LNA",                           s_radio(False)),
-    ("12-power-profile",              "Питание: профиль и подсказка",                          s_power(False)),
-    ("13-power-profile-blocked",      "Питание: профиль упирается в ресурс",                   s_power(True)),
-    ("14-battery-adc",                "Батарея: напряжение и множитель АЦП",                   s_battery()),
-    ("15-battery-calibration",        "Батарея: выбор калибровки",                             s_battery_cal()),
-    ("16-battery-calibration-confirm","Батарея: подтверждение",                                s_battery_confirm()),
-    ("17-noise-scan",                 "Шум: уровень, пик, шкала",                              s_scan()),
-    ("18-freq-scan-idle",             "Частоты: ожидание",                                     s_fscan("idle")),
-    ("19-freq-scan-running",          "Частоты: идёт скан",                                    s_fscan("run")),
-    ("20-freq-scan-result",           "Частоты: результат",                                    s_fscan("done")),
-    ("21-interfaces-status",          "Bluetooth: статус BLE/WiFi/USB и PIN",                  s_interfaces_status()),
-    ("22-interfaces-select-ble",      "Связь: маркер на BLE",                                  s_interfaces_select(0)),
-    ("23-interfaces-select-wifi",     "Связь: маркер на WiFi",                                 s_interfaces_select(1)),
-    ("24-interfaces-select-usb",      "Связь: маркер на USB",                                  s_interfaces_select(2)),
-    ("25-gps-status",                 "GPS: включён, есть фикс",                               s_gps(True)),
-    ("26-gps-unavailable",            "GPS: модуль недоступен",                                s_gps(False)),
-    ("27-beacon",                     "Маяк: режим, интервал, цель",                           s_beacon()),
-    ("28-setup",                      "Настройки: Clock",                                      s_setup()),
-    ("29-shutdown",                   "Выключение: иконка питания",                            s_shutdown("ready")),
-    ("30-shutdown-hibernating",       "Выключение: идёт процесс",                              s_shutdown("hibernating")),
+    ("01-root-home-wifi-ip",          "Корень 1/5: главная, Wi-Fi поднят, показан IP",         s_main_connected()),
+    ("02-root-home-ble-client",       "Корень 1/5: подключён USB/BLE клиент, без Wi-Fi",      s_main_usb()),
+    ("03-root-home-pin",              "Корень 1/5: подключения нет, PIN",                      s_main_pin()),
+    ("04-root-messages",              "Корень 2/5: счётчики сообщений",                        s_messages()),
+    ("05-root-connections",           "Корень 3/5: статусы BLE/WiFi/USB",                     s_interfaces_status()),
+    ("06-root-network",               "Корень 4/5: сеть, список соседей",                      s_neighbors(True)),
+    ("07-root-network-empty",         "Корень 4/5: соседей нет",                               s_neighbors(False)),
+    ("08-root-menu-radio",            "Корень 5/5: меню, выбран Радио",                        s_menu(0)),
+    ("09-root-menu-battery",          "Корень 5/5: меню, прокрутка до Батареи",                s_menu(2)),
+    ("10-root-menu-shutdown",         "Корень 5/5: меню, прокрутка до Выключить",              s_menu(9)),
+    ("11-sub-interfaces-toggle",      "Подэкран Связи: выбор интерфейса (маркер BLE)",         s_interfaces_select(0)),
+    ("12-sub-interfaces-toggle-wifi", "Подэкран Связи: маркер на WiFi",                        s_interfaces_select(1)),
+    ("13-sub-radio",                  "Подэкран Радио: параметры и LNA",                       s_radio(True)),
+    ("14-sub-radio-no-lna",           "Подэкран Радио: плата без управляемого LNA",            s_radio(False)),
+    ("15-sub-power",                  "Подэкран Питание: профиль и состояние сна",             s_power(False)),
+    ("16-sub-power-blocked",          "Подэкран Питание: сон держит BLE",                      s_power(True)),
+    ("17-sub-battery",                "Подэкран Батарея: напряжение и множитель АЦП",          s_battery()),
+    ("18-sub-battery-calibration",    "Подэкран калибровки: выбор операции",                   s_battery_cal()),
+    ("19-sub-battery-confirm",        "Подэкран калибровки: подтверждение",                    s_battery_confirm()),
+    ("20-sub-noise-scan",             "Подэкран Шум: уровень, пик, шкала",                     s_scan()),
+    ("21-sub-freq-scan-idle",         "Подэкран Частоты: ожидание",                            s_fscan("idle")),
+    ("22-sub-freq-scan-running",      "Подэкран Частоты: идёт скан",                           s_fscan("run")),
+    ("23-sub-freq-scan-result",       "Подэкран Частоты: результат",                           s_fscan("done")),
+    ("24-sub-recent",                 "Подэкран Недавние: список и возраст",                   s_recent(True)),
+    ("25-sub-recent-empty",           "Подэкран Недавние: пусто",                              s_recent(False)),
+    ("26-sub-gps",                    "Подэкран GPS: включён, есть фикс",                      s_gps(True)),
+    ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
+    ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
+    ("29-sub-screen-time",            "Подэкран Экран: настройки дисплея",                     s_setup()),
+    ("30-sub-shutdown",               "Подэкран Выключить: подтверждение",                     s_shutdown("ready")),
+    ("31-sub-shutdown-progress",      "Подэкран Выключить: процесс пошёл",                     s_shutdown("hibernating")),
+    ("32-boot-splash",                "Заставка при загрузке",                                 s_splash()),
+    ("33-message-preview",            "Просмотр сообщения (без шапки)",                        s_msg_preview()),
 ]
 
 ALERTS = [
