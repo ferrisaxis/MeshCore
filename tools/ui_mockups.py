@@ -270,7 +270,7 @@ def s_messages():
 
 def s_menu(sel=0):
     items = ["Радио", "Питание", "Батарея", "Шум", "Частоты", "Недавние",
-             "GPS: выкл", "Маяк", "Экран", "Выключить"]
+             "GPS: выкл", "Маяк", "Время", "Экран", "Выключить"]
     img, px = screen("Меню", 5)
     start = 0
     if sel >= 4:
@@ -439,15 +439,29 @@ def s_setup():
 def s_shutdown(state="ready"):
     img, px = screen("Выключить", sub=True)
     if state == "hibernating":
-        draw_centered(px, 34, "hibernating...", 1)
+        draw_centered(px, 34, "выключаю...", 1)
         return img
-    cx, cy, r = W // 2, 30, 11
-    for a in range(0, 360):
-        if 250 < a < 290:
-            continue
-        px_set(px, cx + int(r * math.cos(math.radians(a))), cy + int(r * math.sin(math.radians(a))))
-    fill_rect(px, cx - 1, cy - r - 3, 2, 12)
-    draw_centered(px, 53, "hibernate: hold", 1)
+    draw_text(px, 0, 20, "Выключить питание?", 1)
+    draw_text(px, 4, 34, "> Отмена", 1)      # safe choice, preselected
+    draw_text(px, 4, 46, "Применить", 1)
+    draw_text(px, 0, 56, "клик: выбор  держ: ок", 1)
+    return img
+
+def s_shutdown_apply():
+    img, px = screen("Выключить", sub=True)
+    draw_text(px, 0, 20, "Выключить питание?", 1)
+    draw_text(px, 4, 34, "Отмена", 1)
+    draw_text(px, 4, 46, "> Применить", 1)
+    draw_text(px, 0, 56, "клик: выбор  держ: ок", 1)
+    return img
+
+def s_time():
+    img, px = screen("Время", sub=True)
+    draw_text(px, 0, 18, "14:32  Чт, 05.11", 1)
+    draw_text(px, 0, 30, "пояс: +3 ч", 1)
+    draw_right(px, 30, "язык: RU", 1)
+    draw_text(px, 0, 42, "источник: задано", 1)
+    draw_text(px, 0, 54, "держать: запрос", 1)
     return img
 
 # ----------------------------------------------------------------- build
@@ -481,10 +495,12 @@ SCREENS = [
     ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
     ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
     ("29-sub-screen-time",            "Подэкран Экран: настройки дисплея",                     s_setup()),
-    ("30-sub-shutdown",               "Подэкран Выключить: подтверждение",                     s_shutdown("ready")),
-    ("31-sub-shutdown-progress",      "Подэкран Выключить: процесс пошёл",                     s_shutdown("hibernating")),
-    ("32-boot-splash",                "Заставка при загрузке",                                 s_splash()),
-    ("33-message-preview",            "Просмотр сообщения (без шапки)",                        s_msg_preview()),
+    ("30-sub-time",                   "Подэкран Время: часы, пояс, источник",                    s_time()),
+    ("31-sub-shutdown",               "Подэкран Выключить: подтверждение, «Отмена» по умолчанию", s_shutdown("ready")),
+    ("32-sub-shutdown-apply",         "Подэкран Выключить: выбрано «Применить»",                s_shutdown_apply()),
+    ("33-sub-shutdown-progress",      "Подэкран Выключить: процесс пошёл",                      s_shutdown("hibernating")),
+    ("34-boot-splash",                "Заставка при загрузке",                                 s_splash()),
+    ("35-message-preview",            "Просмотр сообщения (без шапки)",                        s_msg_preview()),
 ]
 
 ALERTS = [

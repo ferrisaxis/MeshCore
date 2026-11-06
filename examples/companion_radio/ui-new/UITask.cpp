@@ -206,6 +206,7 @@ public:
 #if UI_SENSORS_PAGE == 1
     SENSORS,
 #endif
+    TIME,          // sub-screen: clock, date, timezone, clock pull
     SETUP,
     MENU,          // root: entry point for every settings sub-screen
     SHUTDOWN,
@@ -222,6 +223,7 @@ private:
   uint8_t _setup_row;
   bool _setup_edit;
   bool _shutdown_init;
+  bool _shutdown_apply = false;   // confirm dialog: false = Отмена (default)
 #ifdef HELTEC_LORA_V4
   uint8_t _battery_choice = 0; // full charge, reset, CLI instructions
   bool _battery_confirm = false;
@@ -518,6 +520,7 @@ private:
     n++;  // GPS
     n++;  // Маяк
 #endif
+    n++;  // Время
     n++;  // Экран
     n++;  // Выключить
     return n;
@@ -537,6 +540,7 @@ private:
     if (idx == i++) return HomePage::GPS;
     if (idx == i++) return HomePage::BEACON;
 #endif
+    if (idx == i++) return HomePage::TIME;
     if (idx == i++) return HomePage::SETUP;
     return HomePage::SHUTDOWN;
   }
@@ -563,6 +567,7 @@ private:
 #if UI_SENSORS_PAGE == 1
       case SENSORS: return "Датчики";
 #endif
+      case TIME: return "Время";
       case SETUP: return "Экран";
       case MENU: return "Меню";
       case SHUTDOWN: return "Выключить";
@@ -585,6 +590,7 @@ private:
       case HomePage::GPS: return _task->getGPSState() ? "GPS: вкл" : "GPS: выкл";
       case HomePage::BEACON: return "Маяк";
 #endif
+      case HomePage::TIME: return "Время";
       case HomePage::SETUP: return "Экран";
       case HomePage::SHUTDOWN: return "Выключить";
       default: return "?";
@@ -1321,6 +1327,35 @@ public:
       if (sensors_scroll) sensors_scroll_offset = (sensors_scroll_offset+1)%sensors_nb;
       else sensors_scroll_offset = 0;
 #endif
+    } else if (_page == HomePage::TIME) {
+      display.setTextSize(1);
+      int y = 18;
+      char tbuf[40];
+      uint32_t now = _rtc->getCurrentTime();
+      int16_t tz = _node_prefs ? _node_prefs->tz_offset_mins : 0;
+      bool valid = now >= 1000000000UL;
+      display.setColor(valid ? UIColor::primary_txt : UIColor::warning_txt);
+      if (valid) {
+        char hm[8], ds[16];
+        formatClockHm(now, tz, hm, sizeof(hm));
+        formatClockDate(now, tz, _node_prefs ? _node_prefs->ui_lang : UI_LANG_RU, ds, sizeof(ds));
+        snprintf(tbuf, sizeof(tbuf), "%s  %s", hm, ds);
+      } else {
+        snprintf(tbuf, sizeof(tbuf), "время не задано");
+      }
+      display.drawTextLeftAlign(0, y, tbuf);
+      y += 12;
+      display.setColor(UIColor::primary_txt);
+      snprintf(tbuf, sizeof(tbuf), "пояс: %+d ч", (int)(tz / 60));
+      display.drawTextLeftAlign(0, y, tbuf);
+      display.drawTextRightAlign(display.width() - 1, y,
+        (_node_prefs && _node_prefs->ui_lang == 0) ? "язык: RU" : "язык: EN");
+      y += 12;
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, y, valid ? "источник: задано" : "источник: нет");
+      y += 12;
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, y, "держать: запрос");
     } else if (_page == HomePage::SETUP) {
       uint8_t mode = _node_prefs ? _node_prefs->eink_refresh : EINK_REFRESH_CLEAR;
       if (mode >= EINK_REFRESH_COUNT) mode = EINK_REFRESH_CLEAR;
@@ -1389,15 +1424,20 @@ public:
         display.drawTextRightAlign(display.width() - 1, 18 + (rows - 1) * 12, "v");
       }
     } else if (_page == HomePage::SHUTDOWN) {
-      display.setColor(UIColor::corp_blue);
       display.setTextSize(1);
       if (_shutdown_init) {
         display.setColor(UIColor::warning_txt);
-        display.drawTextCentered(display.width() / 2, 34, "hibernating...");
+        display.drawTextCentered(display.width() / 2, 34, "выключаю...");
       } else {
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 20, "Выключить питание?");
+        // Cancel is preselected: a stray long press must not power the board off.
+        display.setColor(_shutdown_apply ? UIColor::primary_txt : UIColor::warning_txt);
+        display.drawTextLeftAlign(4, 34, _shutdown_apply ? "Отмена" : "> Отмена");
+        display.setColor(_shutdown_apply ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(4, 46, _shutdown_apply ? "> Применить" : "Применить");
         display.setColor(UIColor::secondary_txt);
-        display.drawXbm((display.width() - 32) / 2, 18, power_icon, 32, 32);
-        display.drawTextCentered(display.width() / 2, 64 - 11, "hibernate:" PRESS_LABEL);
+        display.drawTextLeftAlign(0, 56, "клик: выбор  держ: ок");
       }
     }
     if (_page == HomePage::SCAN) {
@@ -1490,6 +1530,11 @@ public:
         neighbors_scroll_offset = 0;
         neighbors_next_scroll = 0;
       }
+      return true;
+    }
+    // Экран «Выключить»: click switches between Отмена and Применить.
+    if (_page == HomePage::SHUTDOWN && (c == KEY_NEXT || c == KEY_RIGHT)) {
+      _shutdown_apply = !_shutdown_apply;
       return true;
     }
     // МЕНЮ: click moves the marker, hold opens the selected sub-screen.
@@ -1674,6 +1719,16 @@ public:
       _setup_edit = !_setup_edit;
       return true;
     }
+    if (c == KEY_ENTER && _page == HomePage::SHUTDOWN && !_shutdown_apply) {
+      // "Отмена" was chosen: leave the dialog, the board stays on
+      leaveSub();
+      return true;
+    }
+    if (c == KEY_ENTER && _page == HomePage::TIME) {
+      bool ok = the_mesh.pullClock();
+      _task->showAlert(ok ? "запрос времени" : "некому ответить", 1200);
+      return true;
+    }
     if (c == KEY_ENTER && _page == HomePage::SHUTDOWN) {
       _shutdown_init = true;  // need to wait for button to be released
       return true;
@@ -1685,7 +1740,10 @@ public:
     // МЕНЮ: hold opens the highlighted sub-screen
     if (c == KEY_ENTER && _page == HomePage::MENU) {
       if (_menu_index >= menuCount()) _menu_index = 0;
-      enterSub(menuPageAt(_menu_index));
+      uint8_t target = menuPageAt(_menu_index);
+      // Every dialog opens with its safe choice preselected.
+      if (target == HomePage::SHUTDOWN) _shutdown_apply = false;
+      enterSub(target);
       return true;
     }
     return false;

@@ -38,10 +38,12 @@
 | `27-sub-gps-unavailable.png` | sub-gps-unavailable | Подэкран GPS: модуль недоступен |
 | `28-sub-beacon.png` | sub-beacon | Подэкран Маяк: режим, интервал, цель |
 | `29-sub-screen-time.png` | sub-screen-time | Подэкран Экран: настройки дисплея |
-| `30-sub-shutdown.png` | sub-shutdown | Подэкран Выключить: подтверждение |
-| `31-sub-shutdown-progress.png` | sub-shutdown-progress | Подэкран Выключить: процесс пошёл |
-| `32-boot-splash.png` | boot-splash | Заставка при загрузке |
-| `33-message-preview.png` | message-preview | Просмотр сообщения (без шапки) |
+| `30-sub-time.png` | sub-time | Подэкран Время: часы, пояс, источник |
+| `31-sub-shutdown.png` | sub-shutdown | Подэкран Выключить: подтверждение, «Отмена» по умолчанию |
+| `32-sub-shutdown-apply.png` | sub-shutdown-apply | Подэкран Выключить: выбрано «Применить» |
+| `33-sub-shutdown-progress.png` | sub-shutdown-progress | Подэкран Выключить: процесс пошёл |
+| `34-boot-splash.png` | boot-splash | Заставка при загрузке |
+| `35-message-preview.png` | message-preview | Просмотр сообщения (без шапки) |
 | `31-alert-advert-sent.png` | alert-advert-sent | Всплывающее: advert отправлен |
 | `32-alert-power-mode.png` | alert-power-mode | Всплывающее: смена профиля |
 | `33-alert-radio-profile.png` | alert-radio-profile | Всплывающее: смена радио-профиля |

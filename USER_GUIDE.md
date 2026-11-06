@@ -25,7 +25,7 @@ goes back, a long press performs that screen's action.
 |---|---|---|---|
 | **Click** | — | next root | `Меню` / `Связь`: move the `>` marker; otherwise nothing |
 | **Double click** | < 280 ms between clicks | previous root | back to the parent screen |
-| **Long press** | 1000 ms | `Меню`: open the selected screen, `Связь`: open `Интерфейсы`, `Сообщения`/главная: message preview | the screen's own action (toggle, scan, calibrate) |
+| **Long press** | 1000 ms | `Меню`: open the selected screen, `Связь`: open `Интерфейсы`, `Сообщения`/главная: message preview | the screen's own action (toggle, scan, calibrate); on the power-off dialog — apply the highlighted choice |
 | **Triple click** | — | `Радио`: next radio profile, `Маяк`: next interval | same |
 | **Quad click** | — | `Маяк`: stop the beacon | same |
 | **Boot rescue** | long press within 8 s after power-on | CLI rescue mode | — |
@@ -51,7 +51,7 @@ Sub-screens — entered from a root, left with a double click:
 2 Сообщения --hold--> просмотр сообщений
 3 Связь     --hold--> Интерфейсы (BLE / WiFi / USB, порты 5000 и 5001)
 5 Меню      --hold--> Радио · Питание · Батарея · Шум · Частоты · Недавние
-                      GPS · Маяк · Экран · Выключить
+                      GPS · Маяк · Время · Экран · Выключить
                 Батарея --hold--> Калибровка АЦП
 ```
 
@@ -170,9 +170,30 @@ LNA on
 - in edit mode: **click** → next row, **triple click** → change value
 
 ### Выключить (SHUTDOWN) — подэкран меню
-- power icon and `hibernate: hold`
-- **Long press** → power off (executes on button release)
-- wake after hibernate: none. `powerOff()` routes to `enterDeepSleep(0)`, which calls `esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL)`, so only a physical reset / power cycle brings the board back. Wake-on-LoRa (DIO1) is not enabled by this build.
+```
+Выключить питание?
+> Отмена
+  Применить
+клик: выбор  держ: ок
+```
+- a confirmation dialog, **`Отмена` is preselected** — a stray long press only leaves the dialog
+- **Click** → switch between `Отмена` and `Применить`
+- **Long press** → apply the selected choice (execution happens after the button is released)
+- after hibernate there is no wake source: `powerOff()` routes to `enterDeepSleep(0)`, which
+  disables every wakeup source, so only a physical reset / power cycle brings the board back
+
+### Время (TIME) — подэкран меню
+```
+14:32  Чт, 05.11
+пояс: +3 ч        язык: RU
+источник: задано
+держать: запрос
+```
+- live time and date in the configured timezone (`tz_offset_mins`) and language
+- `источник: задано` once the clock was set by GPS, the phone, a trusted node or CLI;
+  `источник: нет` plus `время не задано` while the RTC still holds its reset value
+- **Long press** → ask the mesh for the time (`pullClock()`); the alert reports if there
+  is no node to answer
 
 ### Просмотр сообщения
 - sender in the top-left corner, age in the top-right corner, rule at y=11, wrapped text below
