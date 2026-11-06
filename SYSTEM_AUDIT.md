@@ -1,200 +1,212 @@
-# System Audit Report — Heltec V4 Companion (v1.18.0-0.2.0)
+# Технический аудит — Heltec V4 Companion (v1.18.0-0.2.0)
 
-**Date:** 2026-11-04
-**Build:** `heltec_v4_oled_companion_usb_ble_wifi`
-**Git:** `HEAD` (uncommitted changes on top of `130af75a`)
+**Дата:** 2026-11-06  
+**Сборка:** `heltec_v4_oled_companion_usb_ble_wifi`  
+**Плата:** Heltec V4 (ESP32-S3, MAC `f8:5b:1b:a1:0a:f0`)
 
 ---
 
-## 1. Build & Firmware
+## 1. Сборка и прошивка
 
-| Parameter | Value |
+| Параметр | Значение |
 |---|---|
-| **Version** | v1.18.0-0.2.0 |
-| **Base** | meshcore-dev/main (1.18.0) + 262 commits merged |
-| **Fork layer** | TERMIN36 0.2.0 (cyrillic, power mgmt, radio profiles, UI) |
-| **Flash mode** | dio / 40 MHz (QIO/80 causes boot-loop TG0WDT_SYS_RST) |
-| **Flash usage** | 1 713 289 bytes (26.1% of 6.5 MB) |
-| **RAM usage** | 198 336 bytes (9.5% of 2 MB) |
-| **Merged image** | 1 779 248 bytes, sha256 `a36c8a14dbe7...3069fa` |
-| **Bootloader** | 15 104 bytes |
-| **Partitions** | default_16MB.csv (SPIFFS @ 0xC90000 3.456 MB, NVS @ 0x9000 20 KB) |
+| **Версия** | v1.18.0-0.2.0 |
+| **База** | meshcore-dev/main (1.18.0) + слой форка TERMIN36 0.2.0 |
+| **Режим флеша** | dio / 40 МГц (QIO/80 даёт boot-loop `TG0WDT_SYS_RST`) |
+| **Занято flash** | 1 729 781 байт — 26.4 % от 6 553 600 |
+| **Занято RAM** | 199 872 байт — 9.5 % от 2 097 152 |
+| **Merged-образ** | 1 795 728 байт, sha256 `9edeaaa288ddd133…` |
+| **Разделы** | `default_16MB.csv`: приложение 6.25 МБ, SPIFFS @ 0xC90000 (3.456 МБ), NVS @ 0x9000 (20 КБ) |
+| **Флаги сборки** | `HELTEC_LORA_V4`, `ENV_INCLUDE_GPS=1`, `UI_SENSORS_PAGE=1`, `ENABLE_WIFI_INTERFACE`, `BLE_PIN_CODE=123456`, `AUTO_SHUTDOWN_MILLIVOLTS=3400`, `OFFLINE_QUEUE_SIZE=256`, `SX126X_REGISTER_PATCH=1` |
 
 ---
 
-## 2. Hardware Support (Heltec V4)
+## 2. Аппаратная поддержка
 
-| Component | Status | Notes |
+| Компонент | Статус | Примечание |
 |---|---|---|
-| ESP32-S3 (16 MB flash, 2 MB PSRAM AP_3v3) | ✅ | Verified on device: MAC `f8:5b:1b:a1:0a:f0` |
-| SX1262 LoRa (GC1109 PA + KCT8103L LNA) | ✅ | FEM control via `LoRaFEMControl` |
-| OLED SSD1306 128×64 (I2C SDA=17, SCL=18, RST=21) | ✅ | `SSD1306Display` with Cyrillic |
-| USB CDC (native, /dev/ttyACM0) | ✅ | 115200, CLI + MeshCore protocol |
-| BLE (UART service, static/random PIN) | ✅ | NVS bonding, PIN on screen |
-| WiFi STA (auto-reconnect, OTA) | ✅ | Settings in prefs, inhibits sleep |
-| Buttons: USER (GPIO0), VEXT (GPIO36) | ✅ | Click / double / long / triple |
-| Battery ADC (PIN_VBAT_READ=1, CTRL=37) | ✅ | `adc.multiplier` configurable (default 5.42) |
+| ESP32-S3, 16 МБ flash, 2 МБ PSRAM AP_3v3 | ✅ | проверено на устройстве |
+| SX1262 LoRa + FEM (GC1109 PA / KCT8103L LNA) | ✅ | управление через `LoRaFEMControl` |
+| OLED SSD1306 128×64 (SDA 17, SCL 18, RST 21) | ✅ | `SSD1306Display`, кириллица 996 глифов |
+| USB CDC (native, `/dev/ttyACM0`) | ✅ | 115200, CLI + протокол MeshCore |
+| BLE (UART-сервис, PIN) | ✅ | бондинг в NVS, PIN на экране |
+| Wi-Fi STA (автопереподключение, OTA) | ✅ | креды в prefs, блокирует сон |
+| GPS (RX 38, TX 39, reset 42, enable 34) | ✅ | `MicroNMEALocationProvider`, NMEA |
+| Кнопка USER (GPIO0) | ✅ | клик / двойной / тройной / четверной / удержание |
+| АЦП батареи (VBAT 1, CTRL 37) | ✅ | `adc.multiplier`, заводское значение 5.42 |
 
 ---
 
-## 3. Radio & Mesh
+## 3. Радио и mesh
 
-| Feature | Status |
+| Возможность | Статус |
 |---|---|
-| **Radio Profiles** | Normal / Long / HiNoise — UI in RADIO page |
-| **FEM LNA control** | CLI `set radio.fem.rxgain on/off`, persists in prefs |
-| **TX power** | 10 dBm default, max 22 dBm |
-| **Channel scan / freq scan** | SCAN / FSCAN pages |
-| **Beacon (mayak)** | 5 modes: OFF, Advert Local, Advert Flood, Group, Chat |
-| **Group channels** | Up to 40 (MAX_GROUP_CHANNELS) |
-| **Offline queue** | 256 frames |
+| Радио-профили | Normal / Long / HiNoise — экран RADIO и меню действий |
+| FEM LNA | управление с экрана RADIO и из CLI `radio.fem.rxgain on/off` |
+| RX Boost (усиление приёма SX1262) | отдельная строка `RXB` на экране RADIO |
+| Мощность передатчика | 10 dBm по умолчанию, максимум 22 dBm |
+| Скан канала / частот | экраны SCAN и FSCAN |
+| Маяк | 5 режимов: OFF, Advert Local, Advert Flood, Group, Chat |
+| Групповые каналы | до 40 (`MAX_GROUP_CHANNELS`) |
+| Офлайн-очередь | 256 кадров |
+| Доверенные узлы времени | до 16 слотов, `CLOCK_NODE_MAX` |
 
 ---
 
-## 4. UI — Screen Map & Navigation
+## 4. Интерфейс
 
-### Page Order (circular)
+### Структура
+
+Два уровня: **5 корневых экранов** (главная, сообщения, связь, сеть, меню) листаются
+кликом и двойным кликом; все настройки — подэкраны меню.
+
 ```
-FIRST → RECENT → NEIGHBORS → RADIO → POWER → SCAN → FSCAN → BLUETOOTH → CONNECTIONS → GPS → BEACON → SENSORS → SETUP → SHUTDOWN → FIRST
+Корневые:  Home → Messages → Links → Network → Menu → (снова Home)
+Подэкраны меню: Radio · Power · Battery · Noise · Freqs · Recent · Sensors
+                GPS · Beacon · Time · Display · Firmware · Power off
+Вложенные: Battery → ADC calibration
+           Links   → Interfaces
+           Time    → Nodes → Pick node
 ```
 
-### Controls (Heltec V4 — single button GPIO0 + analog)
-| Action | Input | Context |
+`CONNECTIONS`, `CLOCK_NODES`, `NODE_PICKER`, `BATTERY_CAL`, `ABOUT`, `TIME` в цикл
+корневых экранов не входят — только через меню или соответствующий родитель.
+
+### Жесты (одна кнопка GPIO0)
+
+| Жест | Действие |
+|---|---|
+| Клик | следующий корневой экран; в меню/интерфейсах — маркер `>`; в списках — строка |
+| Двойной клик | назад (предыдущий корень или родительский экран) |
+| Удержание 1000 мс | действие экрана; на экранах с несколькими действиями — список действий |
+| Тройной клик | профиль радио / интервал маяка / смена значения в правке / зуммер |
+| Четверной клик | остановить маяк |
+| Удержание в первые 8 с | CLI rescue |
+
+Внутри списка действий: клик двигает `>`, второе удержание выполняет, двойной клик
+закрывает список.
+
+### Экраны и обновление
+
+| Экран | Обновление | Действие по удержанию |
 |---|---|---|
-| **Next page** | Click / short press | Any page |
-| **Prev page** | Double click | Any page |
-| **Long press** | Hold ~1.2s | Page-specific (see below) |
-| **Triple click** | 3× fast | Drop message / buzzer toggle |
-| **Rotary** | N/A on V4 | — |
+| Home | 1 с (часы) | просмотр сообщений |
+| Messages | 1 с | просмотр сообщений |
+| Links | 1 с | подэкран Interfaces |
+| Network | 1 с | опрос соседей |
+| Menu | 1 с | открыть выбранный экран |
+| Radio | 1 с | список: профиль / RX Boost / LNA |
+| Power | 1 с | список: профиль вперёд / назад |
+| Battery | 1 с | меню калибровки АЦП |
+| Noise | 1 с | сброс пика |
+| Freqs | 1 с | запуск скана |
+| Recent | 1 с | отправка advert |
+| Sensors | 5 с | принудительное чтение датчиков |
+| GPS | 1 с | включить/выключить GPS |
+| Beacon | 1 с | список: режим / интервал / стоп |
+| Time | 1 с | список: запрос времени / узлы |
+| Nodes | 1 с | список: добавить / запрос / очистить |
+| Pick node | 1 с | добавить контакт в узлы |
+| Display (SETUP) | 1 с | вход/выход из правки |
+| Firmware | 1 с | — |
+| Power off | — | применить выбранное (по умолчанию `Cancel`) |
 
-### Page Details
+### Локализация
 
-| Page | Short Press (Enter) | Long Press | Auto-refresh |
-|---|---|---|---|
-| **FIRST** | Reopen msg preview | — | 1s (clock) |
-| **RECENT** | Send advert | — | 1s |
-| **NEIGHBORS** | — | — | 1s |
-| **RADIO** | Cycle radio profile | Toggle FEM LNA | 1s |
-| **POWER** | Cycle power profile | — | 1s |
-| **SCAN** | Start noise scan | — | 1s |
-| **FSCAN** | Start freq scan | — | 1s |
-| **BLUETOOTH** | — | Toggle BLE on/off | 1s |
-| **CONNECTIONS** | Cycle select (BLE→WiFi→USB) | Toggle selected iface | 1s |
-| **GPS** | — | Toggle GPS | 1s |
-| **BEACON** | Cycle beacon mode | Cycle beacon interval | 1s |
-| **SENSORS** | Toggle GPS | — | 1s/3s |
-| **SETUP** | Edit toggle (clock/screen) | — | 1s |
-| **SHUTDOWN** | Start hibernate | — | — |
+Интерфейс двуязычный, переключение в рантайме (`Display → Language`, `RU` / `EN`,
+по умолчанию `EN`). Английские строки — в коде, русские — в таблице
+`src/helpers/ui/Localize.cpp` (142 пары), которую читает `trStr()`. Все UI-литералы
+обёрнуты в `_(...)`: 192 места в `UITask.cpp`, 7 в `MyMesh.cpp`. Текст сообщений,
+имена узлов и каналов не переводятся.
 
----
+### Макеты
 
-## 5. Connections Page (NEW)
-
-Shows all three interfaces with status:
-
-```
-BLE  ON
-WiFi ON
-    192.168.1.42
-USB  ON
-
-click:select  long:toggle  left/right:exit
-```
-
-- **Selection** cycles: BLE → WiFi → USB → BLE (highlighted line)
-- **Long press** toggles the selected interface
-- **Left/Right** (prev/next page) exits to menu
+`tools/ui_mockups.py` рендерит 128×64 по реальным координатам и шрифту прошивки:
+`docs/ui-mockups/` (EN) и `docs/ui-mockups/ru/` (RU) — по 53 состояния, PNG @1x и @4x,
+русские строки берутся из таблицы прошивки.
 
 ---
 
-## 6. Power Management
+## 5. Питание
 
-| Profile | CPU Sleep | RF Boost | LNA | Use Case |
+| Профиль | Сон CPU | RX Boost | LNA | Назначение |
 |---|---|---|---|---|
-| Eco max | ✅ | ❌ | ❌ | Max battery |
-| Eco high | ✅ | ✅ | ❌ | Good range |
-| Eco good | ✅ | ✅ | ✅ | Best RX |
-| Eco fair | ❌ | ❌ | ❌ | Always on |
-| Eco min | ❌ | ✅ | ❌ | TX priority |
-| Active | ❌ | ✅ | ✅ | Max performance |
+| Eco max | ✅ | ❌ | ❌ | максимум автономности |
+| Eco high | ✅ | ✅ | ❌ | хорошая дальность |
+| Eco good | ✅ | ✅ | ✅ | лучший приём |
+| Eco fair | ❌ | ❌ | ❌ | всегда включён |
+| Eco min | ❌ | ✅ | ❌ | приоритет передачи |
+| Active | ❌ | ✅ | ✅ | максимум производительности |
 
-- **Auto-shutdown** at 3.4V (`AUTO_SHUTDOWN_MILLIVOLTS`)
-- **WiFi/BLE inhibit sleep** when active
-- **BLE blocks CPU sleep** (no modem sleep in Arduino core)
+- автовыключение при 3.4 В (`AUTO_SHUTDOWN_MILLIVOLTS`)
+- активные Wi-Fi и BLE блокируют сон; BLE блокирует сон CPU-модема
+- таймаут дисплея — настройка `scroff` (выкл / 15 / 30 / 60 / 120 с)
 
 ---
 
-## 7. Configuration & Persistence
+## 6. Хранение настроек
 
-| Storage | Path | Contents | Survives Flash |
+| Хранилище | Адрес | Содержимое | Переживает прошивку |
 |---|---|---|---|
-| **NVS** | 0x9000 | BLE bonding, WiFi creds, radio prefs | ❌ (erase-flash clears) |
-| **SPIFFS** | 0xC90000 | `prefs.json`, contacts, channels, blobs | ✅ (merged image ends ~0x1B2630) |
+| NVS | 0x9000 | бондинг BLE, креды Wi-Fi, prefs радио | ❌ (`erase-flash` стирает) |
+| SPIFFS | 0xC90000 | `prefs.json`, контакты, каналы, блобы | ✅ (merged-образ кончается около 0x1B6xxx) |
 
-### Backup/Restore Script
 ```bash
-./tools/backup_restore.sh save      # read NVS + SPIFFS from device
-./tools/backup_restore.sh flash     # flash firmware WITHOUT erase
-./tools/backup_restore.sh restore   # write NVS + SPIFFS back
+./tools/backup_restore.sh save      # прочитать NVS + SPIFFS с устройства
+./tools/backup_restore.sh flash     # прошить прошивку БЕЗ стирания
+./tools/backup_restore.sh restore   # записать NVS + SPIFFS обратно
 ```
 
 ---
 
-## 8. CLI Commands (via USB/BLE/WiFi)
+## 7. CLI
 
-| Command | Description |
+| Команда | Описание |
 |---|---|
-| `help` | List commands |
-| `config` | Show all prefs |
-| `radio.profile <normal\|long\|hinoise>` | Set radio profile |
-| `power.profile <0-5>` | Set power profile |
-| `adc.multiplier <float>` | Calibrate battery ADC |
-| `pin <6-digit>` | Set BLE PIN |
-| `wifi <ssid> <pwd>` | Set WiFi credentials |
-| `ota <url>` | OTA update |
-| `reboot` | Restart device |
-| `beacon` | Show beacon status |
+| `help` | список команд |
+| `config` | показать все настройки |
+| `version` | версия прошивки |
+| `radio.profile <normal\|long\|hinoise>` | радио-профиль |
+| `power.profile <0-5>` | профиль питания |
+| `adc.multiplier <float>` | множитель АЦП батареи |
+| `calibrate battery <mV>` | калибровка по мультиметру (3000–4250) |
+| `reset adc.multiplier` | заводское значение |
+| `pin <6 цифр>` | BLE PIN (0 = случайный) |
+| `wifi <ssid> <pwd>` / `wifi on\|off` | Wi-Fi |
+| `lang ru\|en` | язык интерфейса |
+| `clock add\|remove\|list` | доверенные узлы времени |
+| `ota <url>` | OTA-обновление |
+| `beacon` / `neighbors` / `contacts` / `channels` | состояние mesh |
+| `reboot` | перезагрузка |
 
 ---
 
-## 9. Known Issues / Limitations
+## 8. Известные ограничения
 
-| Issue | Severity | Workaround |
+| Ограничение | Важность | Обход |
 |---|---|---|
-| Menu labels English only | Low | Cyrillic only for messages/date |
-| MQTT/Web not in companion build | Medium | Available in `simple_repeater` example |
-| USB `isConnected()` always true | Low | Cosmetic |
-| Analog button (PIN_USER_BTN_ANA) untested | Low | Use GPIO0 button |
+| MQTT и веб-интерфейс не входят в companion-сборку | средняя | есть в примере `simple_repeater` |
+| `isConnected()` у USB всегда true | низкая | косметика |
+| Аналоговая кнопка (`PIN_USER_BTN_ANA`) не проверена | низкая | использовать GPIO0 |
+| Датчиков на самой плате нет, кроме АЦП батареи | низкая | экран «Датчики» наполняется телеметрией контактов |
+| Репитер — отдельная прошивка, не режим companion | средняя | собирать из того же дерева |
 
 ---
 
-## 10. Git Status
+## 9. Проверено на железе
 
-```
-M examples/companion_radio/AbstractUITask.h
-M examples/companion_radio/ui-new/UITask.cpp
-M src/helpers/MultiSerialInterface.h
-?? backup/
-```
-
-**Uncommitted changes:**
-- MultiSerialInterface: WiFi/USB enable/disable/isEnabled
-- AbstractUITask: proxy methods for WiFi/USB
-- UITask: CONNECTIONS page, handleLongPress toggle, CONNECTIONS navigation
-
----
-
-## 11. Verification Checklist
-
-- [x] Build passes (PlatformIO, esp32s3)
-- [x] Flash mode dio/40m confirmed working on hardware
-- [x] BLE PIN visible on BLUETOOTH page (fix applied)
-- [x] Connections page shows all 3 interfaces
-- [x] Long press toggles selected interface on Connections
-- [x] Left/Right navigation works from Connections
-- [x] Beacon page functional (cycle mode/interval)
-- [x] Radio profiles switchable
-- [x] Power profiles switchable
-- [x] Version string v1.18.0-0.2.0 in binary
-- [x] Backup script created and committed
-- [x] Merged image created and verified
+- [x] сборка PlatformIO для esp32s3 проходит без ошибок
+- [x] режим флеша dio/40m подтверждён на живой плате
+- [x] merged-образ прошивается, `Hash of data verified`
+- [x] версия `v1.18.0-0.2.0` в бинарнике
+- [x] BLE PIN виден на экране «Связь»
+- [x] подэкран Interfaces показывает три интерфейса и переключает их
+- [x] профили радио и питания переключаются
+- [x] экран GPS: питание модуля, фикс, спутники, координаты, высота
+- [x] маяк: режим, интервал, остановка
+- [x] калибровка АЦП по мультиметру (редактор, подтверждение, сохранение в prefs)
+- [x] таймаут дисплея (пресеты, «выкл»)
+- [x] экран «Датчики» собирается и показывает напряжение платы
+- [x] узлы времени: список, выбор контакта, добавление, очистка
+- [x] оба языка присутствуют в прошивке (EN-строки и RU-таблица)
+- [x] скрипт бэкапа/восстановления создан и закоммичен

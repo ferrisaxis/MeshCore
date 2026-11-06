@@ -1,376 +1,383 @@
-# Heltec V4 MeshCore Companion — User Guide
+# Heltec V4 MeshCore Companion — руководство пользователя
 
-**Firmware:** v1.18.0-0.2.0  
-**Build:** `heltec_v4_oled_companion_usb_ble_wifi`  
-**Hardware:** Heltec V4 (ESP32-S3, 16MB flash, 2MB PSRAM, OLED SSD1306 128×64)
+**Прошивка:** v1.18.0-0.2.0  
+**Сборка:** `heltec_v4_oled_companion_usb_ble_wifi`  
+**Плата:** Heltec V4 (ESP32-S3, 16 МБ flash, 2 МБ PSRAM, OLED SSD1306 128×64)
 
----
-
-## Quick Start
-
-1. **Power on** — hold USER button (GPIO0) if needed
-2. **Pair via BLE** — open MeshCore app, find device `MC-XXXXXX`, enter PIN from screen
-3. **Configure WiFi** (optional) — in app: Settings → WiFi, or CLI: `wifi <ssid> <pwd>`
-4. **Calibrate battery** — read `get battery`, then use `calibrate battery <measured_mV>` with a multimeter reading, or the on-device 4.20 V option only for a fully charged 1-cell Li-ion/LiPo pack.
+> Примеры экранов ниже показаны в английском варианте — он включён по умолчанию.
+> Интерфейс переключается на русский в `Display` → `Language` → `RU`, см. раздел «Языки».
 
 ---
 
-## Controls (single button, GPIO0)
+## Быстрый старт
 
-Navigaion is two-level: **5 root screens** flip with click / double click, and every
-settings screen lives one level down in `Menu`. Inside a sub-screen a double click
-goes back, a long press performs that screen's action.
+1. **Включить** — при необходимости удерживать кнопку USER (GPIO0)
+2. **Сопрячься по BLE** — открыть приложение MeshCore, найти `MC-XXXXXX`, ввести PIN с экрана
+3. **Настроить Wi-Fi** (необязательно) — в приложении: Settings → WiFi, или в CLI: `wifi <ssid> <pwd>`
+4. **Откалибровать батарею** — посмотреть `get battery`, затем `calibrate battery <измеренное_mV>` по мультиметру; вариант `Full 4.20 V` годится только для полностью заряженного одноэлементного Li-ion/LiPo.
 
-| Gesture | Timing | Root screens | Sub-screens |
+---
+
+## Управление (одна кнопка, GPIO0)
+
+Навигация двухуровневая: **5 корневых экранов** листаются кликом и двойным кликом, все
+настройки лежат уровнем ниже, в `Menu`. Внутри подэкрана двойной клик возвращает назад,
+долгое нажатие выполняет действие этого экрана.
+
+| Жест | Тайминг | Корневые экраны | Подэкраны |
 |---|---|---|---|
-| **Click** | — | next root | `Menu` / `Links`: move the `>` marker; otherwise nothing |
-| **Double click** | < 280 ms between clicks | previous root | back to the parent screen |
-| **Long press** | 1000 ms | `Menu`: open the selected screen, `Links`: open `Interfaces`, `Messages`/home: message preview | screens with several actions (Radio, Power, Beacon) open the **action list**; single-action screens execute right away |
-| **Triple click** | — | `Radio`: next radio profile, `Beacon`: next interval | same |
-| **Quad click** | — | `Beacon`: stop the beacon | same |
-| **Boot rescue** | long press within 8 s after power-on | CLI rescue mode | — |
+| **Клик** | — | следующий корень | `Menu` / `Links`: двигает маркер `>`; на остальных ничего |
+| **Двойной клик** | интервал < 280 мс | предыдущий корень | назад к родительскому экрану |
+| **Долгое нажатие** | 1000 мс | `Menu`: открыть выбранный экран, `Links`: открыть `Interfaces`, `Messages`/главная: просмотр сообщений | экраны с несколькими действиями (Радио, Питание, Маяк) открывают **список действий**; экраны с одним действием выполняют его сразу |
+| **Тройной клик** | — | `Radio`: следующий радио-профиль, `Beacon`: следующий интервал | то же |
+| **Четверной клик** | — | `Beacon`: остановить маяк | то же |
+| **Аварийный режим** | удержание в первые 8 с после включения | CLI rescue | — |
 
-Header on every screen: **page title** on the left, **`N/5`** on root screens or **`<`**
-on a sub-screen at x=97, **charge percentage** (`86%`, `--%` when the ADC reading is
-invalid) on the right, separator rule at y=12.
+Шапка любого экрана: **название экрана** слева, **`N/5`** на корневых экранах или **`<`**
+на подэкране у x=97, **процент заряда** (`86%`, `--%` при невалидном показании АЦП) справа,
+разделительная линия на y=12.
 
-### Languages
+### Языки
 
-The interface ships in two languages and switches at runtime from
-`Display` → `Language` (`RU` / `EN`, default `EN`, also available as the CLI command
-`lang`). English strings sit inline in the code; Russian comes from a single table in
-`src/helpers/ui/Localize.cpp` that `trStr()` looks up. Message text, node names and
-channel names are data and are never translated, so Cyrillic still displays in full.
-
----
-
-## Screen Map
-
-Roots (click forward, double click back):
-
-```
-1 Home (FDSKY) → 2 Messages → 3 Links → 4 Network → 5 Menu → back to 1
-```
-
-Sub-screens — entered from a root, left with a double click:
-
-```
-1 Home      --hold--> message preview
-2 Messages --hold--> message preview
-3 Links     --hold--> Interfaces (BLE / WiFi / USB, ports 5000 and 5001)
-5 Menu      --hold--> Radio · Power · Battery · Noise · Freqs · Recent
-                      GPS · Beacon · Time · Display · Firmware · Power off
-                Battery --hold--> ADC calibration
-```
-
-`Beacon` appears in the menu only while GPS is on; `Battery` only on the Heltec V4
-board. The sensors page (`UI_SENSORS_PAGE=1`) is compiled into this build.
+Интерфейс двуязычный, переключается в рантайме: `Display` → `Language` (`RU` / `EN`,
+по умолчанию `EN`, то же самое делает команда CLI `lang`). Английские строки лежат прямо
+в коде, русские — в одной таблице `src/helpers/ui/Localize.cpp`, которую читает `trStr()`.
+Текст сообщений, имена узлов и каналов — это данные, они не переводятся, поэтому кириллица
+в переписке отображается полностью.
 
 ---
 
-## Page Reference
+## Карта экранов
 
-### 1 · Home (FIRST)
-- `MSG n/m` — messages waiting for the phone / still stored on the device (size 2)
-- middle line, one of:
-  - **Wi-Fi address** (`192.168.1.42`) — Wi-Fi link is up
-  - `< Connected >` — a client is attached over BLE or USB, but Wi-Fi is down
-  - `Pin:XXXXXX` — nothing is connected; PIN for pairing
-- bottom line — time and date (weekday language comes from `Display` → `Language`)
-- **Long press** → message preview
+Корневые (клик вперёд, двойной клик назад):
 
-### 2 · Messages (MESSAGES)
-- `In memory: n` — messages held on the device, `To phone: m` — queued for the app
-- `hold: read` when there is anything to read, otherwise `no messages`
-- **Long press** → message preview
+```
+1 Home (FDSKY) → 2 Messages → 3 Links → 4 Network → 5 Menu → снова 1
+```
 
-### 3 · Links (BLUETOOTH)
+Подэкраны — вход с корневого, выход двойным кликом:
+
+```
+1 Home      --удержание--> просмотр сообщений
+2 Messages --удержание--> просмотр сообщений
+3 Links     --удержание--> Interfaces (BLE / WiFi / USB, порты 5000 и 5001)
+5 Menu      --удержание--> Radio · Power · Battery · Noise · Freqs · Recent
+                           GPS · Beacon · Time · Display · Firmware · Power off
+                Battery --удержание--> калибровка АЦП
+```
+
+`Beacon` появляется в меню только при включённом GPS; `Battery` — только на плате Heltec V4.
+Страница датчиков (`UI_SENSORS_PAGE=1`) в эту сборку включена.
+
+---
+
+## Описание экранов
+
+### 1 · Главная (FIRST)
+- `MSG n/m` — сообщения, ждущие телефон / ещё лежащие в памяти устройства (размер 2)
+- средняя строка, одно из:
+  - **Wi-Fi адрес** (`192.168.1.42`) — Wi-Fi поднят
+  - `< Connected >` — клиент подключён по BLE или USB, Wi-Fi при этом не поднят
+  - `Pin:XXXXXX` — не подключён никто; PIN для сопряжения
+- нижняя строка — время и дата (язык дня недели берётся из `Display` → `Language`)
+- **Долгое нажатие** → просмотр сообщений
+
+### 2 · Сообщения (MESSAGES)
+- `In memory: n` — сообщения, удерживаемые на устройстве, `To phone: m` — очередь для приложения
+- `hold: read`, если есть что читать, иначе `no messages`
+- **Долгое нажатие** → просмотр сообщений
+
+### 3 · Связь (BLUETOOTH)
 ```
 BLE   on   no
 WiFi  on   client
 USB   on   ?
 Pin:123456
 ```
-- three columns: transport · adapter state · link state
-- `client` — a peer actually holds the link, `no` — adapter up but nobody attached
-- `USB` link is always `?`: the serial transport reports "connected" unconditionally
-- 4th row shows the PIN; while a client is attached it shows the Wi-Fi network name
-- **Long press** → `Interfaces` sub-screen
+- три колонки: транспорт · состояние адаптера · состояние линка
+- `client` — к линку реально подключён собеседник, `no` — адаптер поднят, но никто не подключён
+- `USB` всегда `?`: последовательный транспорт сообщает «connected» безусловно
+- 4-я строка — PIN; пока клиент подключён, там показывается имя Wi-Fi сети
+- **Долгое нажатие** → подэкран `Interfaces`
 
-### 4 · Network (NEIGHBORS)
-- Direct neighbors with SNR, auto-scrolls when the list is longer than the screen
-- Empty list shows `no neighbors`
-- **Long press** → poll neighbors (`Polling...`)
+### 4 · Сеть (NEIGHBORS)
+- прямые соседи с SNR, список сам прокручивается, если длиннее экрана
+- пустой список показывает `no neighbors`
+- **Долгое нажатие** → опрос соседей (`Polling...`)
 
-### 5 · Menu (MENU)
-- Scrolling list with a `>` marker; `v` on the right while more items follow
-- **Click** → move the marker, **long press** → open the selected screen
+### 5 · Меню (MENU)
+- прокручиваемый список с маркером `>`; справа `v`, пока ниже есть пункты
+- **Клик** → двигать маркер, **долгое нажатие** → открыть выбранный экран
 
-### Recent (RECENT) — menu sub-screen
-- Up to 5 recently heard nodes with age (`12s`, `4m`, `1h`)
-- Empty list shows `no adverts` and the `advert: hold` hint
-- **Long press** → send an advert
+### Недавние (RECENT) — подэкран меню
+- до 5 недавно слышанных узлов с возрастом (`12s`, `4m`, `1h`)
+- пустой список показывает `no adverts` и подсказку `advert: hold`
+- **Долгое нажатие** → отправить advert
 
-### Radio (RADIO) — menu sub-screen
+### Радио (RADIO) — подэкран меню
 ```
 FQ: 868.731   SF: 7
 BW: 62.50     CR: 7
 TX: 10dBm  LNA: on
 LongFast        RXB: on
 ```
-- live frequency, bandwidth, spreading factor, coding rate and TX power
-- `LNA` — external FEM amplifier, shown only when the board has a controllable one
-- `RXB` — SX1262 boosted receive gain, a **separate** setting from the FEM LNA
-- profile name in the bottom-left corner
-- **Long press** → action list:
+- частота, полоса, фактор расширения, скорость кодирования и мощность передатчика в реальном времени
+- `LNA` — внешний FEM-усилитель, показывается только если плата умеет им управлять
+- `RXB` — усиление приёма SX1262, **отдельная** настройка, не связанная с FEM LNA
+- имя профиля в левом нижнем углу
+- **Долгое нажатие** → список действий:
 ```
 > Profile: next
   RX Boost: off
   LNA: off
 ```
-  click moves the marker, a second hold runs the action, a double click closes the list
+  клик двигает маркер, второе удержание выполняет действие, двойной клик закрывает список
 
-### Power (POWER) — menu sub-screen
+### Питание (POWER) — подэкран меню
 ```
 Mode                   Eco max
 Sleep: yes               RX: on
 LNA: on
 ```
-- `Mode` + generated profile name, `Sleep: yes/no/n/a` (light sleep permitted — the CPU still
-  runs while the UI draws), `RX: on/off`, `LNA: on/off`
-- bottom line only appears as a real reason: `GPS holds CPU`, `BLE holds CPU`, `sleep n/a`
-- **Long press** → action list `Profile: next` / `Profile: back`
+- `Mode` и имя сгенерированного профиля, `Sleep: yes/no/n/a` (разрешён лёгкий сон — CPU
+  продолжает работать, пока UI рисует), `RX: on/off`, `LNA: on/off`
+- нижняя строка появляется только как настоящая причина: `GPS holds CPU`, `BLE holds CPU`, `sleep n/a`
+- **Долгое нажатие** → список действий `Profile: next` / `Profile: back`
 
-### Battery (BATTERY) — menu sub-screen, Heltec V4
-- `Voltage: 4.012 V` and `ADC: 5.420` (the multiplier the calibration changes)
-- **Long press** → calibration menu:
+### Батарея (BATTERY) — подэкран меню, Heltec V4
+- `Voltage: 4.012 V` и `ADC: 5.420` (множитель, который меняет калибровка)
+- **Долгое нажатие** → меню калибровки:
 ```
 ADC calibration
 > Full 4.20 V
   Multimeter
   Reset ADC
 ```
-- **Full 4.20 V** — only for a fully charged single-cell Li-ion/LiPo pack
-- **Multimeter** — enter the voltage you measured. The editor starts from the current
-  device reading; **click** adds 10 mV (wraps 3000 → 4250), **long press** moves on
-- **Reset ADC** — restore the board default multiplier
-- every operation ends on a confirmation with **`Cancel` preselected**; long press applies
-- the result is reported as `ADC saved` / `ADC not saved`; the multiplier is stored in
-  prefs (`adc_mult`) and survives a reboot
+- **Full 4.20 V** — только для полностью заряженного одноэлементного Li-ion/LiPo
+- **Multimeter** — ввести напряжение, измеренное мультиметром. Редактор стартует от текущего
+  показания платы; **клик** добавляет 10 мВ (по кругу 3000 → 4250), **удержание** — дальше
+- **Reset ADC** — вернуть заводской множитель платы
+- любая операция заканчивается подтверждением, где **`Cancel` предвыбран**; удержание применяет
+- результат показывается как `ADC saved` / `ADC not saved`; множитель хранится в prefs
+  (`adc_mult`) и переживает перезагрузку
 
-### Noise (SCAN) — menu sub-screen
-- live RSSI (size 2), noise floor `NL`, peak `pk`, `PKT` flag on reception, bar scale
-- **Long press** → reset the peak
+### Шум (SCAN) — подэкран меню
+- RSSI в реальном времени (размер 2), шумовой пол `NL`, пик `pk`, флаг `PKT` при приёме, шкала
+- **Долгое нажатие** → сбросить пик
 
-### Freqs (FSCAN) — menu sub-screen
-- idle: `find quiet freq` and `scan: hold`
-- running: `scan N/M`, current frequency, progress bar
-- finished: `now <freq>` and the three quietest channels, the current one marked `*`
-- **Long press** → start the scan
+### Частоты (FSCAN) — подэкран меню
+- простой: `find quiet freq` и `scan: hold`
+- скан идёт: `scan N/M`, текущая частота, прогресс-бар
+- готово: `now <freq>` и три самых тихих канала, текущий помечен `*`
+- **Долгое нажатие** → запустить скан
 
-### Sensors (SENSORS) — menu sub-screen
+### Датчики (SENSORS) — подэкран меню
 ```
 vbat                   3.87 V
 temp                      21.4 C
 pressure                    1013 hPa
 hold: refresh
 ```
-- live telemetry read from the board's own sensors plus everything received from
-  contacts (CayenneLPP): `vbat`, `current`, `temp`, `humidity`, `pressure`, `altitude`, `power`, `GPS`
-- three rows at a time; a longer list scrolls by one row every 5 s and the footer says
-  `list scrolls` instead of `hold: refresh`
-- values refresh every 5 s while the screen is open; **long press** forces a read now
-- `no sensors` when nothing but the board battery answers
-- this page is enabled per environment (`-D UI_SENSORS_PAGE=1`); the Heltec V4 companion
-  build has it compiled in
+- телеметрия с собственных датчиков платы плюс всё, что пришло от контактов (CayenneLPP):
+  `vbat`, `current`, `temp`, `humidity`, `pressure`, `altitude`, `power`, `GPS`
+- три строки одновременно; длинный список прокручивается на строку каждые 5 с, и в футере
+  вместо `hold: refresh` появляется `list scrolls`
+- значения обновляются каждые 5 с, пока экран открыт; **долгое нажатие** — прочитать сейчас
+- `no sensors`, если отвечает только батарея платы
+- страница включается флагом env (`-D UI_SENSORS_PAGE=1`); в сборке Heltec V4 она вкомпилирована
 
-### Interfaces (CONNECTIONS) — sub-screen of Links
+### Интерфейсы (CONNECTIONS) — подэкран «Связи»
 ```
 >BLE   ON
  WiFi  OFF
  USB   ON
 ```
-- **Click** → move the `>` marker (BLE → WiFi → USB)
-- **Long press** → toggle the selected interface (Wi-Fi switches both TCP servers, 5000 and 5001)
-- **Double click** → back to BLUETOOTH
-- bottom row reports the two TCP servers separately: `5000:+ 5001:-` (`+` client attached, `-` none, `n/a` no such server); `ports: --` while Wi-Fi is off
-- header shows `<` instead of the page counter
+- **Клик** → двигать маркер `>` (BLE → WiFi → USB)
+- **Долгое нажатие** → включить/выключить выбранный интерфейс (Wi-Fi переключает оба TCP-сервера, 5000 и 5001)
+- **Двойной клик** → назад в BLUETOOTH
+- нижняя строка показывает два TCP-сервера отдельно: `5000:+ 5001:-` (`+` клиент подключён,
+  `-` нет, `n/a` такого сервера нет); `ports: --` пока Wi-Fi выключен
+- в шапке `<` вместо счётчика страниц
 
-### GPS — menu sub-screen
+### GPS — подэкран меню
 ```
 module                  on
 fix: yes           sats 7
 pos      55.9165 37.7601
 alt                 156.20
 ```
-- `module` — GPS powered on/off; a hardware switch that disagrees shows `off(hw)` / `off(sw)`
-- `fix: yes/no` and the satellite count; `powered off` / `still powered` when the module
-  is switched off; `no GPS access` when a build has no module driver
-- coordinates and altitude once there is a fix
-- **Long press** → toggle GPS on/off
-- GPS pins for this board: RX 38, TX 39, reset 42, enable 34 (`-D ENV_INCLUDE_GPS=1`)
+- `module` — питание GPS включено/выключено; при расхождении с аппаратным переключателем
+  показывается `off(hw)` / `off(sw)`
+- `fix: yes/no` и число спутников; `powered off` / `still powered`, когда модуль выключен;
+  `no GPS access`, если в сборке нет драйвера модуля
+- координаты и высота после получения фикса
+- **Долгое нажатие** → включить/выключить GPS
+- пины GPS на этой плате: RX 38, TX 39, reset 42, enable 34 (`-D ENV_INCLUDE_GPS=1`)
 
-### Beacon (BEACON) — menu sub-screen
+### Маяк (BEACON) — подэкран меню
 ```
 group                       30m
 FDSKY-Base
 55.9165  37.7601
 sent 4m ago
 ```
-- mode and interval, target name, position and the age of the last beacon
-- `no fix` (position unknown) / `no gps` (no module) and `not sent` until the first send
-- **Long press** → action list: `Mode: next`, `Interval: next`, `Stop beacon`
-- interval applies to group/chat modes only (5/10/15/30/60/120 min)
-- needs a valid fix; the beacon is sent by the mesh task, so the screen only reports state
+- режим и интервал, имя цели, позиция и возраст последнего маяка
+- `no fix` (позиция неизвестна) / `no gps` (нет модуля) и `not sent` до первой отправки
+- **Долгое нажатие** → список действий: `Mode: next`, `Interval: next`, `Stop beacon`
+- интервал применяется только к режимам группы/чата (5/10/15/30/60/120 мин)
+- нужен валидный фикс; отправляет маяк задача mesh, экран только показывает состояние
 
-### Display (SETUP) — menu sub-screen
+### Экран (SETUP) — подэкран меню
 ```
 Clock            on
 Language              RU
 Timeout         60 s
 hold: edit
 ```
-- `Clock` — clock on the main screen; `Timeout` — display auto-off: `off` / 15 / 30 / 60 / 120 s
-  (stored as `scroff` in prefs)
-- `Language` — `RU` / `EN`: switches the **whole interface** at runtime (every label, value
-  and hint, plus the weekday/date on the clock). English strings live in the code, Russian
-  comes from one table in `src/helpers/ui/Localize.cpp`; message text, node and channel
-  names are never translated. Default is `EN`, the same setting as the CLI command `lang`.
-- e-ink builds add `ScreenMode` (refresh mode) as an extra row → 4 rows, no hint line
-- **Long press** → enter/leave edit mode; in edit mode **click** moves between rows and
-  **triple click** changes the value
+- `Clock` — часы на главном экране; `Timeout` — автоотключение дисплея: `off` / 15 / 30 / 60 / 120 с
+  (хранится в prefs как `scroff`)
+- `Language` — `RU` / `EN`: переключает **весь интерфейс** в рантайме (все подписи, значения
+  и подсказки, а также день недели и дату на часах). Английские строки лежат в коде, русские —
+  в одной таблице `src/helpers/ui/Localize.cpp`; текст сообщений, имена узлов и каналов
+  не переводятся. По умолчанию `EN`, то же делает CLI-команда `lang`.
+- на e-ink сборках добавляется строка `ScreenMode` (режим обновления) → 4 строки, без подсказки
+- **Долгое нажатие** → вход/выход из режима правки; в правке **клик** ходит по строкам,
+  **тройной клик** меняет значение
 
-### Firmware (ABOUT) — menu sub-screen
+### О прошивке (ABOUT) — подэкран меню
 ```
 v1.18.0-0.2.0
 build: Nov  6 2026
 node FDSKY
 uptime 1h 12m
 ```
-- firmware version (`MESHCORE_BASE_VERSION`-`FORK_VERSION`), build date, node name, uptime
+- версия прошивки (`MESHCORE_BASE_VERSION`-`FORK_VERSION`), дата сборки, имя узла, аптайм
 
-### Power off (SHUTDOWN) — menu sub-screen
+### Выключить (SHUTDOWN) — подэкран меню
 ```
 Power off?
 > Cancel
   Apply
 click: pick  hold: ok
 ```
-- a confirmation dialog, **`Cancel` is preselected** — a stray long press only leaves the dialog
-- **Click** → switch between `Cancel` and `Apply`
-- **Long press** → apply the selected choice (execution happens after the button is released)
-- after hibernate there is no wake source: `powerOff()` routes to `enterDeepSleep(0)`, which
-  disables every wakeup source, so only a physical reset / power cycle brings the board back
+- диалог подтверждения, **`Cancel` предвыбран** — случайное удержание только закроет диалог
+- **Клик** → переключение между `Cancel` и `Apply`
+- **Долгое нажатие** → применить выбранное (срабатывает после отпускания кнопки)
+- после гибернации источника пробуждения нет: `powerOff()` уходит в `enterDeepSleep(0)`,
+  который отключает все источники, поэтому вернуть плату можно только физическим сбросом
+  или переподачей питания
 
-### Time (TIME) — menu sub-screen
+### Время (TIME) — подэкран меню
 ```
 14:32  Thu, 05.11
 tz: +3 h          lang: EN
 source: set
 hold: request
 ```
-- live time and date in the configured timezone (`tz_offset_mins`) and language
-- `source: set` once the clock was set by GPS, the phone, a trusted node or CLI;
-  `source: none` plus `time not set` while the RTC still holds its reset value
-- **Long press** → action list:
+- текущее время и дата в настроенном поясе (`tz_offset_mins`) и на выбранном языке
+- `source: set` после того, как часы были выставлены по GPS, телефону, доверенному узлу или CLI;
+  `source: none` и `time not set`, пока RTC держит значение после сброса
+- **Долгое нажатие** → список действий:
 ```
 > Request time
   Time nodes
 ```
-  `Request time` asks the trusted nodes for the time (`pullClock()`); the alert reports
-  `no one to ask` when no node is configured or reachable. `Time nodes` opens the list
-  of trusted nodes.
+  `Request time` запрашивает время у доверенных узлов (`pullClock()`); алерт сообщает
+  `no one to ask`, если узлов нет или они недоступны. `Time nodes` открывает список узлов.
 
-### Nodes (CLOCK_NODES) — time sub-screen
+### Узлы (CLOCK_NODES) — подэкран времени
 ```
 FDSKY-Base
 Tower-2
 hold: menu
 ```
-- the nodes the clock is pulled from, taken from the contact book (up to 16 slots, the
-  screen shows the first three plus `+N more`)
-- `no nodes set` when the list is empty — the clock is then set only by GPS, the phone
-  or the CLI
-- **Long press** → action list: `Add node` · `Request time` · `Clear all`
-- `Clear all` needs one more hold and reports `nodes cleared`
+- узлы, у которых запрашивается время, берутся из книги контактов (до 16 слотов,
+  на экране первые три плюс `+N more`)
+- `no nodes set`, если список пуст — тогда время выставляется только по GPS, телефону или CLI
+- **Долгое нажатие** → список действий: `Add node` · `Request time` · `Clear all`
+- `Clear all` требует второго удержания и сообщает `nodes cleared`
 
-### Pick node (NODE_PICKER) — node sub-screen
+### Выбор узла (NODE_PICKER) — подэкран узлов
 ```
 > FDSKY-Base
   Tower-2
   Home-rep
 hold: add          1/4
 ```
-- the contact book, scrolled by **click** (forward) and **double click** (back)
-- **Long press** → add the highlighted contact as a trusted time node; the alert is
-  `node added`, `already a node` or `list is full`
-- the same list is managed by the CLI command `clock add|remove|list`
+- книга контактов, листается **кликом** (вперёд) и **двойным кликом** (назад)
+- **Долгое нажатие** → добавить выделенный контакт в доверенные узлы времени; алерт
+  `node added`, `already a node` или `list is full`
+- тот же список управляется командами CLI `clock add|remove|list`
 
-### Message preview
-- sender in the top-left corner, age in the top-right corner, rule at y=11, wrapped text below
-- **Click** → next message / close, **double click** → next page of a long text,
-  **triple click** → drop the message from the buffer
+### Просмотр сообщения
+- отправитель в левом верхнем углу, возраст в правом верхнем, линия на y=11, ниже текст с переносами
+- **Клик** → следующее сообщение / закрыть, **двойной клик** → следующая страница длинного текста,
+  **тройной клик** → убрать сообщение из буфера
 
 ---
 
-## CLI Commands (USB / BLE / WiFi Telnet)
+## Команды CLI (USB / BLE / Wi-Fi Telnet)
 
-| Command | Description |
+| Команда | Описание |
 |---|---|
-| `help` | List all commands |
-| `config` | Show all preferences |
-| `version` | Firmware version |
-| `radio.profile <normal\|long\|hinoise>` | Set radio profile |
-| `power.profile <0-5>` | Set power profile |
-| `adc.multiplier <float>` | Set battery ADC multiplier |
-| `get adc.multiplier` | Read current multiplier |
-| `get battery` | Read battery voltage and current ADC multiplier |
-| `calibrate battery <mV>` | Calibrate against a multimeter reading (3000–4250 mV) |
-| `reset adc.multiplier` | Restore the Heltec V4 board default |
-| `pin <6-digit>` | Set BLE PIN (0 = random each boot) |
-| `get pin` | Read current PIN |
-| `wifi <ssid> <pwd>` | Set WiFi credentials |
-| `wifi on\|off` | Enable/disable WiFi |
-| `ota <url>` | OTA update from URL |
-| `reboot` | Restart device |
-| `beacon` | Show beacon status |
-| `neighbors` | List known neighbors |
-| `contacts` | List contacts |
-| `channels` | List group channels |
-| `radio.fem.rxgain on\|off` | Toggle FEM LNA |
-| `get radio.fem.rxgain` | Read LNA state |
+| `help` | Список всех команд |
+| `config` | Показать все настройки |
+| `version` | Версия прошивки |
+| `radio.profile <normal\|long\|hinoise>` | Выбрать радио-профиль |
+| `power.profile <0-5>` | Выбрать профиль питания |
+| `adc.multiplier <float>` | Задать множитель АЦП батареи |
+| `get adc.multiplier` | Прочитать текущий множитель |
+| `get battery` | Напряжение батареи и текущий множитель АЦП |
+| `calibrate battery <mV>` | Калибровка по мультиметру (3000–4250 мВ) |
+| `reset adc.multiplier` | Вернуть заводское значение для Heltec V4 |
+| `pin <6 цифр>` | Задать BLE PIN (0 = случайный при каждой загрузке) |
+| `get pin` | Прочитать текущий PIN |
+| `wifi <ssid> <pwd>` | Задать учётные данные Wi-Fi |
+| `wifi on\|off` | Включить/выключить Wi-Fi |
+| `ota <url>` | OTA-обновление по ссылке |
+| `reboot` | Перезагрузить устройство |
+| `beacon` | Состояние маяка |
+| `neighbors` | Список известных соседей |
+| `contacts` | Список контактов |
+| `channels` | Список групповых каналов |
+| `radio.fem.rxgain on\|off` | Включить/выключить FEM LNA |
+| `get radio.fem.rxgain` | Прочитать состояние LNA |
 
 ---
 
-## Battery Calibration
+## Калибровка батареи
 
-1. Measure the battery with a multimeter while the board is running in the same charging state as the reading.
-2. Check `get battery` (board default multiplier: 5.42).
-3. Send `calibrate battery <actual_mV>`. The firmware averages eight readings, checks stability, computes `new_mult = current_mult * actual_mV / reported_mV`, applies and saves it. Alternatively, set a checked multiplier with `set adc.multiplier <value>` (the old `adc.multiplier <value>` form also works).
-4. Verify `get battery` again and repeat after reboot. `reset adc.multiplier` restores the board default without resetting other settings.
+1. Измерить батарею мультиметром при том же состоянии заряда, что и показание платы.
+2. Посмотреть `get battery` (заводской множитель: 5.42).
+3. Отправить `calibrate battery <фактическое_mV>`. Прошивка усредняет восемь измерений, проверяет
+   стабильность, считает `new_mult = current_mult * фактическое_mV / показанное_mV`, применяет
+   и сохраняет. Альтернатива — задать проверенный множитель через `set adc.multiplier <значение>`
+   (старая форма `adc.multiplier <значение>` тоже работает).
+4. Проверить `get battery` ещё раз и повторить после перезагрузки. `reset adc.multiplier`
+   возвращает заводское значение, не трогая остальные настройки.
 
-Example: multimeter 4100mV, device reports 3950mV
+Пример: мультиметр 4100 мВ, плата показывает 3950 мВ
 ```
 calibrate battery 4100
 ```
 
 ---
 
-## Backup / Restore (NVS + SPIFFS)
+## Бэкап / восстановление (NVS + SPIFFS)
 
-Requires `esptool.py` and device on `/dev/ttyACM0`
+Нужен `esptool.py` и устройство на `/dev/ttyACM0`
 
 ```bash
-# Save settings from device
+# Сохранить настройки с устройства
 ./tools/backup_restore.sh save
 
-# Flash new firmware WITHOUT losing settings
+# Прошить новую прошивку БЕЗ потери настроек
 ./tools/backup_restore.sh flash
 
-# Restore settings to device
+# Вернуть настройки на устройство
 ./tools/backup_restore.sh restore
 
-# Full cycle: save → erase-flash → flash → restore
+# Полный цикл: сохранить → erase-flash → прошить → восстановить
 ./tools/backup_restore.sh save
 esptool --chip esp32s3 -p /dev/ttyACM0 erase-flash
 ./tools/backup_restore.sh flash
@@ -379,12 +386,12 @@ esptool --chip esp32s3 -p /dev/ttyACM0 erase-flash
 
 ---
 
-## Flashing Firmware
+## Прошивка
 
-**Web Flasher:** https://meshcore-dev.github.io/MeshCoreFlasher/  
-Select: `firmware-merged.bin` → Flash at `0x0`
+**Веб-флешер:** https://meshcore-dev.github.io/MeshCoreFlasher/  
+Выбрать `firmware-merged.bin` → прошивать по адресу `0x0`
 
-**CLI (dio/40m required for Heltec V4):**
+**CLI (для Heltec V4 обязателен dio/40m):**
 ```bash
 esptool --chip esp32s3 -p /dev/ttyACM0 -b 460800 erase-flash
 esptool --chip esp32s3 -p /dev/ttyACM0 -b 460800 \
@@ -393,7 +400,7 @@ esptool --chip esp32s3 -p /dev/ttyACM0 -b 460800 \
   0x0 firmware-merged.bin
 ```
 
-**Separate files (if web flasher fails):**
+**Отдельными файлами (если веб-флешер не сработал):**
 ```bash
 esptool --chip esp32s3 -p /dev/ttyACM0 -b 460800 \
   write-flash --flash-mode dio --flash-freq 40m --flash-size 16MB \
@@ -402,34 +409,37 @@ esptool --chip esp32s3 -p /dev/ttyACM0 -b 460800 \
 
 ---
 
-## Troubleshooting
+## Проблемы и решения
 
-| Symptom | Cause | Fix |
+| Симптом | Причина | Решение |
 |---|---|---|
-| Boot loop `TG0WDT_SYS_RST` | Wrong flash mode | Use **dio/40m**, not qio/80m |
-| BLE PIN not visible | Old firmware | Update to v1.18.0-0.2.0+ |
-| WiFi not connecting | Wrong creds / no AP | Check `config`, re-enter `wifi` |
-| GPS no fix | Indoor / no sky view | Move outdoors, wait 2-5 min |
-| Beacon not sending | GPS off / no fix | Enable GPS, wait for fix |
-| Settings lost after flash | Used `erase-flash` | Use backup script or flash without erase |
+| Boot loop `TG0WDT_SYS_RST` | Неверный режим флеша | Использовать **dio/40m**, не qio/80m |
+| Не видно BLE PIN | Старая прошивка | Обновиться до v1.18.0-0.2.0+ |
+| Wi-Fi не подключается | Неверные данные / нет точки доступа | Проверить `config`, заново ввести `wifi` |
+| GPS без фикса | Помещение / нет обзора неба | Выйти на улицу, подождать 2–5 минут |
+| Маяк не отправляется | GPS выключен / нет фикса | Включить GPS, дождаться фикса |
+| Настройки пропали после прошивки | Использован `erase-flash` | Пользоваться скриптом бэкапа или прошивать без стирания |
 
 ---
 
-## Files of Interest
+## Полезные файлы
 
-| File | Purpose |
+| Файл | Назначение |
 |---|---|
-| `SYSTEM_AUDIT.md` | Full technical audit |
-| `tools/backup_restore.sh` | Backup/restore script |
-| `examples/companion_radio/main.cpp` | App entry point |
-| `variants/heltec_v4/platformio.ini` | Build config |
-| `src/helpers/FirmwareVersion.h` | Version defines |
+| `SYSTEM_AUDIT.md` | Полный технический аудит |
+| `tools/backup_restore.sh` | Скрипт бэкапа/восстановления |
+| `docs/ui-mockups/` | Макеты всех экранов (EN, и `ru/` для русского) |
+| `docs/UI_SPEC_FOR_REVIEW.md` | Спецификация интерфейса для внешнего ревью |
+| `examples/companion_radio/main.cpp` | Точка входа приложения |
+| `variants/heltec_v4/platformio.ini` | Конфигурация сборки |
+| `src/helpers/FirmwareVersion.h` | Определения версии |
+| `src/helpers/ui/Localize.cpp` | Таблица русских строк интерфейса |
 
 ---
 
-## Links
+## Ссылки
 
-- **MeshCore repo:** https://github.com/meshcore-dev/MeshCore
-- **Our fork:** https://github.com/ferrisaxis/MeshCore
-- **Web flasher:** https://meshcore-dev.github.io/MeshCoreFlasher/
-- **TERMIN36 fork (cyrillic/power/UI):** https://github.com/TERMIN36/MeshCore
+- **Репозиторий MeshCore:** https://github.com/meshcore-dev/MeshCore
+- **Наш форк:** https://github.com/ferrisaxis/MeshCore
+- **Веб-флешер:** https://meshcore-dev.github.io/MeshCoreFlasher/
+- **Форк TERMIN36 (кириллица/питание/UI):** https://github.com/TERMIN36/MeshCore
