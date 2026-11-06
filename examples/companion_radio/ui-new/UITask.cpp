@@ -1039,7 +1039,7 @@ public:
       display.setCursor(0, 42);
       if (_task->canControlFemLna()) {
         sprintf(tmp, "TX: %ddBm  LNA: %s", _node_prefs->tx_power_dbm,
-                _task->isFemLnaEnabled() ? "on" : "off");
+                _task->isFemLnaEnabled() ? "вкл" : "выкл");
       } else {
         // no controllable FEM LNA on this board - don't advertise a dead control
         sprintf(tmp, "TX: %ddBm", _node_prefs->tx_power_dbm);
