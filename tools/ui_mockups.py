@@ -24,7 +24,30 @@ from PIL import Image, ImageDraw, ImageFont
 W, H = 128, 64
 SCALE = 4
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "docs", "ui-mockups")
+import os, re
+
+# ------------------------------------------------------------------ language
+# The generator can render either language the firmware ships: the Russian
+# table is parsed straight out of src/helpers/ui/Localize.cpp, so mockups can
+# never drift from the firmware strings.
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def _load_ru():
+    path = os.path.join(_ROOT, 'src', 'helpers', 'ui', 'Localize.cpp')
+    try:
+        src = open(path, encoding='utf-8').read()
+    except OSError:
+        return {}
+    return {en: ru for en, ru in re.findall(r'\{ "((?:[^"\\]|\\.)*)", "((?:[^"\\]|\\.)*)" \}', src)}
+
+LANG = os.environ.get('MOCKUP_LANG', 'en').strip().lower()
+_RU = _load_ru() if LANG == 'ru' else {}
+
+def L(s):
+    return _RU.get(s, s)
+
+OUT = os.path.join(ROOT, "docs", "ui-mockups", "ru") if LANG == "ru" \
+      else os.path.join(ROOT, "docs", "ui-mockups")
 
 # ----------------------------------------------------------------- fonts
 def load_glcd_font():
@@ -131,6 +154,7 @@ def text_w(s, size=1):
 
 def draw_text(px, x, y, s, size=1):
     """Mixed ASCII + Cyrillic. Cyrillic sits 1px above the Latin pen (baseline 7 vs 6)."""
+    s = L(s)
     cx = x
     for ch in s:
         if ord(ch) < 0x80:

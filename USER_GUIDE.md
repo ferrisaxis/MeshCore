@@ -34,6 +34,14 @@ Header on every screen: **page title** on the left, **`N/5`** on root screens or
 on a sub-screen at x=97, **charge percentage** (`86%`, `--%` when the ADC reading is
 invalid) on the right, separator rule at y=12.
 
+### Languages
+
+The interface ships in two languages and switches at runtime from
+`Display` → `Language` (`RU` / `EN`, default `EN`, also available as the CLI command
+`lang`). English strings sit inline in the code; Russian comes from a single table in
+`src/helpers/ui/Localize.cpp` that `trStr()` looks up. Message text, node names and
+channel names are data and are never translated, so Cyrillic still displays in full.
+
 ---
 
 ## Screen Map
@@ -224,9 +232,10 @@ hold: edit
 ```
 - `Clock` — clock on the main screen; `Timeout` — display auto-off: `off` / 15 / 30 / 60 / 120 s
   (stored as `scroff` in prefs)
-- `Language` — `RU` / `EN`, the same setting as the CLI command `lang`. Labels are English
-  either way; this only picks the weekday/date language on the clock and the `lang:` line on
-  the time screen. Default is `EN`.
+- `Language` — `RU` / `EN`: switches the **whole interface** at runtime (every label, value
+  and hint, plus the weekday/date on the clock). English strings live in the code, Russian
+  comes from one table in `src/helpers/ui/Localize.cpp`; message text, node and channel
+  names are never translated. Default is `EN`, the same setting as the CLI command `lang`.
 - e-ink builds add `ScreenMode` (refresh mode) as an extra row → 4 rows, no hint line
 - **Long press** → enter/leave edit mode; in edit mode **click** moves between rows and
   **triple click** changes the value

@@ -2,6 +2,7 @@
 #include <helpers/RadioProfiles.h>
 #include <helpers/ui/BatteryLevel.h>
 #include <helpers/ui/ClockFont.h>
+#include <helpers/ui/Localize.h>
 #include <math.h>
 #include <helpers/TxtDataHelpers.h>
 #include "../MyMesh.h"
@@ -187,10 +188,10 @@ public:
   enum HomePage {
     FIRST,
     MESSAGES,      // root: message counters, opens the preview
-    BLUETOOTH,     // root: interface status ("Links")
+    BLUETOOTH,     // root: interface status (_("Links"))
     CONNECTIONS,   // sub-screen of BLUETOOTH: toggle the transports
     RECENT,
-    NEIGHBORS,     // root: network ("Network")
+    NEIGHBORS,     // root: network (_("Network"))
     RADIO,
     POWER,
 #ifdef HELTEC_LORA_V4
@@ -562,32 +563,32 @@ private:
   const char* pageTitle() const {
     switch (_page) {
       case FIRST: return _node_prefs->node_name;
-      case MESSAGES: return "Messages";
-      case RECENT: return "Recent";
-      case NEIGHBORS: return "Network";
-      case RADIO: return "Radio";
-      case POWER: return "Power";
+      case MESSAGES: return _("Messages");
+      case RECENT: return _("Recent");
+      case NEIGHBORS: return _("Network");
+      case RADIO: return _("Radio");
+      case POWER: return _("Power");
 #ifdef HELTEC_LORA_V4
-      case BATTERY: case BATTERY_CAL: return "Battery";
+      case BATTERY: case BATTERY_CAL: return _("Battery");
 #endif
-      case SCAN: return "Noise";
-      case FSCAN: return "Freqs";
-      case BLUETOOTH: return "Links";
-      case CONNECTIONS: return "Interfaces";
+      case SCAN: return _("Noise");
+      case FSCAN: return _("Freqs");
+      case BLUETOOTH: return _("Links");
+      case CONNECTIONS: return _("Interfaces");
 #if ENV_INCLUDE_GPS == 1
       case GPS: return "GPS";
-      case BEACON: return "Beacon";
+      case BEACON: return _("Beacon");
 #endif
 #if UI_SENSORS_PAGE == 1
-      case SENSORS: return "Sensors";
+      case SENSORS: return _("Sensors");
 #endif
-      case TIME: return "Time";
-      case CLOCK_NODES: return "Nodes";
-      case NODE_PICKER: return "Pick node";
-      case SETUP: return "Display";
-      case ABOUT: return "Firmware";
-      case MENU: return "Menu";
-      case SHUTDOWN: return "Power off";
+      case TIME: return _("Time");
+      case CLOCK_NODES: return _("Nodes");
+      case NODE_PICKER: return _("Pick node");
+      case SETUP: return _("Display");
+      case ABOUT: return _("Firmware");
+      case MENU: return _("Menu");
+      case SHUTDOWN: return _("Power off");
       default: return "MeshCore";
     }
   }
@@ -595,25 +596,25 @@ private:
   // Short names for the МЕНЮ list; keep them under 19 characters.
   const char* menuLabel(uint8_t page) const {
     switch (page) {
-      case HomePage::RADIO: return "Radio";
-      case HomePage::POWER: return "Power";
+      case HomePage::RADIO: return _("Radio");
+      case HomePage::POWER: return _("Power");
 #ifdef HELTEC_LORA_V4
-      case HomePage::BATTERY: return "Battery";
+      case HomePage::BATTERY: return _("Battery");
 #endif
-      case HomePage::SCAN: return "Noise";
-      case HomePage::FSCAN: return "Freqs";
-      case HomePage::RECENT: return "Recent";
+      case HomePage::SCAN: return _("Noise");
+      case HomePage::FSCAN: return _("Freqs");
+      case HomePage::RECENT: return _("Recent");
 #if UI_SENSORS_PAGE == 1
-      case HomePage::SENSORS: return "Sensors";
+      case HomePage::SENSORS: return _("Sensors");
 #endif
 #if ENV_INCLUDE_GPS == 1
-      case HomePage::GPS: return _task->getGPSState() ? "GPS: on" : "GPS: off";
-      case HomePage::BEACON: return "Beacon";
+      case HomePage::GPS: return _task->getGPSState() ? _("GPS: on") : _("GPS: off");
+      case HomePage::BEACON: return _("Beacon");
 #endif
-      case HomePage::TIME: return "Time";
-      case HomePage::SETUP: return "Display";
-      case HomePage::ABOUT: return "Firmware";
-      case HomePage::SHUTDOWN: return "Power off";
+      case HomePage::TIME: return _("Time");
+      case HomePage::SETUP: return _("Display");
+      case HomePage::ABOUT: return _("Firmware");
+      case HomePage::SHUTDOWN: return _("Power off");
       default: return "?";
     }
   }
@@ -643,24 +644,24 @@ private:
     if (!_node_prefs) return;
     ContactInfo c;
     if (!the_mesh.getContactByIdx(_pick_idx, c)) {
-      _task->showAlert("no contact", 1200);
+      _task->showAlert(_("no contact"), 1200);
       return;
     }
     int rc = clockNodeAdd(_node_prefs->clock_nodes, c.id.pub_key);
     if (rc == 1) {
       the_mesh.savePrefs();
       _task->notify(UIEventType::ack);
-      _task->showAlert("node added", 1200);
+      _task->showAlert(_("node added"), 1200);
     } else if (rc == 0) {
-      _task->showAlert("already a node", 1200);
+      _task->showAlert(_("already a node"), 1200);
     } else {
-      _task->showAlert("list is full", 1200);
+      _task->showAlert(_("list is full"), 1200);
     }
   }
 
   void requestClock() {
     bool ok = the_mesh.pullClock();
-    _task->showAlert(ok ? "time request" : "no one to ask", 1200);
+    _task->showAlert(ok ? _("time request") : _("no one to ask"), 1200);
   }
 
   uint8_t actionCount() const {
@@ -680,24 +681,24 @@ private:
   const char* actionLabel(uint8_t i) const {
     switch (_page) {
       case HomePage::RADIO:
-        if (i == 0) return "Profile: next";
-        if (i == 1) return (_node_prefs && _node_prefs->rx_boosted_gain) ? "RX Boost: off" : "RX Boost: on";
-        return (_node_prefs && _node_prefs->radio_fem_rxgain) ? "LNA: off" : "LNA: on";
+        if (i == 0) return _("Profile: next");
+        if (i == 1) return (_node_prefs && _node_prefs->rx_boosted_gain) ? _("RX Boost: off") : _("RX Boost: on");
+        return (_node_prefs && _node_prefs->radio_fem_rxgain) ? _("LNA: off") : _("LNA: on");
       case HomePage::POWER:
-        return i == 0 ? "Profile: next" : "Profile: back";
+        return i == 0 ? _("Profile: next") : _("Profile: back");
       case HomePage::TIME:
-        return i == 0 ? "Request time" : "Time nodes";
+        return i == 0 ? _("Request time") : _("Time nodes");
       case HomePage::CLOCK_NODES:
-        if (i == 0) return "Add node";
-        if (i == 1) return "Request time";
-        return "Clear all";
+        if (i == 0) return _("Add node");
+        if (i == 1) return _("Request time");
+        return _("Clear all");
       case HomePage::NODE_PICKER:
-        return "Add as node";
+        return _("Add as node");
 #if ENV_INCLUDE_GPS == 1
       case HomePage::BEACON:
-        if (i == 0) return "Mode: next";
-        if (i == 1) return "Interval: next";
-        return "Stop beacon";
+        if (i == 0) return _("Mode: next");
+        if (i == 1) return _("Interval: next");
+        return _("Stop beacon");
 #endif
       default: return "";
     }
@@ -751,11 +752,11 @@ private:
         } else if (i == 1) {
           requestClock();
         } else if (usedClockNodes() == 0) {
-          _task->showAlert("no nodes", 1200);
+          _task->showAlert(_("no nodes"), 1200);
         } else {
           clockNodesClear(_node_prefs->clock_nodes);
           the_mesh.savePrefs();
-          _task->showAlert("nodes cleared", 1200);
+          _task->showAlert(_("nodes cleared"), 1200);
         }
         break;
       case HomePage::NODE_PICKER:
@@ -769,7 +770,7 @@ private:
           the_mesh.cycleBeaconInterval();
         } else {
           the_mesh.stopBeacon();
-          _task->showAlert("beacon stopped", 900);
+          _task->showAlert(_("beacon stopped"), 900);
           break;
         }
         {
@@ -894,6 +895,7 @@ public:
   }
 
   int render(DisplayDriver& display) override {
+    setUiLang(_node_prefs ? _node_prefs->ui_lang : UI_LANG_EN);
     // Sub-screens are not part of the root cycle; only kick a page when we are
     // on a root screen that is not visible in this build.
     if (!_in_sub && !isPageVisible(_page)) _page = stepPage(1);
@@ -1015,15 +1017,15 @@ public:
       int y = 20;
       char mbuf[32];
       display.setColor(UIColor::primary_txt);
-      snprintf(mbuf, sizeof(mbuf), "In memory: %d", _task->getDeviceStored());
+      snprintf(mbuf, sizeof(mbuf), _("In memory: %d"), _task->getDeviceStored());
       display.drawTextLeftAlign(0, y, mbuf);
       y += 12;
-      snprintf(mbuf, sizeof(mbuf), "To phone: %d", _task->getMsgCount());
+      snprintf(mbuf, sizeof(mbuf), _("To phone: %d"), _task->getMsgCount());
       display.drawTextLeftAlign(0, y, mbuf);
       y += 12;
       bool any = _task->getDeviceStored() > 0 || _task->getMsgCount() > 0;
       display.setColor(any ? UIColor::primary_txt : UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, any ? "hold: read" : "no messages");
+      display.drawTextLeftAlign(0, y, any ? _("hold: read") : _("no messages"));
     } else if (_page == HomePage::RECENT) {
       the_mesh.getRecentlyHeard(recent, UI_RECENT_LIST_SIZE);
       int shown = 0;
@@ -1058,7 +1060,7 @@ public:
       // last slot stays free until the list is full, so real data fits there
       if (recent[UI_RECENT_LIST_SIZE - 1].name[0] == 0) {
         display.setColor(UIColor::secondary_txt);
-        snprintf(tmp, sizeof(tmp), "In list: %d", shown);
+        snprintf(tmp, sizeof(tmp), _("In list: %d"), shown);
         display.drawTextCentered(display.width() / 2, 20 + (UI_RECENT_LIST_SIZE - 1) * 11, tmp);
       }
     } else if (_page == HomePage::NEIGHBORS) {
@@ -1122,7 +1124,7 @@ public:
       display.setCursor(0, 42);
       if (_task->canControlFemLna()) {
         sprintf(tmp, "TX: %ddBm  LNA: %s", _node_prefs->tx_power_dbm,
-                _task->isFemLnaEnabled() ? "on" : "off");
+                _task->isFemLnaEnabled() ? _("on") : _("off"));
       } else {
         // no controllable FEM LNA on this board - don't advertise a dead control
         sprintf(tmp, "TX: %ddBm", _node_prefs->tx_power_dbm);
@@ -1134,7 +1136,7 @@ public:
       // on its own row instead of hiding it behind a gesture hint.
       display.setColor(UIColor::secondary_txt);
       display.drawTextRightAlign(display.width() - 1, 53,
-        (_node_prefs && _node_prefs->rx_boosted_gain) ? "RXB: on" : "RXB: off");
+        (_node_prefs && _node_prefs->rx_boosted_gain) ? _("RXB: on") : _("RXB: off"));
     } else if (_page == HomePage::POWER) {
       bool fem = _task->canControlFemLna();
       bool cpu_hw = _task->canSelectMcuSleep();
@@ -1156,26 +1158,26 @@ public:
       display.setTextSize(1);
       int y = 18;
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, "Mode");
+      display.drawTextLeftAlign(0, y, _("Mode"));
       display.setColor(UIColor::secondary_txt);
       display.drawTextRightAlign(display.width() - 1, y, name);
       y += 12;
       // "Sleep allowed" is the honest wording: the CPU still runs while the UI
       // is being drawn, the profile only permits light sleep between frames.
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, !cpu_hw ? "Sleep: n/a" : (cpu ? "Sleep: yes" : "Sleep: no"));
-      display.drawTextRightAlign(display.width() - 1, y, boost ? "RX: on" : "RX: off");
+      display.drawTextLeftAlign(0, y, !cpu_hw ? _("Sleep: n/a") : (cpu ? _("Sleep: yes") : _("Sleep: no")));
+      display.drawTextRightAlign(display.width() - 1, y, boost ? _("RX: on") : _("RX: off"));
       y += 12;
       if (fem) {
-        display.drawTextLeftAlign(0, y, lna ? "LNA: on" : "LNA: off");
+        display.drawTextLeftAlign(0, y, lna ? _("LNA: on") : _("LNA: off"));
         y += 12;
       }
       if (y + 8 <= display.height()) {
         // A real reason instead of a gesture hint.
         const char* hold = NULL;
-        if (!cpu_hw) hold = "sleep n/a";
-        else if (_task->gpsBlocksCpuSleep()) hold = "GPS holds CPU";
-        else if (_task->bleBlocksCpuSleep()) hold = "BLE holds CPU";
+        if (!cpu_hw) hold = _("sleep n/a");
+        else if (_task->gpsBlocksCpuSleep()) hold = _("GPS holds CPU");
+        else if (_task->bleBlocksCpuSleep()) hold = _("BLE holds CPU");
         if (hold) {
           display.setColor(UIColor::warning_txt);
           display.drawTextCentered(display.width() / 2, y, hold);
@@ -1289,18 +1291,18 @@ public:
       // would misalign the rows. Draw each column at an explicit x instead.
       display.setColor(UIColor::primary_txt);
       display.drawTextLeftAlign(0, y, "BLE");
-      display.drawTextLeftAlign(36, y, ble_on ? "on" : "off");
-      if (ble_on) display.drawTextLeftAlign(72, y, ble_link ? "client" : "no");
+      display.drawTextLeftAlign(36, y, ble_on ? _("on") : _("off"));
+      if (ble_on) display.drawTextLeftAlign(72, y, ble_link ? _("client") : _("no"));
       y += line_h;
 
       display.drawTextLeftAlign(0, y, "WiFi");
-      display.drawTextLeftAlign(36, y, wifi_on ? "on" : "off");
-      if (wifi_on) display.drawTextLeftAlign(72, y, wifi_link ? "client" : "no");
+      display.drawTextLeftAlign(36, y, wifi_on ? _("on") : _("off"));
+      if (wifi_on) display.drawTextLeftAlign(72, y, wifi_link ? _("client") : _("no"));
       y += line_h;
 
-      // USB: the serial transport always reports "connected", so show "?"
+      // USB: the serial transport always reports _("connected"), so show "?"
       display.drawTextLeftAlign(0, y, "USB");
-      display.drawTextLeftAlign(36, y, usb_on ? "on" : "off");
+      display.drawTextLeftAlign(36, y, usb_on ? _("on") : _("off"));
       if (usb_on) display.drawTextLeftAlign(72, y, "?");
       y += line_h;
 
@@ -1309,7 +1311,7 @@ public:
         // While a client holds the link the PIN is not needed, so the row shows
         // the Wi-Fi network name instead of repeating the pairing code.
         if (ble_link || wifi_link) {
-          snprintf(buf, sizeof(buf), "%.20s", wifi_on ? WiFi.SSID().c_str() : "connected");
+          snprintf(buf, sizeof(buf), "%.20s", wifi_on ? WiFi.SSID().c_str() : _("connected"));
         } else {
           snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
         }
@@ -1333,7 +1335,7 @@ public:
         display.setColor(selected == i ? UIColor::warning_txt : UIColor::primary_txt);
         display.drawTextLeftAlign(0, y, selected == i ? ">" : " ");
         display.drawTextLeftAlign(10, y, names[i]);
-        display.drawTextLeftAlign(46, y, states[i] ? "on" : "off");
+        display.drawTextLeftAlign(46, y, states[i] ? _("on") : _("off"));
         y += line_h;
         conn_count++;
       }
@@ -1345,9 +1347,9 @@ public:
       if (_task->isWiFiEnabled()) {
         snprintf(buf, sizeof(buf), "5000:%s 5001:%s",
                  _task->isWiFiConnected() ? "+" : "-",
-                 _task->hasWiFi2() ? (_task->isWiFi2Connected() ? "+" : "-") : "n/a");
+                 _task->hasWiFi2() ? (_task->isWiFi2Connected() ? "+" : "-") : _("n/a"));
       } else {
-        snprintf(buf, sizeof(buf), "ports: --");
+        snprintf(buf, sizeof(buf), _("ports: --"));
       }
       display.drawTextLeftAlign(0, y, buf);
 
@@ -1357,37 +1359,37 @@ public:
       char buf[50];
       int y = 20;
       bool gps_state = _task->getGPSState();
-      const char* module = gps_state ? "on" : "off";
+      const char* module = gps_state ? _("on") : _("off");
 #ifdef PIN_GPS_SWITCH
       bool hw_gps_state = digitalRead(PIN_GPS_SWITCH);
       if (gps_state != hw_gps_state) {
-        module = gps_state ? "off(hw)" : "off(sw)";
+        module = gps_state ? _("off(hw)") : _("off(sw)");
       }
 #endif
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, "module");
+      display.drawTextLeftAlign(0, y, _("module"));
       display.setColor(gps_state ? UIColor::primary_txt : UIColor::warning_txt);
       display.drawTextRightAlign(display.width() - 1, y, module);
       y += 12;
       if (nmea == NULL) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "no GPS access");
+        display.drawTextLeftAlign(0, y, _("no GPS access"));
       } else if (!gps_state) {
         // isEnabled() reads the enable pin. With no pin it stays true, so the
         // chip can keep drawing current after the software switch is off.
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, nmea->isEnabled() ? "still powered" : "powered off");
+        display.drawTextLeftAlign(0, y, nmea->isEnabled() ? _("still powered") : _("powered off"));
         y += 12;
       } else {
         display.setColor(UIColor::secondary_txt);
-        sprintf(buf, "fix: %s", nmea->isValid() ? "yes" : "no");
+        sprintf(buf, _("fix: %s"), nmea->isValid() ? _("yes") : _("no"));
         display.drawTextLeftAlign(0, y, buf);
         display.setColor(UIColor::primary_txt);
-        sprintf(buf, "sats %d", nmea->satellitesCount());
+        sprintf(buf, _("sats %d"), nmea->satellitesCount());
         display.drawTextRightAlign(display.width() - 1, y, buf);
         y += 12;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "pos");
+        display.drawTextLeftAlign(0, y, _("pos"));
         display.setColor(UIColor::primary_txt);
         sprintf(buf, "%.4f %.4f",
           nmea->getLatitude() / 1000000., nmea->getLongitude() / 1000000.);
@@ -1395,7 +1397,7 @@ public:
         y += 12;
         if (y + 8 <= display.height()) {
           display.setColor(UIColor::secondary_txt);
-          display.drawTextLeftAlign(0, y, "alt");
+          display.drawTextLeftAlign(0, y, _("alt"));
           display.setColor(UIColor::primary_txt);
           sprintf(buf, "%.2f", nmea->getAltitude() / 1000.);
           display.drawTextRightAlign(display.width() - 1, y, buf);
@@ -1404,7 +1406,7 @@ public:
       }
       if (display.height() - 11 >= y) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, display.height() - 11, "hold: on/off");
+        display.drawTextCentered(display.width() / 2, display.height() - 11, _("hold: on/off"));
       }
     } else if (_page == HomePage::BEACON) {
       char mode[20];
@@ -1440,13 +1442,13 @@ public:
       display.setColor(UIColor::primary_txt);
       display.drawTextEllipsized(0, y, display.width() - 1, shown);
       y += 12;
-      display.setColor(strcmp(pos, "no fix") == 0 || strcmp(pos, "no gps") == 0
+      display.setColor(strcmp(pos, _("no fix")) == 0 || strcmp(pos, _("no gps")) == 0
           ? UIColor::warning_txt : UIColor::secondary_txt);
       display.drawTextEllipsized(0, y, display.width() - 1, pos);
       y += 12;
       display.setColor(UIColor::secondary_txt);
       display.drawTextLeftAlign(0, y, sent);
-      if (display.height() > 80 && strcmp(kind, "off") != 0) {
+      if (display.height() > 80 && strcmp(kind, _("off")) != 0) {
         display.drawTextCentered(display.width() / 2, display.height() - 11, "3x time    4x off");
       }
 #endif
@@ -1481,31 +1483,31 @@ public:
             break;
           case LPP_VOLTAGE:
             r.readVoltage(v);
-            strcpy(name, "vbat"); sprintf(buf, "%5.2f V", v);
+            strcpy(name, _("vbat")); sprintf(buf, _("%5.2f V"), v);
             break;
           case LPP_CURRENT:
             r.readCurrent(v);
-            strcpy(name, "current"); sprintf(buf, "%.2f A", v);
+            strcpy(name, _("current")); sprintf(buf, _("%.2f A"), v);
             break;
           case LPP_TEMPERATURE:
             r.readTemperature(v);
-            strcpy(name, "temp"); sprintf(buf, "%.1f C", v);
+            strcpy(name, _("temp")); sprintf(buf, "%.1f C", v);
             break;
           case LPP_RELATIVE_HUMIDITY:
             r.readRelativeHumidity(v);
-            strcpy(name, "humidity"); sprintf(buf, "%.0f %%", v);
+            strcpy(name, _("humidity")); sprintf(buf, "%.0f %%", v);
             break;
           case LPP_BAROMETRIC_PRESSURE:
             r.readPressure(v);
-            strcpy(name, "pressure"); sprintf(buf, "%.0f hPa", v);
+            strcpy(name, _("pressure")); sprintf(buf, _("%.0f hPa"), v);
             break;
           case LPP_ALTITUDE:
             r.readAltitude(v);
-            strcpy(name, "altitude"); sprintf(buf, "%.0f m", v);
+            strcpy(name, _("altitude")); sprintf(buf, _("%.0f m"), v);
             break;
           case LPP_POWER:
             r.readPower(v);
-            strcpy(name, "power"); sprintf(buf, "%5.2f W", v);
+            strcpy(name, _("power")); sprintf(buf, _("%5.2f W"), v);
             break;
           default:
             r.skipData(type);
@@ -1525,19 +1527,19 @@ public:
       else sensors_scroll_offset = 0;
       if (sensors_nb == 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 30, "no sensors");
+        display.drawTextCentered(display.width() / 2, 30, _("no sensors"));
       }
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, 54, sensors_scroll ? "list scrolls" : "hold: refresh");
+      display.drawTextLeftAlign(0, 54, sensors_scroll ? _("list scrolls") : _("hold: refresh"));
 #endif
     } else if (_page == HomePage::CLOCK_NODES) {
       display.setTextSize(1);
       int used = usedClockNodes();
       if (used == 0) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 22, "no nodes set");
+        display.drawTextLeftAlign(0, 22, _("no nodes set"));
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, 40, "hold: menu");
+        display.drawTextLeftAlign(0, 40, _("hold: menu"));
       } else {
         display.setColor(UIColor::primary_txt);
         char name[24];
@@ -1545,23 +1547,23 @@ public:
         for (int i = 0; i < CLOCK_NODE_MAX && row < 3; i++) {
           if (!clockNodeSlotUsed(_node_prefs->clock_nodes[i])) continue;
           the_mesh.lookupClockNodeName(_node_prefs->clock_nodes[i], name, sizeof(name));
-          display.drawTextLeftAlign(0, 18 + row * 12, name[0] ? name : "(no name)");
+          display.drawTextLeftAlign(0, 18 + row * 12, name[0] ? name : _("(no name)"));
           row++;
         }
         display.setColor(UIColor::secondary_txt);
         if (used > 3) {
           char more[16];
-          snprintf(more, sizeof(more), "+%d more", used - 3);
+          snprintf(more, sizeof(more), _("+%d more"), used - 3);
           display.drawTextRightAlign(display.width() - 1, 54, more);
         }
-        display.drawTextLeftAlign(0, 54, "hold: menu");
+        display.drawTextLeftAlign(0, 54, _("hold: menu"));
       }
     } else if (_page == HomePage::NODE_PICKER) {
       display.setTextSize(1);
       int total = the_mesh.getNumContacts();
       if (total <= 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 26, "no contacts");
+        display.drawTextCentered(display.width() / 2, 26, _("no contacts"));
       } else {
         if (_pick_idx >= (uint32_t)total) _pick_idx = 0;
         int maxrows = 3;
@@ -1574,13 +1576,13 @@ public:
           bool sel = ((uint32_t)idx == _pick_idx);
           display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
           if (sel) display.drawTextLeftAlign(0, 18 + r * 12, ">");
-          display.drawTextLeftAlign(10, 18 + r * 12, c.name[0] ? c.name : "(no name)");
+          display.drawTextLeftAlign(10, 18 + r * 12, c.name[0] ? c.name : _("(no name)"));
         }
         display.setColor(UIColor::secondary_txt);
         char cnt[16];
         snprintf(cnt, sizeof(cnt), "%d/%d", (int)_pick_idx + 1, total);
         display.drawTextRightAlign(display.width() - 1, 54, cnt);
-        display.drawTextLeftAlign(0, 54, "hold: add");
+        display.drawTextLeftAlign(0, 54, _("hold: add"));
       }
     } else if (_page == HomePage::TIME) {
       display.setTextSize(1);
@@ -1596,21 +1598,21 @@ public:
         formatClockDate(now, tz, _node_prefs ? _node_prefs->ui_lang : UI_LANG_RU, ds, sizeof(ds));
         snprintf(tbuf, sizeof(tbuf), "%s  %s", hm, ds);
       } else {
-        snprintf(tbuf, sizeof(tbuf), "time not set");
+        snprintf(tbuf, sizeof(tbuf), _("time not set"));
       }
       display.drawTextLeftAlign(0, y, tbuf);
       y += 12;
       display.setColor(UIColor::primary_txt);
-      snprintf(tbuf, sizeof(tbuf), "tz: %+d h", (int)(tz / 60));
+      snprintf(tbuf, sizeof(tbuf), _("tz: %+d h"), (int)(tz / 60));
       display.drawTextLeftAlign(0, y, tbuf);
       display.drawTextRightAlign(display.width() - 1, y,
-        (_node_prefs && _node_prefs->ui_lang == 0) ? "lang: RU" : "lang: EN");
+        (_node_prefs && _node_prefs->ui_lang == 0) ? _("lang: RU") : _("lang: EN"));
       y += 12;
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, valid ? "source: set" : "source: none");
+      display.drawTextLeftAlign(0, y, valid ? _("source: set") : _("source: none"));
       y += 12;
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, "hold: request");
+      display.drawTextLeftAlign(0, y, _("hold: request"));
     } else if (_page == HomePage::SETUP) {
       uint8_t mode = _node_prefs ? _node_prefs->eink_refresh : EINK_REFRESH_CLEAR;
       if (mode >= EINK_REFRESH_COUNT) mode = EINK_REFRESH_CLEAR;
@@ -1620,18 +1622,18 @@ public:
       char off_txt[12];
       snprintf(mode_txt, sizeof(mode_txt), "%u", (unsigned)mode + 1);
       uint16_t secs = screenOffSeconds(off_idx);
-      if (secs == 0) snprintf(off_txt, sizeof(off_txt), "off");
-      else snprintf(off_txt, sizeof(off_txt), "%u s", (unsigned)secs);
-      const char* rows_l[4] = { "Clock", "ScreenMode", "Language", "Timeout" };
-      const char* rows_r[4] = { clock_on ? "on" : "off", mode_txt,
+      if (secs == 0) snprintf(off_txt, sizeof(off_txt), _("off"));
+      else snprintf(off_txt, sizeof(off_txt), _("%u s"), (unsigned)secs);
+      const char* rows_l[4] = { "Clock", "ScreenMode", _("Language"), _("Timeout") };
+      const char* rows_r[4] = { clock_on ? _("on") : _("off"), mode_txt,
                                 (_node_prefs && _node_prefs->ui_lang == UI_LANG_EN) ? "EN" : "RU",
                                 off_txt };
       int nrows = setupRowCount();
       if (!display.isEink()) {
         // OLED has no ScreenMode row: shift the language row up into slot 1
-        rows_l[1] = "Language";
+        rows_l[1] = _("Language");
         rows_r[1] = rows_r[2];
-        rows_l[2] = "Timeout";
+        rows_l[2] = _("Timeout");
         rows_r[2] = off_txt;
       }
       display.setTextSize(1);
@@ -1644,7 +1646,7 @@ public:
       }
       if (display.height() >= 64 && nrows <= 3) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 56, _setup_edit ? "3 clicks: change" : "hold: edit");
+        display.drawTextCentered(display.width() / 2, 56, _setup_edit ? _("3 clicks: change") : _("hold: edit"));
       }
 #ifdef HELTEC_LORA_V4
     } else if (_page == HomePage::BATTERY) {
@@ -1660,33 +1662,33 @@ public:
       display.setTextSize(1);
       if (_adc_edit) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, "Multimeter");
-        snprintf(tmp, sizeof(tmp), "%u.%03u V",
+        display.drawTextLeftAlign(0, 18, _("Multimeter"));
+        snprintf(tmp, sizeof(tmp), _("%u.%03u V"),
                  (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
         display.drawTextLeftAlign(0, 32, tmp);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, 46, "click: +10 mV");
-        display.drawTextLeftAlign(0, 56, "hold: next");
+        display.drawTextLeftAlign(0, 46, _("click: +10 mV"));
+        display.drawTextLeftAlign(0, 56, _("hold: next"));
       } else if (_battery_confirm) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, "Confirm");
+        display.drawTextLeftAlign(0, 18, _("Confirm"));
         if (_battery_choice == 0) {
-          display.drawTextLeftAlign(0, 30, "ref 4.200 V");
+          display.drawTextLeftAlign(0, 30, _("ref 4.200 V"));
         } else if (_battery_choice == 1) {
-          snprintf(tmp, sizeof(tmp), "ref %u.%03u V",
+          snprintf(tmp, sizeof(tmp), _("ref %u.%03u V"),
                    (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
           display.drawTextLeftAlign(0, 30, tmp);
         } else {
-          display.drawTextLeftAlign(0, 30, "restore factory");
+          display.drawTextLeftAlign(0, 30, _("restore factory"));
         }
         display.setColor(_battery_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(4, 42, _battery_apply ? "Cancel" : "> Cancel");
+        display.drawTextLeftAlign(4, 42, _battery_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_battery_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(4, 54, _battery_apply ? "> Apply" : "Apply");
+        display.drawTextLeftAlign(4, 54, _battery_apply ? _("> Apply") : _("Apply"));
       } else {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, "ADC calibration");
-        static const char* items[3] = { "Full 4.20 V", "Multimeter", "Reset ADC" };
+        display.drawTextLeftAlign(0, 18, _("ADC calibration"));
+        static const char* items[3] = { _("Full 4.20 V"), _("Multimeter"), _("Reset ADC") };
         for (uint8_t i = 0; i < 3; i++) {
           bool sel = (i == _battery_choice);
           display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
@@ -1699,14 +1701,14 @@ public:
       display.setTextSize(1);
       display.setColor(UIColor::primary_txt);
       display.drawTextCentered(display.width() / 2, 18, FIRMWARE_VERSION);
-      snprintf(tmp, sizeof(tmp), "build: %s", __DATE__);
+      snprintf(tmp, sizeof(tmp), _("build: %s"), __DATE__);
       display.setColor(UIColor::secondary_txt);
       display.drawTextLeftAlign(0, 30, tmp);
       display.setColor(UIColor::primary_txt);
-      snprintf(tmp, sizeof(tmp), "node %s", _node_prefs ? _node_prefs->node_name : "?");
+      snprintf(tmp, sizeof(tmp), _("node %s"), _node_prefs ? _node_prefs->node_name : "?");
       display.drawTextLeftAlign(0, 42, tmp);
       uint32_t up = millis() / 1000UL;
-      snprintf(tmp, sizeof(tmp), "uptime %luh %lum", (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60));
+      snprintf(tmp, sizeof(tmp), _("uptime %luh %lum"), (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60));
       display.setColor(UIColor::secondary_txt);
       display.drawTextLeftAlign(0, 54, tmp);
     } else if (_page == HomePage::MENU) {
@@ -1735,17 +1737,17 @@ public:
       display.setTextSize(1);
       if (_shutdown_init) {
         display.setColor(UIColor::warning_txt);
-        display.drawTextCentered(display.width() / 2, 34, "powering off");
+        display.drawTextCentered(display.width() / 2, 34, _("powering off"));
       } else {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 20, "Power off?");
+        display.drawTextLeftAlign(0, 20, _("Power off?"));
         // Cancel is preselected: a stray long press must not power the board off.
         display.setColor(_shutdown_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(4, 34, _shutdown_apply ? "Cancel" : "> Cancel");
+        display.drawTextLeftAlign(4, 34, _shutdown_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_shutdown_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(4, 46, _shutdown_apply ? "> Apply" : "Apply");
+        display.drawTextLeftAlign(4, 46, _shutdown_apply ? _("> Apply") : _("Apply"));
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, 56, "click: pick  hold: ok");
+        display.drawTextLeftAlign(0, 56, _("click: pick  hold: ok"));
       }
     }
     if (_act_open) {
@@ -1764,7 +1766,7 @@ public:
         display.drawTextLeftAlign(10, 18 + i * 12, actionLabel(i));
       }
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, 62 - 8, "hold: run");
+      display.drawTextLeftAlign(0, 62 - 8, _("hold: run"));
       return 2000;
     }
     if (_page == HomePage::SCAN) {
@@ -1788,6 +1790,7 @@ public:
   }
 
   bool handleInput(char c) override {
+    setUiLang(_node_prefs ? _node_prefs->ui_lang : UI_LANG_EN);
     if (c == KEY_QUAD) {
 #if ENV_INCLUDE_GPS == 1
       if (_page != HomePage::BEACON) return false;
@@ -2024,7 +2027,7 @@ public:
         char result[160] = {0};
         if (_battery_choice == 1) the_mesh.calibrateBatteryTo(_adc_mv, result);
         else the_mesh.calibrateBatteryFromUI(_battery_choice == 0, result);
-        _task->showAlert(strncmp(result, "OK", 2) == 0 ? "ADC saved" : "ADC not saved", 1600);
+        _task->showAlert(strncmp(result, "OK", 2) == 0 ? _("ADC saved") : _("ADC not saved"), 1600);
       }
       _battery_confirm = false;
       _page = HomePage::BATTERY;
@@ -2100,13 +2103,13 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::SHUTDOWN && !_shutdown_apply) {
-      // "Cancel" was chosen: leave the dialog, the board stays on
+      // _("Cancel") was chosen: leave the dialog, the board stays on
       leaveSub();
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::TIME) {
       bool ok = the_mesh.pullClock();
-      _task->showAlert(ok ? "time request" : "no one to ask", 1200);
+      _task->showAlert(ok ? _("time request") : _("no one to ask"), 1200);
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::SHUTDOWN) {
@@ -2363,7 +2366,7 @@ public:
     } else {
       display.setCursor(0, 0);
       display.setColor(UIColor::corp_blue);
-      sprintf(tmp, "%s: %d", replay ? "Recent" : "Unread", num_unread);
+      sprintf(tmp, "%s: %d", replay ? _("Recent") : "Unread", num_unread);
       display.print(tmp);
 
       sprintf(tmp, "%s%s", page_tag, age);
@@ -2493,8 +2496,8 @@ public:
     int groups = _preview->groupCount();
     int chats = _preview->chatCount();
     bool en = _prefs && _prefs->ui_lang == UI_LANG_EN;
-    if (groups > 0) sprintf(line1, en ? "Groups: %d" : "Groups: %d", groups);
-    if (chats > 0) sprintf(line2, en ? "Chat: %d" : "Chats: %d", chats);
+    if (groups > 0) sprintf(line1, en ? _("Groups: %d") : _("Groups: %d"), groups);
+    if (chats > 0) sprintf(line2, en ? "Chat: %d" : _("Chats: %d"), chats);
     bool two = line1[0] && line2[0];
     char both[40];
     if (two) sprintf(both, "%s    %s", line1, line2);
@@ -3161,7 +3164,7 @@ void UITask::toggleFemLna() {
   _node_prefs->radio_fem_rxgain = enable ? 1 : 0;
   the_mesh.savePrefs();
   notify(UIEventType::ack);
-  showAlert(enable ? "LNA: on" : "LNA: off", 800);
+  showAlert(enable ? _("LNA: on") : _("LNA: off"), 800);
   _next_refresh = 0;
 }
 

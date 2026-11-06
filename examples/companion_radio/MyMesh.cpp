@@ -1,6 +1,7 @@
 #include "MyMesh.h"
 #include "AbstractUITask.h"
 #include <helpers/RadioProfiles.h>
+#include <helpers/ui/Localize.h>
 
 #include <Arduino.h> // needed for PlatformIO
 #ifdef ENABLE_WIFI_INTERFACE
@@ -3394,7 +3395,8 @@ bool MyMesh::beaconHasFix() const {
 }
 
 void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t target_sz, char* pos, size_t pos_sz, char* sent, size_t sent_sz) {
-  const char* mode_name = "off";
+  setUiLang(_prefs.ui_lang);   // the beacon strings follow the UI language
+  const char* mode_name = _("off");
   const char* target_name = "hold to start";
   char target_buf[32];
   target_buf[0] = 0;
@@ -3425,7 +3427,7 @@ void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t targe
         beaconCopy(target_buf, sizeof(target_buf), c->name);
         target_name = target_buf;
       } else {
-        target_name = "no contact";
+        target_name = _("no contact");
       }
       break;
     }
@@ -3445,11 +3447,11 @@ void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t targe
     uint32_t secs = (now >= _beacon_sent_at) ? (now - _beacon_sent_at) : 0;
     char age[8];
     formatBeaconAge(age, sizeof(age), secs);
-    snprintf(sent, sent_sz, "sent %s ago", age);
+    snprintf(sent, sent_sz, _("sent %s ago"), age);
   } else if (_prefs.beacon_mode == BEACON_OFF) {
     beaconCopy(sent, sent_sz, "");
   } else {
-    beaconCopy(sent, sent_sz, "not sent");
+    beaconCopy(sent, sent_sz, _("not sent"));
   }
 
   if (_prefs.beacon_mode == BEACON_OFF) {
@@ -3458,7 +3460,7 @@ void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t targe
   }
   if (!beaconHasFix()) {
     LocationProvider* loc = sensors.getLocationProvider();
-    beaconCopy(pos, pos_sz, (loc == NULL) ? "no gps" : "no fix");
+    beaconCopy(pos, pos_sz, (loc == NULL) ? _("no gps") : _("no fix"));
     return;
   }
   snprintf(pos, pos_sz, "%.4f  %.4f", sensors.node_lat, sensors.node_lon);
