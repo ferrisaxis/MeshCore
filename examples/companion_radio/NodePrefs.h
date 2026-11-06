@@ -82,7 +82,7 @@ public:
   char default_scope_name[31];
   uint8_t default_scope_key[16];
   int16_t tz_offset_mins = 0;  // local time = UTC + this many minutes
-  uint8_t ui_lang = UI_LANG_RU;  // weekday line on the e-ink clock
+  uint8_t ui_lang = UI_LANG_EN;  // date/weekday language; UI labels are English
   uint8_t clock_saver = 1;       // 1 = e-ink clock screensaver
   uint8_t screen_off_idx = 3;    // OLED auto-off: 0=off 1=15s 2=30s 3=60s 4=120s
   uint8_t eink_refresh = EINK_REFRESH_CLEAR;

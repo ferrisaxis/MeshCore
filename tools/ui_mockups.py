@@ -262,16 +262,16 @@ def s_msg_preview():
 
 
 def s_messages():
-    img, px = screen("Сообщения", 2)
-    draw_text(px, 0, 20, "В памяти: 5", 1)
-    draw_text(px, 0, 32, "На телефон: 3", 1)
-    draw_text(px, 0, 44, "держать: читать", 1)
+    img, px = screen("Messages", 2)
+    draw_text(px, 0, 20, "In memory: 5", 1)
+    draw_text(px, 0, 32, "To phone: 3", 1)
+    draw_text(px, 0, 44, "hold: read", 1)
     return img
 
 def s_menu(sel=0):
-    items = ["Радио", "Питание", "Батарея", "Шум", "Частоты", "Недавние", "Датчики",
-             "GPS: выкл", "Маяк", "Время", "Экран", "О прошивке", "Выключить"]
-    img, px = screen("Меню", 5)
+    items = ["Radio", "Power", "Battery", "Noise", "Freqs", "Recent", "Sensors",
+             "GPS: off", "Beacon", "Time", "Display", "Firmware", "Power off"]
+    img, px = screen("Menu", 5)
     start = 0
     if sel >= 4:
         start = sel - 3
@@ -287,19 +287,19 @@ def s_menu(sel=0):
     return img
 
 def s_sensors(rows=None):
-    img, px = screen("Датчики", sub=True)
+    img, px = screen("Sensors", sub=True)
     if rows is None:
-        rows = [("напряж", "3.87 В"), ("темп", "21.4 C"), ("давл", "1013 гПа")]
+        rows = [("vbat", "3.87 V"), ("temp", "21.4 C"), ("pressure", "1013 hPa")]
     if not rows:
-        draw_centered(px, 30, "датчиков нет", 1)
+        draw_centered(px, 30, "no sensors", 1)
     for i, (n, v) in enumerate(rows[:3]):
         draw_text(px, 0, 18 + i * 12, n, 1)
         draw_right(px, 18 + i * 12, v, 1)
-    draw_text(px, 0, 54, "держать: обновить", 1)
+    draw_text(px, 0, 54, "hold: refresh", 1)
     return img
 
 def s_recent(full=True):
-    img, px = screen("Недавние", sub=True)
+    img, px = screen("Recent", sub=True)
     if full:
         for i, (nm, t) in enumerate([("MO Mytischi-4", "12s"), ("CAO Taganka", "4m"),
                                      ("Zelenograd 23", "1h"), ("MO Klyazma", "3h")]):
@@ -308,11 +308,11 @@ def s_recent(full=True):
             draw_right(px, y, t, 1)
     else:
         draw_centered(px, 28, "no adverts", 1)
-        draw_centered(px, 20 + 4 * 11, "В списке: 0", 1)
+        draw_centered(px, 20 + 4 * 11, "In list: 0", 1)
     return img
 
 def s_neighbors(full=True):
-    img, px = screen("Сеть", 4)
+    img, px = screen("Network", 4)
     if full:
         for i, (nm, snr) in enumerate([("MO Mytischi Mira 37", "+9"), ("FDSKY-2", "+7"),
                                        ("CAO Moscow-City", "+5"), ("TROYAN-Repeater", "+3")]):
@@ -325,27 +325,27 @@ def s_neighbors(full=True):
     return img
 
 def s_radio(lna=True):
-    img, px = screen("Радио", sub=True)
+    img, px = screen("Radio", sub=True)
     draw_text(px, 0, 20, "FQ: 868.731   SF: 7", 1)
     draw_text(px, 0, 31, "BW: 62.50     CR: 7", 1)
     draw_text(px, 0, 42, "TX: 10dBm  LNA: on" if lna else "TX: 10dBm", 1)
     draw_text(px, 0, 53, "LongFast", 1)
-    draw_right(px, 53, "RXB: вкл", 1)
+    draw_right(px, 53, "RXB: on", 1)
     return img
 
 def s_power(blocked=False):
-    img, px = screen("Питание", sub=True)
-    draw_text(px, 0, 18, "Режим", 1)
+    img, px = screen("Power", sub=True)
+    draw_text(px, 0, 18, "Mode", 1)
     draw_right(px, 18, "Eco max", 1)
-    draw_text(px, 0, 30, "Сон: да", 1)
-    draw_right(px, 30, "RX: вкл", 1)
-    draw_text(px, 0, 42, "LNA: вкл", 1)
+    draw_text(px, 0, 30, "Sleep: yes", 1)
+    draw_right(px, 30, "RX: on", 1)
+    draw_text(px, 0, 42, "LNA: on", 1)
     if blocked:
-        draw_centered(px, 54, "BLE держит CPU", 1)
+        draw_centered(px, 54, "BLE holds CPU", 1)
     return img
 
 def s_battery():
-    img, px = screen("Батарея", sub=True)
+    img, px = screen("Battery", sub=True)
     draw_text(px, 0, 21, "Battery / ADC", 1)
     draw_text(px, 0, 32, "Voltage: 4.012 V", 1)
     draw_text(px, 0, 43, "ADC: 5.420", 1)
@@ -353,9 +353,9 @@ def s_battery():
     return img
 
 def s_battery_cal(sel=0):
-    img, px = screen("Батарея", sub=True)
-    draw_text(px, 0, 18, "Калибровка АЦП", 1)
-    items = ["Полный 4.20 В", "Мультиметр", "Сброс АЦП"]
+    img, px = screen("Battery", sub=True)
+    draw_text(px, 0, 18, "ADC calibration", 1)
+    items = ["Full 4.20 V", "Multimeter", "Reset ADC"]
     for i, name in enumerate(items):
         y = 30 + i * 11
         draw_text(px, 4, y, ">" if i == sel else " ", 1)
@@ -363,23 +363,23 @@ def s_battery_cal(sel=0):
     return img
 
 def s_battery_edit():
-    img, px = screen("Батарея", sub=True)
-    draw_text(px, 0, 18, "Мультиметр", 1)
-    draw_text(px, 0, 32, "4.150 В", 1)
-    draw_text(px, 0, 46, "клик: +10 мВ", 1)
-    draw_text(px, 0, 56, "держать: далее", 1)
+    img, px = screen("Battery", sub=True)
+    draw_text(px, 0, 18, "Multimeter", 1)
+    draw_text(px, 0, 32, "4.150 V", 1)
+    draw_text(px, 0, 46, "click: +10 mV", 1)
+    draw_text(px, 0, 56, "hold: next", 1)
     return img
 
 def s_battery_confirm():
-    img, px = screen("Батарея", sub=True)
-    draw_text(px, 0, 18, "Подтвердить", 1)
-    draw_text(px, 0, 30, "эталон 4.150 В", 1)
-    draw_text(px, 4, 42, "> Отмена", 1)
-    draw_text(px, 4, 54, "Применить", 1)
+    img, px = screen("Battery", sub=True)
+    draw_text(px, 0, 18, "Confirm", 1)
+    draw_text(px, 0, 30, "ref 4.150 V", 1)
+    draw_text(px, 4, 42, "> Cancel", 1)
+    draw_text(px, 4, 54, "Apply", 1)
     return img
 
 def s_scan():
-    img, px = screen("Шум", sub=True)
+    img, px = screen("Noise", sub=True)
     draw_centered(px, 18, "-97", 2)
     draw_right(px, 18, "PKT", 1)
     draw_text(px, 0, 36, "NL -105", 1)
@@ -390,7 +390,7 @@ def s_scan():
     return img
 
 def s_fscan(state="done"):
-    img, px = screen("Частоты", sub=True)
+    img, px = screen("Freqs", sub=True)
     if state == "idle":
         draw_centered(px, 28, "find quiet freq", 1)
         draw_centered(px, 53, "scan: hold", 1)
@@ -408,8 +408,8 @@ def s_fscan(state="done"):
     return img
 
 def s_interfaces_status(pin=True):
-    img, px = screen("Связь", 3)
-    rows = [("BLE", "вкл", "нет"), ("WiFi", "выкл", ""), ("USB", "вкл", "?")]
+    img, px = screen("Links", 3)
+    rows = [("BLE", "on", "no"), ("WiFi", "off", ""), ("USB", "on", "?")]
     y = 18
     for name, st, link in rows:
         draw_text(px, 0, y, name, 1)
@@ -421,75 +421,75 @@ def s_interfaces_status(pin=True):
     return img
 
 def s_interfaces_select(sel):
-    img, px = screen("Интерфейсы", sub=True)
+    img, px = screen("Interfaces", sub=True)
     y = 18
-    for i, (name, st) in enumerate([("BLE", "вкл"), ("WiFi", "выкл"), ("USB", "вкл")]):
+    for i, (name, st) in enumerate([("BLE", "on"), ("WiFi", "off"), ("USB", "on")]):
         draw_text(px, 0, y, ">" if i == sel else " ", 1)
         draw_text(px, 10, y, name, 1)
         draw_text(px, 46, y, st, 1)
         y += 12
-    draw_text(px, 0, y, "порты: --", 1)
+    draw_text(px, 0, y, "ports: --", 1)
     return img
 
 def s_gps(available=True):
     img, px = screen("GPS", sub=True)
-    draw_text(px, 0, 20, "модуль", 1)
-    draw_right(px, 20, "вкл" if available else "выкл", 1)
+    draw_text(px, 0, 20, "module", 1)
+    draw_right(px, 20, "on" if available else "off", 1)
     if available:
-        draw_text(px, 0, 32, "фикс: есть", 1)
-        draw_right(px, 32, "спутн 7", 1)
-        draw_text(px, 0, 44, "коорд", 1)
+        draw_text(px, 0, 32, "fix: yes", 1)
+        draw_right(px, 32, "7 sats", 1)
+        draw_text(px, 0, 44, "pos", 1)
         draw_right(px, 44, "55.9165 37.7601", 1)
-        draw_text(px, 0, 56, "выс", 1)
+        draw_text(px, 0, 56, "alt", 1)
         draw_right(px, 56, "156.20", 1)
     else:
-        draw_text(px, 0, 32, "питание снято", 1)
+        draw_text(px, 0, 32, "powered off", 1)
     return img
 
 def s_beacon():
-    img, px = screen("Маяк", sub=True)
-    draw_text(px, 0, 18, "группа", 1)
-    draw_right(px, 18, "30м", 1)
+    img, px = screen("Beacon", sub=True)
+    draw_text(px, 0, 18, "group", 1)
+    draw_right(px, 18, "30m", 1)
     draw_text(px, 0, 30, "FDSKY-Base", 1)
     draw_text(px, 0, 42, "55.9165  37.7601", 1)
-    draw_text(px, 0, 54, "отправлен 4м назад", 1)
+    draw_text(px, 0, 54, "sent 4m ago", 1)
     return img
 
 def s_beacon_no_fix():
-    img, px = screen("Маяк", sub=True)
-    draw_text(px, 0, 18, "группа", 1)
-    draw_right(px, 18, "30м", 1)
+    img, px = screen("Beacon", sub=True)
+    draw_text(px, 0, 18, "group", 1)
+    draw_right(px, 18, "30m", 1)
     draw_text(px, 0, 30, "FDSKY-Base", 1)
-    draw_text(px, 0, 42, "нет фикса", 1)
-    draw_text(px, 0, 54, "не отправлен", 1)
+    draw_text(px, 0, 42, "no fix", 1)
+    draw_text(px, 0, 54, "not sent", 1)
     return img
 
 def s_setup():
-    img, px = screen("Экран", sub=True)
+    img, px = screen("Display", sub=True)
     draw_text(px, 10, 20, "Clock", 1)
-    draw_right(px, 20, "вкл", 1)
-    draw_text(px, 10, 32, "Язык", 1)
+    draw_right(px, 20, "on", 1)
+    draw_text(px, 10, 32, "Language", 1)
     draw_right(px, 32, "RU", 1)
-    draw_text(px, 10, 44, "Таймаут", 1)
-    draw_right(px, 44, "60 с", 1)
-    draw_centered(px, 56, "держать: правка", 1)
+    draw_text(px, 10, 44, "Timeout", 1)
+    draw_right(px, 44, "60 s", 1)
+    draw_centered(px, 56, "hold: edit", 1)
     return img
 
 def s_clock_nodes(names):
-    img, px = screen("Узлы", sub=True)
+    img, px = screen("Nodes", sub=True)
     if not names:
-        draw_text(px, 0, 22, "узлы не заданы", 1)
-        draw_text(px, 0, 40, "держать: меню", 1)
+        draw_text(px, 0, 22, "no nodes set", 1)
+        draw_text(px, 0, 40, "hold: menu", 1)
         return img
     for i, n in enumerate(names[:3]):
         draw_text(px, 0, 18 + i * 12, n, 1)
     if len(names) > 3:
-        draw_right(px, 54, f"ещё {len(names) - 3}", 1)
-    draw_text(px, 0, 54, "держать: меню", 1)
+        draw_right(px, 54, f"+{len(names) - 3} more", 1)
+    draw_text(px, 0, 54, "hold: menu", 1)
     return img
 
 def s_node_picker(names, sel=0):
-    img, px = screen("Выбор узла", sub=True)
+    img, px = screen("Pick node", sub=True)
     total = len(names)
     maxrows = 3
     start = sel
@@ -502,7 +502,7 @@ def s_node_picker(names, sel=0):
         if is_sel:
             draw_text(px, 0, 18 + r * 12, ">", 1)
         draw_text(px, 10, 18 + r * 12, n[:19], 1)
-    draw_text(px, 0, 54, "держать: +", 1)
+    draw_text(px, 0, 54, "hold: add", 1)
     draw_right(px, 54, f"{sel + 1}/{total}", 1)
     return img
 
@@ -512,107 +512,107 @@ def s_actions(title, page, items, sel=0):
         y = 18 + i * 12
         draw_text(px, 0, y, ">" if i == sel else " ", 1)
         draw_text(px, 10, y, name, 1)
-    draw_text(px, 0, 54, "держать: выполнить", 1)
+    draw_text(px, 0, 54, "hold: run", 1)
     return img
 
 def s_about():
-    img, px = screen("О прошивке", sub=True)
+    img, px = screen("Firmware", sub=True)
     draw_centered(px, 18, "v1.18.0-0.2.0", 1)
-    draw_text(px, 0, 30, "сборка: Nov  6 2026", 1)
-    draw_text(px, 0, 42, "узел FDSKY", 1)
-    draw_text(px, 0, 54, "аптайм 1ч 12м", 1)
+    draw_text(px, 0, 30, "build: Nov  6 2026", 1)
+    draw_text(px, 0, 42, "node FDSKY", 1)
+    draw_text(px, 0, 54, "uptime 1h 12m", 1)
     return img
 
 def s_shutdown(state="ready"):
-    img, px = screen("Выключить", sub=True)
+    img, px = screen("Power off", sub=True)
     if state == "hibernating":
-        draw_centered(px, 34, "выключаю...", 1)
+        draw_centered(px, 34, "powering off", 1)
         return img
-    draw_text(px, 0, 20, "Выключить питание?", 1)
-    draw_text(px, 4, 34, "> Отмена", 1)      # safe choice, preselected
-    draw_text(px, 4, 46, "Применить", 1)
-    draw_text(px, 0, 56, "клик: выбор  держ: ок", 1)
+    draw_text(px, 0, 20, "Power off?", 1)
+    draw_text(px, 4, 34, "> Cancel", 1)      # safe choice, preselected
+    draw_text(px, 4, 46, "Apply", 1)
+    draw_text(px, 0, 56, "click: pick  hold: ok", 1)
     return img
 
 def s_shutdown_apply():
-    img, px = screen("Выключить", sub=True)
-    draw_text(px, 0, 20, "Выключить питание?", 1)
-    draw_text(px, 4, 34, "Отмена", 1)
-    draw_text(px, 4, 46, "> Применить", 1)
-    draw_text(px, 0, 56, "клик: выбор  держ: ок", 1)
+    img, px = screen("Power off", sub=True)
+    draw_text(px, 0, 20, "Power off?", 1)
+    draw_text(px, 4, 34, "Cancel", 1)
+    draw_text(px, 4, 46, "> Apply", 1)
+    draw_text(px, 0, 56, "click: pick  hold: ok", 1)
     return img
 
 def s_time():
-    img, px = screen("Время", sub=True)
-    draw_text(px, 0, 18, "14:32  Чт, 05.11", 1)
-    draw_text(px, 0, 30, "пояс: +3 ч", 1)
-    draw_right(px, 30, "язык: RU", 1)
-    draw_text(px, 0, 42, "источник: задано", 1)
-    draw_text(px, 0, 54, "держать: меню", 1)
+    img, px = screen("Time", sub=True)
+    draw_text(px, 0, 18, "14:32  Thu, 05.11", 1)
+    draw_text(px, 0, 30, "tz: +3 h", 1)
+    draw_right(px, 30, "lang: RU", 1)
+    draw_text(px, 0, 42, "source: set", 1)
+    draw_text(px, 0, 54, "hold: menu", 1)
     return img
 
 # ----------------------------------------------------------------- build
 SCREENS = [
-    ("01-root-home-wifi-ip",          "Корень 1/5: главная, Wi-Fi поднят, показан IP",         s_main_connected()),
-    ("02-root-home-ble-client",       "Корень 1/5: подключён USB/BLE клиент, без Wi-Fi",      s_main_usb()),
-    ("03-root-home-pin",              "Корень 1/5: подключения нет, PIN",                      s_main_pin()),
-    ("04-root-messages",              "Корень 2/5: счётчики сообщений",                        s_messages()),
-    ("05-root-connections",           "Корень 3/5: статусы BLE/WiFi/USB",                     s_interfaces_status()),
-    ("06-root-network",               "Корень 4/5: сеть, список соседей",                      s_neighbors(True)),
-    ("07-root-network-empty",         "Корень 4/5: соседей нет",                               s_neighbors(False)),
-    ("08-root-menu-radio",            "Корень 5/5: меню, выбран Радио",                        s_menu(0)),
-    ("09-root-menu-battery",          "Корень 5/5: меню, прокрутка до Батареи",                s_menu(2)),
-    ("10-root-menu-shutdown",         "Корень 5/5: меню, прокрутка до Выключить",              s_menu(9)),
-    ("11-sub-interfaces-toggle",      "Подэкран Связи: выбор интерфейса (маркер BLE)",         s_interfaces_select(0)),
-    ("12-sub-interfaces-toggle-wifi", "Подэкран Связи: маркер на WiFi",                        s_interfaces_select(1)),
-    ("13-sub-radio",                  "Подэкран Радио: параметры и LNA",                       s_radio(True)),
-    ("14-sub-radio-no-lna",           "Подэкран Радио: плата без управляемого LNA",            s_radio(False)),
-    ("14b-sub-radio-actions",         "Действия Радио: профиль, RX Boost, LNA",                s_actions("Радио", "radio",
-        ["Профиль: далее", "RX Boost: выкл", "LNA: выкл"], 0)),
-    ("15-sub-power",                  "Подэкран Питание: профиль и состояние сна",             s_power(False)),
-    ("16-sub-power-blocked",          "Подэкран Питание: сон держит BLE",                      s_power(True)),
-    ("16b-sub-power-actions",         "Действия Питание: профиль вперёд/назад",                s_actions("Питание", "power",
-        ["Профиль: далее", "Профиль: назад"], 0)),
-    ("17-sub-battery",                "Подэкран Батарея: напряжение и множитель АЦП",          s_battery()),
-    ("18-sub-battery-calibration",    "Подэкран калибровки: выбор операции",                   s_battery_cal(0)),
-    ("18b-sub-battery-meter",         "Подэкран калибровки: маркер на Мультиметре",            s_battery_cal(1)),
-    ("19-sub-battery-editor",         "Калибровка по мультиметру: правка эталона",             s_battery_edit()),
-    ("19b-sub-battery-confirm",       "Калибровка: подтверждение, «Отмена» по умолчанию",      s_battery_confirm()),
-    ("20-sub-noise-scan",             "Подэкран Шум: уровень, пик, шкала",                     s_scan()),
-    ("21-sub-freq-scan-idle",         "Подэкран Частоты: ожидание",                            s_fscan("idle")),
-    ("22-sub-freq-scan-running",      "Подэкран Частоты: идёт скан",                           s_fscan("run")),
-    ("23-sub-freq-scan-result",       "Подэкран Частоты: результат",                           s_fscan("done")),
-    ("24-sub-recent",                 "Подэкран Недавние: список и возраст",                   s_recent(True)),
-    ("25-sub-recent-empty",           "Подэкран Недавние: пусто",                              s_recent(False)),
-    ("26-sub-gps",                    "Подэкран GPS: включён, есть фикс",                      s_gps(True)),
-    ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
-    ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
-    ("25a-sub-sensors",              "Датчики: напряжение, температура, давление",              s_sensors()),
-    ("25b-sub-sensors-empty",        "Датчики: данных нет",                                   s_sensors([])),
-    ("29c-sub-clock-nodes",          "Узлы времени: два доверенных узла",                    s_clock_nodes(["FDSKY-Base", "Башня-2"])),
-    ("29d-sub-clock-nodes-empty",    "Узлы времени: не заданы",                              s_clock_nodes([])),
-    ("29e-sub-node-picker",          "Выбор контакта для узла времени",                      s_node_picker(["FDSKY-Base", "Башня-2", "Дом-репитер", "Сосед-3"], 1)),
-    ("29f-sub-time-actions",         "Действия Время: запрос и узлы",                        s_actions("Время", "time",
-        ["Запрос времени", "Узлы времени"], 0)),
-    ("28c-sub-beacon-no-fix",         "Маяк: нет фикса GPS",                                  s_beacon_no_fix()),
-    ("28b-sub-beacon-actions",        "Действия Маяк: режим, интервал, стоп",                  s_actions("Маяк", "beacon",
-        ["Режим: далее", "Интервал: далее", "Остановить маяк"], 0)),
-    ("29-sub-screen-time",            "Подэкран Экран: Clock и Таймаут",                       s_setup()),
-    ("29b-sub-about",                 "Подэкран О прошивке: версия, сборка, узел, аптайм",     s_about()),
-    ("30-sub-time",                   "Подэкран Время: часы, пояс, источник",                    s_time()),
-    ("31-sub-shutdown",               "Подэкран Выключить: подтверждение, «Отмена» по умолчанию", s_shutdown("ready")),
-    ("32-sub-shutdown-apply",         "Подэкран Выключить: выбрано «Применить»",                s_shutdown_apply()),
-    ("33-sub-shutdown-progress",      "Подэкран Выключить: процесс пошёл",                      s_shutdown("hibernating")),
-    ("34-boot-splash",                "Заставка при загрузке",                                 s_splash()),
-    ("35-message-preview",            "Просмотр сообщения (без шапки)",                        s_msg_preview()),
+    ("01-root-home-wifi-ip",          "Root 1/5: home, Wi-Fi up, IP shown",         s_main_connected()),
+    ("02-root-home-ble-client",       "Root 1/5: USB/BLE client attached, no Wi-Fi",      s_main_usb()),
+    ("03-root-home-pin",              "Root 1/5: no connection, PIN",                      s_main_pin()),
+    ("04-root-messages",              "Root 2/5: message counters",                        s_messages()),
+    ("05-root-connections",           "Root 3/5: BLE/WiFi/USB status",                     s_interfaces_status()),
+    ("06-root-network",               "Root 4/5: network, neighbor list",                      s_neighbors(True)),
+    ("07-root-network-empty",         "Root 4/5: no neighbors",                               s_neighbors(False)),
+    ("08-root-menu-radio",            "Root 5/5: menu, Radio selected",                        s_menu(0)),
+    ("09-root-menu-battery",          "Root 5/5: menu scrolled to Battery",                s_menu(2)),
+    ("10-root-menu-shutdown",         "Root 5/5: menu scrolled to Power off",              s_menu(9)),
+    ("11-sub-interfaces-toggle",      "Links: interface selection (BLE)",         s_interfaces_select(0)),
+    ("12-sub-interfaces-toggle-wifi", "Links: marker on WiFi",                        s_interfaces_select(1)),
+    ("13-sub-radio",                  "Radio: parameters and LNA",                       s_radio(True)),
+    ("14-sub-radio-no-lna",           "Radio: board without a controllable LNA",            s_radio(False)),
+    ("14b-sub-radio-actions",         "Radio actions: profile, RX Boost, LNA",                s_actions("Radio", "radio",
+        ["Profile: next", "RX Boost: off", "LNA: off"], 0)),
+    ("15-sub-power",                  "Power: profile and sleep state",             s_power(False)),
+    ("16-sub-power-blocked",          "Power: sleep blocked by BLE",                      s_power(True)),
+    ("16b-sub-power-actions",         "Power actions: profile forward/back",                s_actions("Power", "power",
+        ["Profile: next", "Profile: back"], 0)),
+    ("17-sub-battery",                "Battery: voltage and ADC multiplier",          s_battery()),
+    ("18-sub-battery-calibration",    "ADC calibration: operation list",                   s_battery_cal(0)),
+    ("18b-sub-battery-meter",         "ADC calibration: Multimeter highlighted",            s_battery_cal(1)),
+    ("19-sub-battery-editor",         "Multimeter calibration: reference editor",             s_battery_edit()),
+    ("19b-sub-battery-confirm",       "Calibration: confirmation, Cancel preselected",      s_battery_confirm()),
+    ("20-sub-noise-scan",             "Noise: level, peak, bar",                     s_scan()),
+    ("21-sub-freq-scan-idle",         "Freq scan: idle",                            s_fscan("idle")),
+    ("22-sub-freq-scan-running",      "Freq scan: running",                           s_fscan("run")),
+    ("23-sub-freq-scan-result",       "Freq scan: result",                           s_fscan("done")),
+    ("24-sub-recent",                 "Recent: list with age",                   s_recent(True)),
+    ("25-sub-recent-empty",           "Recent: empty",                              s_recent(False)),
+    ("26-sub-gps",                    "GPS: on, fix acquired",                      s_gps(True)),
+    ("27-sub-gps-unavailable",        "GPS: module not responding",                       s_gps(False)),
+    ("28-sub-beacon",                 "Beacon: mode, interval, target",                  s_beacon()),
+    ("25a-sub-sensors",              "Sensors: voltage, temperature, pressure",              s_sensors()),
+    ("25b-sub-sensors-empty",        "Sensors: no data",                                   s_sensors([])),
+    ("29c-sub-clock-nodes",          "Time nodes: two trusted nodes",                    s_clock_nodes(["FDSKY-Base", "Tower-2"])),
+    ("29d-sub-clock-nodes-empty",    "Time nodes: none set",                              s_clock_nodes([])),
+    ("29e-sub-node-picker",          "Contact picker for a time node",                      s_node_picker(["FDSKY-Base", "Tower-2", "Home-rep", "Neighbor-3"], 1)),
+    ("29f-sub-time-actions",         "Time actions: request and nodes",                        s_actions("Time", "time",
+        ["Request time", "Time nodes"], 0)),
+    ("28c-sub-beacon-no-fix",         "Beacon: no GPS fix",                                  s_beacon_no_fix()),
+    ("28b-sub-beacon-actions",        "Beacon actions: mode, interval, stop",                  s_actions("Beacon", "beacon",
+        ["Mode: next", "Interval: next", "Stop beacon"], 0)),
+    ("29-sub-screen-time",            "Display: Clock and Timeout",                       s_setup()),
+    ("29b-sub-about",                 "Firmware: version, build, node, uptime",     s_about()),
+    ("30-sub-time",                   "Time: clock, timezone, source",                    s_time()),
+    ("31-sub-shutdown",               "Power off: confirmation, Cancel preselected", s_shutdown("ready")),
+    ("32-sub-shutdown-apply",         "Power off: Apply selected",                s_shutdown_apply()),
+    ("33-sub-shutdown-progress",      "Power off: in progress",                      s_shutdown("hibernating")),
+    ("34-boot-splash",                "Boot splash",                                 s_splash()),
+    ("35-message-preview",            "Message preview (no header)",                        s_msg_preview()),
 ]
 
 ALERTS = [
-    ("31-alert-advert-sent",    "Всплывающее: advert отправлен",   alert(s_recent(True).copy(), "Advert sent!")),
-    ("32-alert-power-mode",     "Всплывающее: смена профиля",      alert(s_power(False).copy(), "Eco max")),
-    ("33-alert-radio-profile",  "Всплывающее: смена радио-профиля", alert(s_radio(True).copy(), "LongFast")),
-    ("34-alert-polling",        "Всплывающее: опрос соседей",      alert(s_neighbors(True).copy(), "Polling...")),
-    ("35-alert-adc-saved",      "Всплывающее: АЦП сохранён",       alert(s_battery().copy(), "ADC saved")),
+    ("31-alert-advert-sent",    "Alert: advert sent",   alert(s_recent(True).copy(), "Advert sent!")),
+    ("32-alert-power-mode",     "Alert: profile changed",      alert(s_power(False).copy(), "Eco max")),
+    ("33-alert-radio-profile",  "Alert: radio profile changed", alert(s_radio(True).copy(), "LongFast")),
+    ("34-alert-polling",        "Alert: neighbor poll",      alert(s_neighbors(True).copy(), "Polling...")),
+    ("35-alert-adc-saved",      "Alert: ADC saved",       alert(s_battery().copy(), "ADC saved")),
 ]
 
 def save(img, name):
@@ -651,17 +651,17 @@ def main():
             d.text((x + 2, y + H * SC + 2), label, fill=235)
     sheet.save(os.path.join(OUT, "00-contact-sheet.png"))
 
-    lines = ["# Макеты экранов MeshCore (128x64 OLED)", "",
-             "Сгенерировано из кода прошивки: `tools/ui_mockups.py`.", "",
-             "- Латинский шрифт — 5x7 из Adafruit GFX (`glcdfont.c`)",
-             "- Кириллица — лицо CYR_OLED из `src/helpers/ui/CyrillicGlyphs.inc`",
-             "- Шапка: название экрана слева, счётчик `3/12` (или `<` на подэкранах) у x=101,",
-             "  иконка батареи справа, разделительная линия на y=12",
-             "", "| Файл | Экран | Описание |", "|---|---|---|"]
+    lines = ["# MeshCore screen mockups (128x64 OLED)", "",
+             "Generated from the firmware code: `tools/ui_mockups.py`.", "",
+             "- Latin font: 5x7 from Adafruit GFX (`glcdfont.c`)",
+             "- Cyrillic glyphs come from `src/helpers/ui/CyrillicGlyphs.inc` (messages only)",
+             "- Header: screen title on the left, counter `3/12` (or `<` on sub-screens) at x=101,",
+             "  battery indicator on the right, rule at y=12",
+             "", "| File | Screen | Description |", "|---|---|---|"]
     for name, desc, _ in shots:
         lines.append(f"| `{name}.png` | {name.split('-', 1)[1]} | {desc} |")
-    lines += ["", "Каждый PNG — 128x64 (1x) и `<имя>@4x.png` (увеличение x4 без сглаживания).",
-              "", "Обзорный лист: `00-contact-sheet.png`.", ""]
+    lines += ["", "Each PNG is 128x64 (1x) plus `<name>@4x.png` (4x, no smoothing).",
+              "", "Overview sheet: `00-contact-sheet.png`.", ""]
     open(os.path.join(OUT, "README.md"), "w", encoding="utf-8").write("\n".join(lines))
     print(f"{len(shots)} screens -> {OUT}")
 
