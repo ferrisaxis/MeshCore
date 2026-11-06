@@ -208,6 +208,7 @@ public:
 #endif
     TIME,          // sub-screen: clock, date, timezone, clock pull
     SETUP,
+    ABOUT,         // sub-screen: version, build date, node identity
     MENU,          // root: entry point for every settings sub-screen
     SHUTDOWN,
     Count    // keep as last
@@ -228,6 +229,8 @@ private:
   uint8_t _battery_choice = 0; // full charge, reset, CLI instructions
   bool _battery_confirm = false;
   bool _battery_apply = false;
+  bool _adc_edit = false;        // multimeter reference editor
+  uint16_t _adc_mv = 4200;       // reference voltage being entered
 #endif
   uint8_t _conn_selected = 0;
   // Two-level navigation: five root screens, everything else is a sub-screen
@@ -522,6 +525,7 @@ private:
 #endif
     n++;  // Время
     n++;  // Экран
+    n++;  // О прошивке
     n++;  // Выключить
     return n;
   }
@@ -542,6 +546,7 @@ private:
 #endif
     if (idx == i++) return HomePage::TIME;
     if (idx == i++) return HomePage::SETUP;
+    if (idx == i++) return HomePage::ABOUT;
     return HomePage::SHUTDOWN;
   }
 
@@ -569,6 +574,7 @@ private:
 #endif
       case TIME: return "Время";
       case SETUP: return "Экран";
+      case ABOUT: return "О прошивке";
       case MENU: return "Меню";
       case SHUTDOWN: return "Выключить";
       default: return "MeshCore";
@@ -592,12 +598,19 @@ private:
 #endif
       case HomePage::TIME: return "Время";
       case HomePage::SETUP: return "Экран";
+      case HomePage::ABOUT: return "О прошивке";
       case HomePage::SHUTDOWN: return "Выключить";
       default: return "?";
     }
   }
 
-  uint8_t setupRowCount() const { return _task->isEink() ? 2 : 1; }
+  // Auto-off presets, index 0 = never. Mirrored in NodePrefs::screen_off_idx.
+  static const uint16_t screenOffSeconds(uint8_t idx) {
+    static const uint16_t secs[5] = {0, 15, 30, 60, 120};
+    return secs[idx < 5 ? idx : 3];
+  }
+
+  uint8_t setupRowCount() const { return _task->isEink() ? 3 : 2; }
 
   void stepSetupRow(int dir) {
     int n = setupRowCount();
@@ -609,12 +622,15 @@ private:
 
   void changeSetupValue() {
     if (!_node_prefs) return;
+    bool eink = _task->isEink();
     if (_setup_row == 0) {
       _node_prefs->clock_saver = _node_prefs->clock_saver ? 0 : 1;
-    } else {
+    } else if (eink && _setup_row == 1) {
       uint8_t mode = _node_prefs->eink_refresh;
       if (mode >= EINK_REFRESH_COUNT) mode = 0;
       _node_prefs->eink_refresh = (uint8_t)((mode + 1) % EINK_REFRESH_COUNT);
+    } else {
+      _node_prefs->screen_off_idx = (uint8_t)((_node_prefs->screen_off_idx + 1) % 5);
     }
     the_mesh.savePrefs();
     _task->syncDisplayRefresh();
@@ -1360,21 +1376,27 @@ public:
       uint8_t mode = _node_prefs ? _node_prefs->eink_refresh : EINK_REFRESH_CLEAR;
       if (mode >= EINK_REFRESH_COUNT) mode = EINK_REFRESH_CLEAR;
       bool clock_on = _node_prefs && _node_prefs->clock_saver != 0;
-      sprintf(tmp, "%u", (unsigned)mode + 1);
-      const char* rows_l[2] = { "Clock", "ScreenMode" };
-      const char* rows_r[2] = { clock_on ? "on" : "off", tmp };
+      uint8_t off_idx = _node_prefs ? _node_prefs->screen_off_idx : 3;
+      char mode_txt[8];
+      char off_txt[12];
+      snprintf(mode_txt, sizeof(mode_txt), "%u", (unsigned)mode + 1);
+      uint16_t secs = screenOffSeconds(off_idx);
+      if (secs == 0) snprintf(off_txt, sizeof(off_txt), "выкл");
+      else snprintf(off_txt, sizeof(off_txt), "%u с", (unsigned)secs);
+      const char* rows_l[3] = { "Clock", "ScreenMode", "Таймаут" };
+      const char* rows_r[3] = { clock_on ? "вкл" : "выкл", mode_txt, off_txt };
       display.setTextSize(1);
       int nrows = setupRowCount();
       for (int i = 0; i < nrows; i++) {
-        int y = 22 + i * 14;
+        int y = 20 + i * 12;
         display.setColor(UIColor::primary_txt);
         if (_setup_edit && (uint8_t)i == _setup_row) display.drawTextLeftAlign(0, y, ">");
         display.drawTextLeftAlign(10, y, rows_l[i]);
-        display.drawTextRightAlign(display.width() - 8, y, rows_r[i]);
+        display.drawTextRightAlign(display.width() - 1, y, rows_r[i]);
       }
       if (display.height() >= 64) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 52, _setup_edit ? "triple click" : PRESS_LABEL);
+        display.drawTextCentered(display.width() / 2, 56, _setup_edit ? "3 клика: изменить" : "держать: правка");
       }
 #ifdef HELTEC_LORA_V4
     } else if (_page == HomePage::BATTERY) {
@@ -1387,20 +1409,58 @@ public:
       display.drawTextLeftAlign(0, 43, tmp);
       display.drawTextCentered(display.width()/2, 53, "calibrate: long press");
     } else if (_page == HomePage::BATTERY_CAL) {
-      display.setColor(UIColor::primary_txt);
       display.setTextSize(1);
-      display.drawTextLeftAlign(0, 21, "Battery calibration");
-      if (_battery_confirm) {
-        display.drawTextLeftAlign(0, 32, _battery_choice == 0 ? "Reference: 4.200 V" : "Reset ADC to default?");
-        display.drawTextLeftAlign(0, 43, _battery_apply ? "> Apply" : "> Cancel");
-        display.drawTextCentered(display.width()/2, 53, "click: select  hold: OK");
+      if (_adc_edit) {
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, "Мультиметр");
+        snprintf(tmp, sizeof(tmp), "%u.%03u В",
+                 (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
+        display.drawTextLeftAlign(0, 32, tmp);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextLeftAlign(0, 46, "клик: +10 мВ");
+        display.drawTextLeftAlign(0, 56, "держать: далее");
+      } else if (_battery_confirm) {
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, "Подтвердить");
+        if (_battery_choice == 0) {
+          display.drawTextLeftAlign(0, 30, "эталон 4.200 В");
+        } else if (_battery_choice == 1) {
+          snprintf(tmp, sizeof(tmp), "эталон %u.%03u В",
+                   (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
+          display.drawTextLeftAlign(0, 30, tmp);
+        } else {
+          display.drawTextLeftAlign(0, 30, "вернуть заводской");
+        }
+        display.setColor(_battery_apply ? UIColor::primary_txt : UIColor::warning_txt);
+        display.drawTextLeftAlign(4, 42, _battery_apply ? "Отмена" : "> Отмена");
+        display.setColor(_battery_apply ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(4, 54, _battery_apply ? "> Применить" : "Применить");
       } else {
-        static const char* choices[] = { "Full 4.20V", "Reset ADC", "Meter: use CLI" };
-        snprintf(tmp, sizeof(tmp), "> %s", choices[_battery_choice]);
-        display.drawTextLeftAlign(0, 34, tmp);
-        display.drawTextCentered(display.width()/2, 53, "click: next  hold: OK");
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, "Калибровка АЦП");
+        static const char* items[3] = { "Полный 4.20 В", "Мультиметр", "Сброс АЦП" };
+        for (uint8_t i = 0; i < 3; i++) {
+          bool sel = (i == _battery_choice);
+          display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
+          display.drawTextLeftAlign(4, 30 + i * 11, sel ? ">" : " ");
+          display.drawTextLeftAlign(14, 30 + i * 11, items[i]);
+        }
       }
 #endif
+    } else if (_page == HomePage::ABOUT) {
+      display.setTextSize(1);
+      display.setColor(UIColor::primary_txt);
+      display.drawTextCentered(display.width() / 2, 18, FIRMWARE_VERSION);
+      snprintf(tmp, sizeof(tmp), "сборка: %s", __DATE__);
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, 30, tmp);
+      display.setColor(UIColor::primary_txt);
+      snprintf(tmp, sizeof(tmp), "узел %s", _node_prefs ? _node_prefs->node_name : "?");
+      display.drawTextLeftAlign(0, 42, tmp);
+      uint32_t up = millis() / 1000UL;
+      snprintf(tmp, sizeof(tmp), "аптайм %luч %luм", (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60));
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextLeftAlign(0, 54, tmp);
     } else if (_page == HomePage::MENU) {
       // Root 5: the only way into the settings sub-screens.
       // click moves the marker, hold opens the selected page.
@@ -1506,7 +1566,8 @@ public:
     if (c == KEY_LEFT || c == KEY_PREV) {
 #ifdef HELTEC_LORA_V4
       if (_page == HomePage::BATTERY_CAL) {
-        _battery_confirm = false;
+        if (_adc_edit) { _adc_edit = false; return true; }
+        if (_battery_confirm) { _battery_confirm = false; return true; }
         _page = HomePage::BATTERY;
         return true;
       }
@@ -1551,8 +1612,13 @@ public:
     if (c == KEY_NEXT || c == KEY_RIGHT) {
 #ifdef HELTEC_LORA_V4
       if (_page == HomePage::BATTERY_CAL) {
-        if (_battery_confirm) _battery_apply = !_battery_apply;
-        else _battery_choice = (_battery_choice + 1) % 3;
+        if (_adc_edit) {
+          _adc_mv = (_adc_mv >= 4250) ? 3000 : (uint16_t)(_adc_mv + 10);
+        } else if (_battery_confirm) {
+          _battery_apply = !_battery_apply;
+        } else {
+          _battery_choice = (_battery_choice + 1) % 3;
+        }
         return true;
       }
 #endif
@@ -1634,19 +1700,29 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::BATTERY_CAL) {
-      if (_battery_choice == 2) {
-        _task->showAlert("CLI: calibrate battery <mV>", 2000);
+      if (_adc_edit) {
+        _adc_edit = false;        // reference entered: go to the confirmation
+        _battery_confirm = true;
+        _battery_apply = false;
         return true;
       }
       if (!_battery_confirm) {
+        if (_battery_choice == 1) {
+          uint16_t mv = _task->getBattMilliVolts();
+          if (mv < 3000 || mv > 4250) mv = 4150;
+          _adc_mv = mv;
+          _adc_edit = true;
+          return true;
+        }
         _battery_confirm = true;
         _battery_apply = false;
         return true;
       }
       if (_battery_apply) {
         char result[160] = {0};
-        the_mesh.calibrateBatteryFromUI(_battery_choice == 0, result);
-        _task->showAlert(strncmp(result, "OK", 2) == 0 ? "ADC saved" : "ADC not saved", 1600);
+        if (_battery_choice == 1) the_mesh.calibrateBatteryTo(_adc_mv, result);
+        else the_mesh.calibrateBatteryFromUI(_battery_choice == 0, result);
+        _task->showAlert(strncmp(result, "OK", 2) == 0 ? "АЦП сохранён" : "АЦП не сохранён", 1600);
       }
       _battery_confirm = false;
       _page = HomePage::BATTERY;
@@ -2173,10 +2249,19 @@ bool UITask::reopenMsgPreview() {
   return true;
 }
 
+uint32_t UITask::autoOffMs() {
+  // 0 = keep the screen on; the value comes from Настройки → Таймаут.
+  static const uint16_t secs[5] = {0, 15, 30, 60, 120};
+  uint8_t idx = _node_prefs ? _node_prefs->screen_off_idx : 3;
+  if (idx >= 5) idx = 3;
+  uint16_t s = secs[idx];
+  return s ? (uint32_t)s * 1000UL : 0x7FFFFFFFUL;
+}
+
 void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs) {
   _display = display;
   _sensors = sensors;
-  _auto_off = millis() + AUTO_OFF_MILLIS;
+  _auto_off = millis() + autoOffMs();
 
 #if defined(PIN_USER_BTN)
   user_btn.begin();
@@ -2223,7 +2308,7 @@ void UITask::showAlert(const char* text, int duration_millis) {
 
 void UITask::keepDisplayAwake() {
 #if AUTO_OFF_MILLIS > 0
-  _auto_off = millis() + AUTO_OFF_MILLIS;
+  _auto_off = millis() + autoOffMs();
 #endif
 }
 
@@ -2269,7 +2354,7 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
       _display->turnOn();
     }
     if (_display->isOn()) {
-    _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
+    _auto_off = millis() + autoOffMs();  // extend the auto-off timer
     _next_refresh = 100;  // trigger refresh
     }
   }
@@ -2320,7 +2405,7 @@ void UITask::newMsg(uint8_t path_len, const char* from_name, const char* text, i
       _display->turnOn();
     }
     if (_display->isOn()) {
-    _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
+    _auto_off = millis() + autoOffMs();  // extend the auto-off timer
     _next_refresh = 100;  // trigger refresh
     }
   }
@@ -2340,7 +2425,7 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
       _display->turnOn();
     }
     if (_display->isOn()) {
-    _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
+    _auto_off = millis() + autoOffMs();  // extend the auto-off timer
     _next_refresh = 100;  // trigger refresh
     }
   }
@@ -2528,7 +2613,7 @@ void UITask::loop() {
   if (c != 0 && curr) {
     curr->handleInput(c);
     _idle_since = millis();
-    _auto_off = millis() + AUTO_OFF_MILLIS;   // extend auto-off timer
+    _auto_off = millis() + autoOffMs();   // extend auto-off timer
     _next_refresh = 100;  // trigger refresh
   }
 
@@ -2566,7 +2651,7 @@ void UITask::loop() {
     // because OLED panels burn in quickly; only enable for LCD targets or
     // where the display is replaceable.
     if (board.isExternalPowered()) {
-      _auto_off = millis() + AUTO_OFF_MILLIS;
+      _auto_off = millis() + autoOffMs();
     }
 #endif
     if (millis() > _auto_off) {
@@ -2613,7 +2698,7 @@ char UITask::checkDisplayOn(char c) {
       _display->turnOn();   // turn display on and consume event
       c = 0;
     }
-    _auto_off = millis() + AUTO_OFF_MILLIS;   // extend auto-off timer
+    _auto_off = millis() + autoOffMs();   // extend auto-off timer
     _next_refresh = 0;  // trigger refresh
   }
   return c;

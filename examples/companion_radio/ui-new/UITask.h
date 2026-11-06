@@ -100,6 +100,7 @@ public:
     _idle_since = 0;
   }
   void begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs);
+  uint32_t autoOffMs();   // display auto-off preset from prefs, 0 = never
 
   void gotoHomeScreen() { setCurrScreen(home); }
   void showMsgPreview() { setCurrScreen(msg_preview); }

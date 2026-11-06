@@ -84,6 +84,7 @@ public:
   int16_t tz_offset_mins = 0;  // local time = UTC + this many minutes
   uint8_t ui_lang = UI_LANG_RU;  // weekday line on the e-ink clock
   uint8_t clock_saver = 1;       // 1 = e-ink clock screensaver
+  uint8_t screen_off_idx = 3;    // OLED auto-off: 0=off 1=15s 2=30s 3=60s 4=120s
   uint8_t eink_refresh = EINK_REFRESH_CLEAR;
   uint8_t time_valid = 0;        // 1 once GPS, phone, manual set, or a trusted node has set the clock
   uint8_t clock_nodes[CLOCK_NODE_MAX][32];  // pubkeys to poll for time; empty slots are zeros
@@ -210,6 +211,7 @@ private:
       def("tz", _parent->tz_offset_mins);  // minutes east of UTC
       def("lang", _parent->ui_lang);       // 0 = ru, 1 = en
       def("clk", _parent->clock_saver);   // e-ink clock screensaver
+      def("scroff", _parent->screen_off_idx);  // OLED auto-off preset
       def("eref", _parent->eink_refresh); // e-ink refresh choice, see EINK_REFRESH_*
       def("tvalid", _parent->time_valid);
       def("adc_mult", _parent->adc_multiplier);

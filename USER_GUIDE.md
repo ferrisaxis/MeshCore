@@ -51,7 +51,7 @@ Sub-screens — entered from a root, left with a double click:
 2 Сообщения --hold--> просмотр сообщений
 3 Связь     --hold--> Интерфейсы (BLE / WiFi / USB, порты 5000 и 5001)
 5 Меню      --hold--> Радио · Питание · Батарея · Шум · Частоты · Недавние
-                      GPS · Маяк · Время · Экран · Выключить
+                      GPS · Маяк · Время · Экран · О прошивке · Выключить
                 Батарея --hold--> Калибровка АЦП
 ```
 
@@ -124,12 +124,21 @@ LNA on
 - **Long press** → apply the next power profile
 
 ### Батарея (BATTERY) — подэкран меню, Heltec V4
-- `Voltage: 4.012 V` and `ADC: 5.420`
-- **Long press** → open calibration:
-  - `Full 4.20V` — only for a fully charged single-cell Li-ion/LiPo pack
-  - `Reset ADC` — restore the board default
-  - `Meter: use CLI` — tells you to send `calibrate battery <mV>`
-  - inside: **click** moves/selects, **long press** confirms, **double click** cancels
+- `Voltage: 4.012 V` and `ADC: 5.420` (the multiplier the calibration changes)
+- **Long press** → calibration menu:
+```
+Калибровка АЦП
+> Полный 4.20 В
+  Мультиметр
+  Сброс АЦП
+```
+- **Полный 4.20 В** — only for a fully charged single-cell Li-ion/LiPo pack
+- **Мультиметр** — enter the voltage you measured. The editor starts from the current
+  device reading; **click** adds 10 mV (wraps 3000 → 4250), **long press** moves on
+- **Сброс АЦП** — restore the board default multiplier
+- every operation ends on a confirmation with **`Отмена` preselected**; long press applies
+- the result is reported as `АЦП сохранён` / `АЦП не сохранён`; the multiplier is stored in
+  prefs (`adc_mult`) and survives a reboot
 
 ### Шум (SCAN) — подэкран меню
 - live RSSI (size 2), noise floor `NL`, peak `pk`, `PKT` flag on reception, bar scale
@@ -165,9 +174,25 @@ LNA on
 - **Quad click** → stop the beacon
 
 ### Экран (SETUP) — подэкран меню
-- `Clock on/off` (controls the clock on FIRST); e-ink build also has `ScreenMode`
-- **Long press** → enter/leave edit mode
-- in edit mode: **click** → next row, **triple click** → change value
+```
+Clock            вкл
+Таймаут         60 с
+держать: правка
+```
+- `Clock` — clock on the main screen; `Таймаут` — display auto-off: `выкл` / 15 / 30 / 60 / 120 s
+  (stored as `scroff` in prefs)
+- e-ink builds add `ScreenMode` (refresh mode) as the middle row
+- **Long press** → enter/leave edit mode; in edit mode **click** moves between rows and
+  **triple click** changes the value
+
+### О прошивке (ABOUT) — подэкран меню
+```
+v1.18.0-0.2.0
+сборка: Nov  6 2026
+узел FDSKY
+аптайм 1ч 12м
+```
+- firmware version (`MESHCORE_BASE_VERSION`-`FORK_VERSION`), build date, node name, uptime
 
 ### Выключить (SHUTDOWN) — подэкран меню
 ```

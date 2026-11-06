@@ -27,7 +27,9 @@
 | `16-sub-power-blocked.png` | sub-power-blocked | Подэкран Питание: сон держит BLE |
 | `17-sub-battery.png` | sub-battery | Подэкран Батарея: напряжение и множитель АЦП |
 | `18-sub-battery-calibration.png` | sub-battery-calibration | Подэкран калибровки: выбор операции |
-| `19-sub-battery-confirm.png` | sub-battery-confirm | Подэкран калибровки: подтверждение |
+| `18b-sub-battery-meter.png` | sub-battery-meter | Подэкран калибровки: маркер на Мультиметре |
+| `19-sub-battery-editor.png` | sub-battery-editor | Калибровка по мультиметру: правка эталона |
+| `19b-sub-battery-confirm.png` | sub-battery-confirm | Калибровка: подтверждение, «Отмена» по умолчанию |
 | `20-sub-noise-scan.png` | sub-noise-scan | Подэкран Шум: уровень, пик, шкала |
 | `21-sub-freq-scan-idle.png` | sub-freq-scan-idle | Подэкран Частоты: ожидание |
 | `22-sub-freq-scan-running.png` | sub-freq-scan-running | Подэкран Частоты: идёт скан |
@@ -37,7 +39,8 @@
 | `26-sub-gps.png` | sub-gps | Подэкран GPS: включён, есть фикс |
 | `27-sub-gps-unavailable.png` | sub-gps-unavailable | Подэкран GPS: модуль недоступен |
 | `28-sub-beacon.png` | sub-beacon | Подэкран Маяк: режим, интервал, цель |
-| `29-sub-screen-time.png` | sub-screen-time | Подэкран Экран: настройки дисплея |
+| `29-sub-screen-time.png` | sub-screen-time | Подэкран Экран: Clock и Таймаут |
+| `29b-sub-about.png` | sub-about | Подэкран О прошивке: версия, сборка, узел, аптайм |
 | `30-sub-time.png` | sub-time | Подэкран Время: часы, пояс, источник |
 | `31-sub-shutdown.png` | sub-shutdown | Подэкран Выключить: подтверждение, «Отмена» по умолчанию |
 | `32-sub-shutdown-apply.png` | sub-shutdown-apply | Подэкран Выключить: выбрано «Применить» |

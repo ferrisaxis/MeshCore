@@ -270,7 +270,7 @@ def s_messages():
 
 def s_menu(sel=0):
     items = ["Радио", "Питание", "Батарея", "Шум", "Частоты", "Недавние",
-             "GPS: выкл", "Маяк", "Время", "Экран", "Выключить"]
+             "GPS: выкл", "Маяк", "Время", "Экран", "О прошивке", "Выключить"]
     img, px = screen("Меню", 5)
     start = 0
     if sel >= 4:
@@ -340,19 +340,30 @@ def s_battery():
     draw_centered(px, 53, "calibrate: long press", 1)
     return img
 
-def s_battery_cal():
+def s_battery_cal(sel=0):
     img, px = screen("Батарея", sub=True)
-    draw_text(px, 0, 21, "Battery calibration", 1)
-    draw_text(px, 0, 34, "> Full 4.20V", 1)
-    draw_centered(px, 53, "click: next  hold: OK", 1)
+    draw_text(px, 0, 18, "Калибровка АЦП", 1)
+    items = ["Полный 4.20 В", "Мультиметр", "Сброс АЦП"]
+    for i, name in enumerate(items):
+        y = 30 + i * 11
+        draw_text(px, 4, y, ">" if i == sel else " ", 1)
+        draw_text(px, 14, y, name, 1)
+    return img
+
+def s_battery_edit():
+    img, px = screen("Батарея", sub=True)
+    draw_text(px, 0, 18, "Мультиметр", 1)
+    draw_text(px, 0, 32, "4.150 В", 1)
+    draw_text(px, 0, 46, "клик: +10 мВ", 1)
+    draw_text(px, 0, 56, "держать: далее", 1)
     return img
 
 def s_battery_confirm():
     img, px = screen("Батарея", sub=True)
-    draw_text(px, 0, 21, "Battery calibration", 1)
-    draw_text(px, 0, 32, "Reference: 4.200 V", 1)
-    draw_text(px, 0, 43, "> Cancel", 1)
-    draw_centered(px, 53, "click: select  hold: OK", 1)
+    draw_text(px, 0, 18, "Подтвердить", 1)
+    draw_text(px, 0, 30, "эталон 4.150 В", 1)
+    draw_text(px, 4, 42, "> Отмена", 1)
+    draw_text(px, 4, 54, "Применить", 1)
     return img
 
 def s_scan():
@@ -431,9 +442,19 @@ def s_beacon():
 
 def s_setup():
     img, px = screen("Экран", sub=True)
-    draw_text(px, 10, 22, "Clock", 1)
-    draw_right(px, 22, "on", 1, margin=8)
-    draw_centered(px, 52, "hold", 1)
+    draw_text(px, 10, 20, "Clock", 1)
+    draw_right(px, 20, "вкл", 1)
+    draw_text(px, 10, 32, "Таймаут", 1)
+    draw_right(px, 32, "60 с", 1)
+    draw_centered(px, 56, "держать: правка", 1)
+    return img
+
+def s_about():
+    img, px = screen("О прошивке", sub=True)
+    draw_centered(px, 18, "v1.18.0-0.2.0", 1)
+    draw_text(px, 0, 30, "сборка: Nov  6 2026", 1)
+    draw_text(px, 0, 42, "узел FDSKY", 1)
+    draw_text(px, 0, 54, "аптайм 1ч 12м", 1)
     return img
 
 def s_shutdown(state="ready"):
@@ -483,8 +504,10 @@ SCREENS = [
     ("15-sub-power",                  "Подэкран Питание: профиль и состояние сна",             s_power(False)),
     ("16-sub-power-blocked",          "Подэкран Питание: сон держит BLE",                      s_power(True)),
     ("17-sub-battery",                "Подэкран Батарея: напряжение и множитель АЦП",          s_battery()),
-    ("18-sub-battery-calibration",    "Подэкран калибровки: выбор операции",                   s_battery_cal()),
-    ("19-sub-battery-confirm",        "Подэкран калибровки: подтверждение",                    s_battery_confirm()),
+    ("18-sub-battery-calibration",    "Подэкран калибровки: выбор операции",                   s_battery_cal(0)),
+    ("18b-sub-battery-meter",         "Подэкран калибровки: маркер на Мультиметре",            s_battery_cal(1)),
+    ("19-sub-battery-editor",         "Калибровка по мультиметру: правка эталона",             s_battery_edit()),
+    ("19b-sub-battery-confirm",       "Калибровка: подтверждение, «Отмена» по умолчанию",      s_battery_confirm()),
     ("20-sub-noise-scan",             "Подэкран Шум: уровень, пик, шкала",                     s_scan()),
     ("21-sub-freq-scan-idle",         "Подэкран Частоты: ожидание",                            s_fscan("idle")),
     ("22-sub-freq-scan-running",      "Подэкран Частоты: идёт скан",                           s_fscan("run")),
@@ -494,7 +517,8 @@ SCREENS = [
     ("26-sub-gps",                    "Подэкран GPS: включён, есть фикс",                      s_gps(True)),
     ("27-sub-gps-unavailable",        "Подэкран GPS: модуль недоступен",                       s_gps(False)),
     ("28-sub-beacon",                 "Подэкран Маяк: режим, интервал, цель",                  s_beacon()),
-    ("29-sub-screen-time",            "Подэкран Экран: настройки дисплея",                     s_setup()),
+    ("29-sub-screen-time",            "Подэкран Экран: Clock и Таймаут",                       s_setup()),
+    ("29b-sub-about",                 "Подэкран О прошивке: версия, сборка, узел, аптайм",     s_about()),
     ("30-sub-time",                   "Подэкран Время: часы, пояс, источник",                    s_time()),
     ("31-sub-shutdown",               "Подэкран Выключить: подтверждение, «Отмена» по умолчанию", s_shutdown("ready")),
     ("32-sub-shutdown-apply",         "Подэкран Выключить: выбрано «Применить»",                s_shutdown_apply()),

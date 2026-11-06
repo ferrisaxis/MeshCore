@@ -2334,6 +2334,12 @@ void MyMesh::enterCLIRescue() {
 }
 
 #ifdef HELTEC_LORA_V4
+bool MyMesh::calibrateBatteryTo(uint16_t mv, char* reply) {
+  char command[32];
+  snprintf(command, sizeof(command), "calibrate battery %u", (unsigned)mv);
+  return handleCommand(command, 0, reply);
+}
+
 bool MyMesh::calibrateBatteryFromUI(bool full_charge, char* reply) {
   return handleCommand(full_charge ? "calibrate battery 4200" : "reset adc.multiplier", 0, reply);
 }

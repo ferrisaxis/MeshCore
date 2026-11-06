@@ -223,6 +223,7 @@ public:
 #ifdef HELTEC_LORA_V4
   // UI entry point; keep CLI parsing private to MyMesh.
   bool calibrateBatteryFromUI(bool full_charge, char* reply);
+  bool calibrateBatteryTo(uint16_t mv, char* reply);   // reference voltage from a multimeter
 #endif
 
 #if ENV_INCLUDE_GPS == 1
