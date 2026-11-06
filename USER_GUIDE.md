@@ -26,7 +26,7 @@
 | **Quad click** | — | `Маяк` only: stop the beacon |
 | **Boot rescue** | long press within 8 s after power-on | CLI rescue mode |
 
-Header on every screen: **page title** on the left, **`N/12`** page counter (or **`<`** on a sub-screen) at x=97, **battery icon** on the right, separator rule at y=12.
+Header on the 128×64 OLED: **page title** on the left, visible-page counter (or **`<`** on a sub-screen) at x=97, **battery percentage without an icon** on the right, separator rule at y=12. When ADC is invalid, it shows **`--%`**.
 
 ---
 
