@@ -1511,7 +1511,7 @@ public:
         return true;
       }
 #endif
-      if (_page == HomePage::FSCAN) stopFreqScan();
+      if (_page == HomePage::FSCAN && !_in_sub) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
         stepSetupRow(1);
         return true;
