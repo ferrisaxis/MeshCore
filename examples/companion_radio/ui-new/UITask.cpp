@@ -412,7 +412,8 @@ private:
 #ifdef PIN_BUZZER
     if (_task->isBuzzerQuiet()) {
       display.setColor(UIColor::warning_txt);
-      display.drawXbm(display.width() - 37, 2, muted_icon, 8, 8);
+      display.drawXbm(display.width() == 128 && !display.isEink() ? 0 : display.width() - 37,
+                      2, muted_icon, 8, 8);
     }
 #endif
   }
@@ -459,6 +460,33 @@ private:
     if (page == HomePage::BEACON) return _task->getGPSState();
 #endif
     return true;
+  }
+
+  const char* pageTitle() const {
+    switch (_page) {
+      case FIRST: return _node_prefs->node_name;
+      case RECENT: return "Недавние";
+      case NEIGHBORS: return "Соседи";
+      case RADIO: return "Радио";
+      case POWER: return "Питание";
+#ifdef HELTEC_LORA_V4
+      case BATTERY: case BATTERY_CAL: return "Батарея";
+#endif
+      case SCAN: return "Шум";
+      case FSCAN: return "Частоты";
+      case BLUETOOTH: return "Bluetooth";
+      case CONNECTIONS: return "Связь";
+#if ENV_INCLUDE_GPS == 1
+      case GPS: return "GPS";
+      case BEACON: return "Маяк";
+#endif
+#if UI_SENSORS_PAGE == 1
+      case SENSORS: return "Датчики";
+#endif
+      case SETUP: return "Настройки";
+      case SHUTDOWN: return "Выключить";
+      default: return "MeshCore";
+    }
   }
 
   uint8_t setupRowCount() const { return _task->isEink() ? 2 : 1; }
@@ -577,9 +605,14 @@ public:
     // node name
     display.setTextSize(1);
     display.setColor(UIColor::title_txt);
-    char filtered_name[sizeof(_node_prefs->node_name)];
-    display.translateUTF8ToBlocks(filtered_name, _node_prefs->node_name, sizeof(filtered_name));
-    display.drawTextEllipsized(0, 2, display.width() - 40, filtered_name);
+    bool compact_header = display.width() == 128 && !display.isEink();
+    char filtered_name[40];
+    display.translateUTF8ToBlocks(filtered_name, compact_header ? pageTitle() : _node_prefs->node_name, sizeof(filtered_name));
+    int title_x = 0;
+#ifdef PIN_BUZZER
+    if (compact_header && _task->isBuzzerQuiet()) title_x = 10;
+#endif
+    display.drawTextEllipsized(title_x, 2, compact_header ? 70 - title_x : display.width() - 40, filtered_name);
 
     // battery voltage
     renderBatteryIndicator(display, _task->getBattMilliVolts());
@@ -598,17 +631,29 @@ public:
       if (i == _page) visible_index = visible_count;
       visible_count++;
     }
-    int x = display.width() / 2 - 5 * (visible_count > 0 ? visible_count - 1 : 0);
-    uint8_t drawn = 0;
-    for (uint8_t i = 0; i < HomePage::Count; i++) {
-      if (!isPageVisible(i)) continue;
-      if (drawn == visible_index) {
-        display.fillRect(x-1, y-1, 4, 4);
+    if (compact_header) {
+      display.setColor(UIColor::title_txt);
+      if (_page == HomePage::CONNECTIONS
+#ifdef HELTEC_LORA_V4
+          || _page == HomePage::BATTERY_CAL
+#endif
+          ) {
+        display.drawTextRightAlign(101, 2, "<");
       } else {
-        display.fillRect(x, y, 2, 2);
+        snprintf(tmp, sizeof(tmp), "%u/%u", visible_index + 1, visible_count);
+        display.drawTextRightAlign(101, 2, tmp);
       }
-      x += 10;
-      drawn++;
+      display.fillRect(0, 12, display.width(), 1);
+    } else {
+      int x = display.width() / 2 - 5 * (visible_count > 0 ? visible_count - 1 : 0);
+      uint8_t drawn = 0;
+      for (uint8_t i = 0; i < HomePage::Count; i++) {
+        if (!isPageVisible(i)) continue;
+        if (drawn == visible_index) display.fillRect(x-1, y-1, 4, 4);
+        else display.fillRect(x, y, 2, 2);
+        x += 10;
+        drawn++;
+      }
     }
 
     if (_page == HomePage::FIRST) {
@@ -619,15 +664,10 @@ public:
       display.drawTextCentered(display.width() / 2, 20, tmp);
 
       bool show_date = !display.isEink() && _rtc->getCurrentTime() >= 1000000000UL;
-      // Middle line: IP of the WiFi link while a client is attached, PIN otherwise
+      // hasConnection() reports any transport, not necessarily Wi-Fi.
       if (_task->hasConnection()) {
         display.setColor(UIColor::warning_txt);
-        #ifdef WIFI_SSID
-          IPAddress ip = WiFi.localIP();
-          snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        #else
-          snprintf(tmp, sizeof(tmp), "< Connected >");
-        #endif
+        snprintf(tmp, sizeof(tmp), "< Connected >");
         display.setTextSize(1);
         #ifdef UI_SHOW_CLOCK
         display.drawTextCentered(display.width() / 2, 110, tmp);
@@ -643,7 +683,8 @@ public:
         display.setTextSize(1);
         display.drawTextCentered(display.width() / 2, 110, tmp);
         #else
-        display.setTextSize(2);
+        // A size-2 PIN at y=43 overlaps the date at y=53 on the 64px OLED.
+        display.setTextSize(show_date && display.height() <= 64 ? 1 : 2);
         display.drawTextCentered(display.width() / 2, 43, tmp);
         #endif
       }
@@ -1279,9 +1320,8 @@ public:
       }
       return true;
     }
-    // CONNECTIONS is a sub-screen: single click cycles the interface selection
-    // instead of flipping to the next page.
-    if (_page == HomePage::CONNECTIONS && (c == KEY_NEXT || c == KEY_RIGHT || c == KEY_ENTER)) {
+    // CONNECTIONS: click selects, double click exits, hold toggles selection.
+    if (_page == HomePage::CONNECTIONS && (c == KEY_NEXT || c == KEY_RIGHT)) {
       _conn_selected = (_conn_selected + 1) % 3;
       return true;
     }
@@ -1424,8 +1464,14 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::CONNECTIONS) {
-      // short click = cycle selection
-      _conn_selected = (_conn_selected + 1) % 3;
+      if (_conn_selected == 0) {
+        if (_task->isBluetoothEnabled()) _task->disableBluetooth(); else _task->enableBluetooth();
+      } else if (_conn_selected == 1) {
+        if (_task->isWiFiEnabled()) { _task->disableWiFi(); _task->disableWiFi2(); }
+        else { _task->enableWiFi(); _task->enableWiFi2(); }
+      } else {
+        if (_task->isUSBEnabled()) _task->disableUSB(); else _task->enableUSB();
+      }
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::RECENT) {
@@ -2357,17 +2403,17 @@ char UITask::checkDisplayOn(char c) {
 }
 
 char UITask::handleLongPress(char c) {
+  c = checkDisplayOn(c);
+  if (c == 0) return 0;
   if (millis() - ui_started_at < 8000) {   // long press in first 8 seconds since startup -> CLI/rescue
     the_mesh.enterCLIRescue();
     c = 0;   // consume event
   }
-  // Long press on Connections page = leave the sub-screen back to BLUETOOTH
+  // Long press on Bluetooth opens Connections. Inside, the selected row
+  // receives KEY_ENTER and can be toggled explicitly.
   if (curr == home) {
     HomeScreen* hs = static_cast<HomeScreen*>(curr);
-    if (hs->getPage() == HomeScreen::HomePage::CONNECTIONS) {
-      hs->goToPage(HomeScreen::HomePage::BLUETOOTH);
-      c = 0;
-    } else if (hs->getPage() == HomeScreen::HomePage::BLUETOOTH) {
+    if (hs->getPage() == HomeScreen::HomePage::BLUETOOTH) {
       // Long press on Bluetooth = enter the CONNECTIONS sub-screen
       hs->goToPage(HomeScreen::HomePage::CONNECTIONS);
       c = 0;
@@ -2378,19 +2424,7 @@ char UITask::handleLongPress(char c) {
 
 char UITask::handleDoubleClick(char c) {
   MESH_DEBUG_PRINTLN("UITask: double-click triggered");
-  checkDisplayOn(c);
-  // Double-click on Connections page = toggle selected interface
-  if (curr == home) {
-    HomeScreen* hs = static_cast<HomeScreen*>(curr);
-    if (hs->getPage() == HomeScreen::HomePage::CONNECTIONS) {
-      uint8_t sel = hs->getConnSelected();
-      if (sel == 0) { if (isBluetoothEnabled()) disableBluetooth(); else enableBluetooth(); }
-      else if (sel == 1) { if (isWiFiEnabled()) { disableWiFi(); disableWiFi2(); } else { enableWiFi(); enableWiFi2(); } }
-      else if (sel == 2) { if (isUSBEnabled()) disableUSB(); else enableUSB(); }
-      c = 0;
-    }
-  }
-  return c;
+  return checkDisplayOn(c);
 }
 
 char UITask::handleQuadClick(char c) {
