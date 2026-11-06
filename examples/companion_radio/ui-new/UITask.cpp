@@ -664,10 +664,21 @@ public:
       display.drawTextCentered(display.width() / 2, 20, tmp);
 
       bool show_date = !display.isEink() && _rtc->getCurrentTime() >= 1000000000UL;
-      // hasConnection() reports any transport, not necessarily Wi-Fi.
+      // hasConnection() reports any transport, not necessarily Wi-Fi. Show the
+      // Wi-Fi address only when that link is actually up; otherwise the generic
+      // indicator (USB / BLE client), and the PIN when nothing is attached.
       if (_task->hasConnection()) {
         display.setColor(UIColor::warning_txt);
+        #ifdef WIFI_SSID
+        if (WiFi.status() == WL_CONNECTED) {
+          IPAddress ip = WiFi.localIP();
+          snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        } else {
+          snprintf(tmp, sizeof(tmp), "< Connected >");
+        }
+        #else
         snprintf(tmp, sizeof(tmp), "< Connected >");
+        #endif
         display.setTextSize(1);
         #ifdef UI_SHOW_CLOCK
         display.drawTextCentered(display.width() / 2, 110, tmp);
