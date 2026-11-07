@@ -3303,7 +3303,10 @@ void MyMesh::loop() {
 }
 
 #if ENV_INCLUDE_GPS == 1
+#ifndef HELTEC_LORA_V4
 #define BEACON_RECENT_CHATS  8
+#endif
+static constexpr uint8_t beacon_intervals[] = {5, 10, 15, 30, 60, 120};
 #define BEACON_LOCAL_MS      (10UL * 60UL * 1000UL)
 #define BEACON_FLOOD_MS      (30UL * 60UL * 1000UL)
 #define BEACON_FIRST_MS      20000UL
@@ -3328,19 +3331,19 @@ int MyMesh::buildBeaconOptions(BeaconOpt* out, int max_out) {
   if (n < max_out) {
     out[n].mode = BEACON_OFF;
     out[n].chan = 0;
-    memset(out[n].pub, 0, PUB_KEY_SIZE);
+    memset(out[n].key, 0, PUB_KEY_SIZE);
     n++;
   }
   if (n < max_out) {
     out[n].mode = BEACON_ADVERT_LOCAL;
     out[n].chan = 0;
-    memset(out[n].pub, 0, PUB_KEY_SIZE);
+    memset(out[n].key, 0, PUB_KEY_SIZE);
     n++;
   }
   if (n < max_out) {
     out[n].mode = BEACON_ADVERT_FLOOD;
     out[n].chan = 0;
-    memset(out[n].pub, 0, PUB_KEY_SIZE);
+    memset(out[n].key, 0, PUB_KEY_SIZE);
     n++;
   }
 #ifdef MAX_GROUP_CHANNELS
@@ -3349,7 +3352,7 @@ int MyMesh::buildBeaconOptions(BeaconOpt* out, int max_out) {
     if (!getChannel(i, ch) || ch.name[0] == 0) continue;
     out[n].mode = BEACON_GROUP;
     out[n].chan = (uint8_t)i;
-    memset(out[n].pub, 0, PUB_KEY_SIZE);
+    memcpy(out[n].key, ch.channel.secret, PUB_KEY_SIZE);
     n++;
   }
 #endif
@@ -3376,9 +3379,22 @@ int MyMesh::buildBeaconOptions(BeaconOpt* out, int max_out) {
   for (int i = 0; i < npick && n < max_out; i++) {
     out[n].mode = BEACON_CHAT;
     out[n].chan = 0;
-    memcpy(out[n].pub, pick[i].pub, PUB_KEY_SIZE);
+    memcpy(out[n].key, pick[i].pub, PUB_KEY_SIZE);
     n++;
   }
+#ifdef HELTEC_LORA_V4
+  // Keep the saved contact selectable even after it leaves the recent list.
+  bool has_saved = false;
+  for (int i = 0; i < npick; i++) {
+    if (memcmp(pick[i].pub, _prefs.beacon_pub, PUB_KEY_SIZE) == 0) has_saved = true;
+  }
+  ContactInfo* saved = lookupContactByPubKey(_prefs.beacon_pub, PUB_KEY_SIZE);
+  if (n < max_out && !has_saved && saved && saved->type == ADV_TYPE_CHAT && saved->name[0]) {
+    out[n].mode = BEACON_CHAT;
+    out[n].chan = 0;
+    memcpy(out[n++].key, saved->id.pub_key, PUB_KEY_SIZE);
+  }
+#endif
   return n;
 }
 
@@ -3397,31 +3413,53 @@ bool MyMesh::beaconHasFix() const {
 void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t target_sz, char* pos, size_t pos_sz, char* sent, size_t sent_sz) {
   setUiLang(_prefs.ui_lang);   // the beacon strings follow the UI language
   const char* mode_name = _("off");
+#ifdef HELTEC_LORA_V4
+  const char* target_name = "";
+#else
   const char* target_name = "hold to start";
+#endif
   char target_buf[32];
   target_buf[0] = 0;
   switch (_prefs.beacon_mode) {
     case BEACON_ADVERT_LOCAL:
+#ifdef HELTEC_LORA_V4
+      mode_name = _("Local");
+      target_name = _("Neighbors");
+#else
       mode_name = "advert";
       target_name = "neighbors";
+#endif
       break;
     case BEACON_ADVERT_FLOOD:
+#ifdef HELTEC_LORA_V4
+      mode_name = "Flood";
+      target_name = _("Mesh");
+#else
       mode_name = "advert";
       target_name = "flood";
+#endif
       break;
     case BEACON_GROUP: {
+#ifdef HELTEC_LORA_V4
+      mode_name = _("Group");
+#else
       mode_name = "group";
+#endif
       ChannelDetails ch;
       if (getChannel(_prefs.beacon_chan, ch) && ch.name[0]) {
         beaconCopy(target_buf, sizeof(target_buf), ch.name);
         target_name = target_buf;
       } else {
-        target_name = "no channel";
+        target_name = _("no channel");
       }
       break;
     }
     case BEACON_CHAT: {
+#ifdef HELTEC_LORA_V4
+      mode_name = _("Direct");
+#else
       mode_name = "chat";
+#endif
       ContactInfo* c = lookupContactByPubKey(_prefs.beacon_pub, PUB_KEY_SIZE);
       if (c && c->name[0]) {
         beaconCopy(target_buf, sizeof(target_buf), c->name);
@@ -3438,7 +3476,11 @@ void MyMesh::formatBeacon(char* mode, size_t mode_sz, char* target, size_t targe
     beaconCopy(mode, mode_sz, mode_name);
   } else {
     unsigned mins = (unsigned)(beaconIntervalMs() / 60000UL);
+#ifdef HELTEC_LORA_V4
+    snprintf(mode, mode_sz, "%s %u%s", mode_name, mins, _("m"));
+#else
     snprintf(mode, mode_sz, "%s %um", mode_name, mins);
+#endif
   }
   beaconCopy(target, target_sz, target_name);
 
@@ -3470,16 +3512,21 @@ bool MyMesh::stopBeacon() {
   if (_prefs.beacon_mode == BEACON_OFF) return false;
   _prefs.beacon_mode = BEACON_OFF;
   _beacon_next = 0;
+#ifdef HELTEC_LORA_V4
+  _beacon_sent_at = 0;
+#endif
   savePrefs();
   return true;
 }
 
 void MyMesh::cycleBeacon() {
   bool was_off = (_prefs.beacon_mode == BEACON_OFF);
-#ifndef MAX_GROUP_CHANNELS
-  #define BEACON_OPT_MAX (3 + BEACON_RECENT_CHATS)
-#else
-  #define BEACON_OPT_MAX (3 + MAX_GROUP_CHANNELS + BEACON_RECENT_CHATS)
+#ifndef HELTEC_LORA_V4
+  #ifndef MAX_GROUP_CHANNELS
+    #define BEACON_OPT_MAX (3 + BEACON_RECENT_CHATS)
+  #else
+    #define BEACON_OPT_MAX (3 + MAX_GROUP_CHANNELS + BEACON_RECENT_CHATS)
+  #endif
 #endif
   static BeaconOpt opts[BEACON_OPT_MAX];
   int n = buildBeaconOptions(opts, BEACON_OPT_MAX);
@@ -3489,14 +3536,14 @@ void MyMesh::cycleBeacon() {
     const BeaconOpt& opt = opts[i];
     if (opt.mode != _prefs.beacon_mode) continue;
     if (opt.mode == BEACON_GROUP && opt.chan != _prefs.beacon_chan) continue;
-    if (opt.mode == BEACON_CHAT && memcmp(opt.pub, _prefs.beacon_pub, PUB_KEY_SIZE) != 0) continue;
+    if (opt.mode == BEACON_CHAT && memcmp(opt.key, _prefs.beacon_pub, PUB_KEY_SIZE) != 0) continue;
     cur = i;
     break;
   }
   const BeaconOpt& next = opts[(cur + 1) % n];
   _prefs.beacon_mode = next.mode;
   if (next.mode == BEACON_GROUP) _prefs.beacon_chan = next.chan;
-  if (next.mode == BEACON_CHAT) memcpy(_prefs.beacon_pub, next.pub, PUB_KEY_SIZE);
+  if (next.mode == BEACON_CHAT) memcpy(_prefs.beacon_pub, next.key, PUB_KEY_SIZE);
   if (next.mode != BEACON_OFF) {
     _prefs.gps_enabled = 1;
     sensors.setSettingValue("gps", "1");
@@ -3505,21 +3552,92 @@ void MyMesh::cycleBeacon() {
   savePrefs();
 }
 
-bool MyMesh::cycleBeaconInterval() {
-  uint8_t* slot = NULL;
-  if (_prefs.beacon_mode == BEACON_GROUP) slot = &_prefs.beacon_group_mins;
-  else if (_prefs.beacon_mode == BEACON_CHAT) slot = &_prefs.beacon_chat_mins;
-  else return false;
+uint8_t* MyMesh::beaconIntervalSlot() {
+  if (_prefs.beacon_mode == BEACON_GROUP) return &_prefs.beacon_group_mins;
+  if (_prefs.beacon_mode == BEACON_CHAT) return &_prefs.beacon_chat_mins;
+  return NULL;
+}
 
-  static const uint8_t steps[] = { 5, 10, 15, 30, 60, 120 };
-  const int nsteps = (int)(sizeof(steps) / sizeof(steps[0]));
+bool MyMesh::cycleBeaconInterval() {
+  uint8_t* slot = beaconIntervalSlot();
+  if (!slot) return false;
+  const int count = sizeof(beacon_intervals) / sizeof(beacon_intervals[0]);
   int i = 0;
-  while (i < nsteps && steps[i] != *slot) i++;
-  *slot = steps[(i >= nsteps) ? 0 : ((i + 1) % nsteps)];
+  while (i < count && beacon_intervals[i] != *slot) i++;
+  *slot = beacon_intervals[(i < count) ? (i + 1) % count : 0];
   _beacon_next = futureMillis((uint32_t)(*slot) * 60UL * 1000UL);
   savePrefs();
   return true;
 }
+
+#ifdef HELTEC_LORA_V4
+const char* MyMesh::beaconRecipientName(const BeaconOpt& opt, ChannelDetails& channel) {
+  if (opt.mode == BEACON_GROUP) {
+    if (getChannel(opt.chan, channel) && channel.name[0] &&
+        memcmp(opt.key, channel.channel.secret, PUB_KEY_SIZE) == 0) return channel.name;
+  } else if (opt.mode == BEACON_CHAT) {
+    ContactInfo* contact = lookupContactByPubKey(opt.key, PUB_KEY_SIZE);
+    if (contact && contact->type == ADV_TYPE_CHAT && contact->name[0]) return contact->name;
+  }
+  return NULL;
+}
+
+bool MyMesh::isSavedBeaconRecipient(const BeaconOpt& opt) const {
+  if (opt.mode == BEACON_GROUP) return _prefs.beacon_chan == opt.chan;
+  if (opt.mode == BEACON_CHAT) return memcmp(_prefs.beacon_pub, opt.key, PUB_KEY_SIZE) == 0;
+  return false;
+}
+
+bool MyMesh::selectBeaconRecipient(const BeaconOpt& opt, bool activate) {
+  ChannelDetails channel;
+  if (!beaconRecipientName(opt, channel)) return false;
+  if (isSavedBeaconRecipient(opt) && (!activate || opt.mode == _prefs.beacon_mode)) return true;
+  if (opt.mode == BEACON_GROUP) _prefs.beacon_chan = opt.chan;
+  else memcpy(_prefs.beacon_pub, opt.key, PUB_KEY_SIZE);
+  if (activate || opt.mode == _prefs.beacon_mode) {
+    _prefs.beacon_mode = opt.mode;
+    _prefs.gps_enabled = 1;
+    sensors.setSettingValue("gps", "1");
+    _beacon_next = futureMillis(BEACON_FIRST_MS);
+    _beacon_sent_at = 0;
+  }
+  savePrefs();
+  return true;
+}
+
+void MyMesh::setBeaconAdvertMode(uint8_t mode) {
+  if (mode == BEACON_OFF) {
+    stopBeacon();
+  } else if ((mode == BEACON_ADVERT_LOCAL || mode == BEACON_ADVERT_FLOOD) && mode != _prefs.beacon_mode) {
+    _prefs.beacon_mode = mode;
+    _prefs.gps_enabled = 1;
+    sensors.setSettingValue("gps", "1");
+    _beacon_next = futureMillis(BEACON_FIRST_MS);
+    _beacon_sent_at = 0;
+    savePrefs();
+  }
+}
+
+uint8_t MyMesh::beaconIntervalAt(uint8_t index) {
+  static_assert(beaconIntervalCount() == sizeof(beacon_intervals) / sizeof(beacon_intervals[0]), "beacon interval count");
+  return index < beaconIntervalCount() ? beacon_intervals[index] : 0;
+}
+
+bool MyMesh::setBeaconInterval(uint8_t minutes) {
+  uint8_t* slot = beaconIntervalSlot();
+  if (!slot || minutes == 0) return false;
+  for (uint8_t step : beacon_intervals) {
+    if (step != minutes) continue;
+    if (*slot != minutes) {
+      *slot = minutes;
+      _beacon_next = futureMillis((uint32_t)minutes * 60UL * 1000UL);
+      savePrefs();
+    }
+    return true;
+  }
+  return false;
+}
+#endif
 
 void MyMesh::checkBeacon() {
   if (_prefs.beacon_mode == BEACON_OFF) return;

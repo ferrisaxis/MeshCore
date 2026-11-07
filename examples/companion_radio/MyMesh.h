@@ -135,6 +135,28 @@ public:
   void cycleBeacon();
   bool cycleBeaconInterval();
   bool stopBeacon();
+#ifdef HELTEC_LORA_V4
+  struct BeaconOpt {
+    uint8_t mode;
+    uint8_t chan;
+    uint8_t key[PUB_KEY_SIZE];  // contact public key or channel secret
+  };
+  static constexpr int BEACON_RECENT_CHATS = 8;
+#ifdef MAX_GROUP_CHANNELS
+  static constexpr int BEACON_OPT_MAX = 4 + MAX_GROUP_CHANNELS + BEACON_RECENT_CHATS;
+#else
+  static constexpr int BEACON_OPT_MAX = 4 + BEACON_RECENT_CHATS;
+#endif
+  int buildBeaconOptions(BeaconOpt* out, int max_out);
+  const char* beaconRecipientName(const BeaconOpt& opt, ChannelDetails& channel);
+  bool isSavedBeaconRecipient(const BeaconOpt& opt) const;
+  bool selectBeaconRecipient(const BeaconOpt& opt, bool activate);
+  void setBeaconAdvertMode(uint8_t mode);
+  uint8_t beaconMinutes() const { return beaconIntervalMs() / 60000UL; }
+  static constexpr uint8_t beaconIntervalCount() { return 6; }
+  static uint8_t beaconIntervalAt(uint8_t index);
+  bool setBeaconInterval(uint8_t minutes);
+#endif
   void formatBeacon(char* mode, size_t mode_sz, char* target, size_t target_sz, char* pos, size_t pos_sz, char* sent, size_t sent_sz);
 #endif
   bool sendNeighborDiscover();
@@ -355,12 +377,15 @@ private:
 #if ENV_INCLUDE_GPS == 1
   unsigned long _beacon_next;
   uint32_t _beacon_sent_at;
+#ifndef HELTEC_LORA_V4
   struct BeaconOpt {
     uint8_t mode;
     uint8_t chan;
-    uint8_t pub[PUB_KEY_SIZE];
+    uint8_t key[PUB_KEY_SIZE];
   };
   int buildBeaconOptions(BeaconOpt* out, int max_out);
+#endif
+  uint8_t* beaconIntervalSlot();
   uint32_t beaconIntervalMs() const;
   bool beaconHasFix() const;
   void checkBeacon();

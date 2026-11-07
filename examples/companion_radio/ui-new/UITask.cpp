@@ -183,6 +183,23 @@ static void formatClockDate(uint32_t t, int16_t tz_mins, uint8_t lang, char* buf
   (void)year;
 }
 
+#ifdef HELTEC_LORA_V4
+static void drawV4ListRow(DisplayDriver& display, int row, bool selected, const char* text, const char* right = "") {
+  const int y = 18 + row * 12;
+  if (selected) {
+    display.setColor(UIColor::primary_txt);
+    display.fillRect(0, y - 1, display.width(), 11);
+  }
+  display.setColor(selected ? UIColor::window_bkg : UIColor::primary_txt);
+  int right_width = display.getTextWidth(right);
+  if (right_width > 0) {
+    display.drawTextRightAlign(display.width() - 4, y, right);
+    right_width += 4;
+  }
+  display.drawTextEllipsized(4, y, display.width() - 8 - right_width, text);
+}
+#endif
+
 class HomeScreen : public UIScreen {
 public:
   enum HomePage {
@@ -204,6 +221,12 @@ public:
 #if ENV_INCLUDE_GPS == 1
     GPS,
     BEACON,
+#ifdef HELTEC_LORA_V4
+    BEACON_MODE,
+    BEACON_RECIPIENT,
+    BEACON_INTERVAL,
+    BEACON_STOP,
+#endif
 #endif
 #if UI_SENSORS_PAGE == 1
     SENSORS,
@@ -251,6 +274,12 @@ private:
   bool _scan_confirm = false;
   bool _scan_apply = false;
   bool _settings_action_page = false;
+#if ENV_INCLUDE_GPS == 1
+  MyMesh::BeaconOpt _beacon_options[MyMesh::BEACON_OPT_MAX];
+  int _beacon_count = 0;
+  int _beacon_sel = 0;
+  uint8_t _beacon_for_mode = BEACON_OFF;
+#endif
   bool _conn_confirm = false;
   bool _conn_apply = false;
   bool _conn_was_enabled = false;
@@ -426,7 +455,9 @@ private:
   }
 
 
-  void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts, bool inverted = false) {
+
+public:
+  static void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts, bool inverted, bool buzzer_quiet) {
     // Display a smoothed one-percent estimate; ADC calibration corrects the
     // voltage first. This is a voltage estimate, not a capacity measurement.
 #ifndef BATT_MIN_MILLIVOLTS
@@ -491,14 +522,17 @@ private:
     snprintf(label, sizeof(label), "%d%%", displayed);
     display.drawTextRightAlign(display.width() - 2, 1, label);
 #ifdef PIN_BUZZER
-    if (_task->isBuzzerQuiet()) {
+    if (buzzer_quiet) {
       display.setColor(inverted ? UIColor::window_bkg : UIColor::warning_txt);
       display.drawXbm(display.width() == 128 && !display.isEink() ? 0 : display.width() - 37,
                       2, muted_icon, 8, 8);
     }
+#else
+    (void)buzzer_quiet;
 #endif
   }
 
+private:
   CayenneLPP sensors_lpp;
   int sensors_nb = 0;
   bool sensors_scroll = false;
@@ -650,6 +684,12 @@ private:
 #if ENV_INCLUDE_GPS == 1
       case GPS: return "GPS";
       case BEACON: return _("Beacon");
+#ifdef HELTEC_LORA_V4
+      case BEACON_MODE: return _("Beacon mode");
+      case BEACON_RECIPIENT: return _("Recipient");
+      case BEACON_INTERVAL: return _("Interval");
+      case BEACON_STOP: return _("Beacon");
+#endif
 #endif
 #if UI_SENSORS_PAGE == 1
       case SENSORS: return _("Sensors");
@@ -753,6 +793,136 @@ private:
     _task->showAlert(ok ? _("time request") : _("no one to ask"), 1200);
   }
 
+#if defined(HELTEC_LORA_V4) && ENV_INCLUDE_GPS == 1
+  bool isBeaconPicker() const {
+    return _page >= HomePage::BEACON_MODE && _page <= HomePage::BEACON_STOP;
+  }
+
+  void openBeaconRecipient(uint8_t for_mode) {
+    _beacon_for_mode = for_mode;
+    uint8_t filter = for_mode;
+    if (filter == BEACON_OFF && _node_prefs->beacon_mode >= BEACON_GROUP) {
+      filter = _node_prefs->beacon_mode;
+    }
+    int count = the_mesh.buildBeaconOptions(_beacon_options, MyMesh::BEACON_OPT_MAX);
+    _beacon_count = 0;
+    for (int i = 0; i < count; i++) {
+      const auto& opt = _beacon_options[i];
+      if (opt.mode >= BEACON_GROUP && (filter == BEACON_OFF || opt.mode == filter)) {
+        _beacon_options[_beacon_count++] = opt;
+      }
+    }
+    _beacon_sel = 0;
+    enterSub(HomePage::BEACON_RECIPIENT);
+  }
+
+  int beaconPickerCount() const {
+    if (_page == HomePage::BEACON_MODE) return BEACON_CHAT + 1;
+    if (_page == HomePage::BEACON_RECIPIENT) return _beacon_count;
+    if (_page == HomePage::BEACON_STOP) return 2;
+    return _node_prefs->beacon_mode >= BEACON_GROUP ? MyMesh::beaconIntervalCount() : 0;
+  }
+
+  void closeBeaconPicker() {
+    uint8_t page = _page;
+    leaveSub();
+    if (_page == HomePage::BEACON_MODE) {
+      _beacon_sel = _beacon_for_mode;
+    } else {
+      _act_open = true;
+      if (page == HomePage::BEACON_MODE) _act_idx = 0;
+      else if (page == HomePage::BEACON_RECIPIENT) _act_idx = 1;
+      else if (page == HomePage::BEACON_INTERVAL) _act_idx = 2;
+      else _act_idx = 3;
+    }
+  }
+
+  void renderBeaconPicker(DisplayDriver& display) {
+    display.setColor(UIColor::primary_txt);
+    int count = beaconPickerCount();
+    if (_page == HomePage::BEACON_RECIPIENT && count == 0) {
+      display.drawTextLeftAlign(4, 18, _("No recipient"));
+      display.drawTextLeftAlign(4, 30, _("Add a contact"));
+      display.drawTextLeftAlign(4, 42, _("or channel in app"));
+      return;
+    }
+    if (_page == HomePage::BEACON_INTERVAL && count == 0) {
+      if (_node_prefs->beacon_mode != BEACON_OFF) {
+        char interval[24];
+        snprintf(interval, sizeof(interval), _("%u min"), (unsigned)the_mesh.beaconMinutes());
+        display.drawTextLeftAlign(4, 18, interval);
+        display.drawTextLeftAlign(4, 30, _("Fixed for adverts"));
+      } else {
+        display.drawTextLeftAlign(4, 18, _("Choose beacon mode"));
+      }
+      return;
+    }
+    if (_page == HomePage::BEACON_STOP) {
+      display.drawTextLeftAlign(4, 18, _("Stop beacon?"));
+      drawV4ListRow(display, 1, _beacon_sel == 0, _("Cancel"));
+      drawV4ListRow(display, 2, _beacon_sel == 1, _("Stop"));
+      return;
+    }
+
+    const char* modes[] = {_("Off"), _("Local advert"), _("Flood advert"), _("Group"), _("Direct message")};
+    int first = _beacon_sel >= 4 ? _beacon_sel - 3 : 0;
+    for (int i = first; i < count && i < first + 4; i++) {
+      char label[36];
+      const char* name = label;
+      bool saved = false;
+      if (_page == HomePage::BEACON_MODE) {
+        name = modes[i];
+        saved = i == _node_prefs->beacon_mode;
+      } else if (_page == HomePage::BEACON_RECIPIENT) {
+        ChannelDetails channel;
+        const auto& opt = _beacon_options[i];
+        const char* recipient = the_mesh.beaconRecipientName(opt, channel);
+        if (recipient) {
+          snprintf(label, sizeof(label), "%c %s", opt.mode == BEACON_GROUP ? '#' : '@', recipient);
+          saved = the_mesh.isSavedBeaconRecipient(opt);
+        } else {
+          name = _("Unavailable");
+        }
+      } else {
+        unsigned minutes = MyMesh::beaconIntervalAt(i);
+        snprintf(label, sizeof(label), _("%u min"), minutes);
+        saved = minutes == the_mesh.beaconMinutes();
+      }
+      drawV4ListRow(display, i - first, i == _beacon_sel, name, saved ? "*" : "");
+    }
+  }
+
+  void handleBeaconPicker(char c) {
+    int count = beaconPickerCount();
+    if (c == KEY_NEXT || c == KEY_RIGHT) {
+      if (_beacon_sel + 1 < count) _beacon_sel++;
+    } else if (c == KEY_PREV || c == KEY_LEFT) {
+      if (_beacon_sel > 0) _beacon_sel--;
+      else closeBeaconPicker();
+    } else if (c == KEY_ENTER && _beacon_sel < count) {
+      if (_page == HomePage::BEACON_MODE) {
+        if (_beacon_sel >= BEACON_GROUP) {
+          openBeaconRecipient(_beacon_sel);
+          return;
+        }
+        the_mesh.setBeaconAdvertMode(_beacon_sel);
+      } else if (_page == HomePage::BEACON_RECIPIENT) {
+        if (!the_mesh.selectBeaconRecipient(_beacon_options[_beacon_sel], _beacon_for_mode != BEACON_OFF)) {
+          _task->showAlert(_("Unavailable"), 1200);
+          return;
+        }
+        if (_beacon_for_mode != BEACON_OFF) leaveSub();  // skip the completed mode picker
+      } else if (_page == HomePage::BEACON_INTERVAL) {
+        the_mesh.setBeaconInterval(MyMesh::beaconIntervalAt(_beacon_sel));
+      } else if (_beacon_sel != 0) {
+        the_mesh.stopBeacon();
+      }
+      closeBeaconPicker();
+      _task->notify(UIEventType::ack);
+    }
+  }
+#endif
+
   uint8_t actionCount() const {
     switch (_page) {
       case HomePage::RADIO:  return _task->canControlFemLna() ? 3 : 2;
@@ -761,7 +931,12 @@ private:
       case HomePage::CLOCK_NODES: return 3;
       case HomePage::NODE_PICKER: return 1;
 #if ENV_INCLUDE_GPS == 1
-      case HomePage::BEACON: return 3;
+      case HomePage::BEACON:
+#ifdef HELTEC_LORA_V4
+        return 4;
+#else
+        return 3;
+#endif
 #ifdef HELTEC_LORA_V4
       case HomePage::GPS: return 1;
 #endif
@@ -794,8 +969,14 @@ private:
         return "";
 #endif
       case HomePage::BEACON:
+#ifdef HELTEC_LORA_V4
+        if (i == 0) return _("Mode");
+        if (i == 1) return _("Recipient");
+        if (i == 2) return _("Interval");
+#else
         if (i == 0) return _("Mode: next");
         if (i == 1) return _("Interval: next");
+#endif
         return _("Stop beacon");
 #endif
       default: return "";
@@ -880,6 +1061,13 @@ private:
         break;
 #endif
       case HomePage::BEACON:
+#ifdef HELTEC_LORA_V4
+        _beacon_sel = 0;
+        if (i == 0) enterSub(HomePage::BEACON_MODE);
+        else if (i == 1) openBeaconRecipient(BEACON_OFF);
+        else if (i == 2) enterSub(HomePage::BEACON_INTERVAL);
+        else enterSub(HomePage::BEACON_STOP);
+#else
         if (i == 0) {
           the_mesh.cycleBeacon();
         } else if (i == 1) {
@@ -896,6 +1084,7 @@ private:
           _task->notify(UIEventType::ack);
           _task->showAlert(alert, 900);
         }
+#endif
         break;
 #endif
       default: break;
@@ -977,6 +1166,9 @@ public:
     if (_page == HomePage::NEIGHBORS) return false;
 #if ENV_INCLUDE_GPS == 1
     if (_page == HomePage::BEACON) return false;
+#ifdef HELTEC_LORA_V4
+    if (isBeaconPicker()) return false;
+#endif
 #endif
     return true;
   }
@@ -1058,7 +1250,7 @@ public:
         else formatClockHm(_rtc->getCurrentTime(), _node_prefs ? _node_prefs->tz_offset_mins : 0, hm, sizeof(hm));
         display.drawTextLeftAlign(68, 2, hm);
       }
-      renderBatteryIndicator(display, _task->getBattMilliVolts(), true);
+      renderBatteryIndicator(display, _task->getBattMilliVolts(), true, _task->isBuzzerQuiet());
       display.setColor(UIColor::primary_txt);
       display.fillRect(0, 12, display.width(), 1);
     } else
@@ -1078,7 +1270,7 @@ public:
     display.drawTextEllipsized(title_x, 2, compact_header ? 64 - title_x : display.width() - 40, filtered_name);
 
     // battery voltage
-    renderBatteryIndicator(display, _task->getBattMilliVolts());
+    renderBatteryIndicator(display, _task->getBattMilliVolts(), false, _task->isBuzzerQuiet());
 
     // curr page indicator
     if (UIColor::title_bkg == UIColor::window_bkg) {
@@ -1828,14 +2020,18 @@ public:
 #ifdef HELTEC_LORA_V4
       }
 #endif
+#ifdef HELTEC_LORA_V4
+    } else if (isBeaconPicker()) {
+      renderBeaconPicker(display);
+#endif
     } else if (_page == HomePage::BEACON) {
-      char mode[20];
+      char mode[32];
       char target[32];
       char pos[40];
       char sent[24];
       the_mesh.formatBeacon(mode, sizeof(mode), target, sizeof(target), pos, sizeof(pos), sent, sizeof(sent));
-      char kind[16];
-      char iv[8];
+      char kind[24];
+      char iv[12];
       kind[0] = iv[0] = 0;
       const char* sp = strchr(mode, ' ');
       if (sp) {
@@ -2208,6 +2404,9 @@ public:
       display.fillRect(0, 13, display.width(), display.height() - 13);
       display.setTextSize(1);
       for (uint8_t i = 0; i < total && i < 4; i++) {
+#ifdef HELTEC_LORA_V4
+        drawV4ListRow(display, i, i == _act_idx, actionLabel(i));
+#else
         bool sel = i == _act_idx;
         int y = 18 + i * 12;
         if (sel) {
@@ -2216,6 +2415,7 @@ public:
         }
         display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
         display.drawTextEllipsized(4, y, display.width() - 8, actionLabel(i));
+#endif
       }
       return 2000;
     }
@@ -2242,6 +2442,12 @@ public:
 
   bool handleInput(char c) override {
     setUiLang(_node_prefs ? _node_prefs->ui_lang : UI_LANG_EN);
+#if defined(HELTEC_LORA_V4) && ENV_INCLUDE_GPS == 1
+    if (isBeaconPicker()) {
+      handleBeaconPicker(c);
+      return true;
+    }
+#endif
     // A modal action list consumes every gesture before page shortcuts can run.
     if (_act_open) {
       uint8_t total = actionCount();
@@ -2264,7 +2470,11 @@ public:
         _act_open = false;
         runAction(idx);
 #ifdef HELTEC_LORA_V4
-        if (_settings_action_page && !_radio_confirm) {
+        if (_settings_action_page && !_radio_confirm
+#if ENV_INCLUDE_GPS == 1
+            && !isBeaconPicker()
+#endif
+        ) {
           _settings_action_page = false;
           leaveSub();
         }
@@ -2353,7 +2563,7 @@ public:
     }
 #endif
     if (c == KEY_QUAD) {
-#if ENV_INCLUDE_GPS == 1
+#if ENV_INCLUDE_GPS == 1 && !defined(HELTEC_LORA_V4)
       if (_page != HomePage::BEACON) return false;
       if (the_mesh.stopBeacon()) {
         _task->notify(UIEventType::ack);
@@ -2374,7 +2584,9 @@ public:
         changeSetupValue();
         return true;
       }
-#if ENV_INCLUDE_GPS == 1
+#if ENV_INCLUDE_GPS == 1 && defined(HELTEC_LORA_V4)
+      if (_page == HomePage::BEACON) return true;
+#elif ENV_INCLUDE_GPS == 1
       if (_page == HomePage::BEACON && the_mesh.cycleBeaconInterval()) {
         char mode[20];
         char target[32];
@@ -2710,6 +2922,7 @@ public:
       _task->toggleGPS();
       return true;
     }
+#ifndef HELTEC_LORA_V4
     if (c == KEY_ENTER && _page == HomePage::BEACON) {
       the_mesh.cycleBeacon();
       char mode[20];
@@ -2731,6 +2944,7 @@ public:
       _task->showAlert(alert, 900);
       return true;
     }
+#endif
 #endif
 #if UI_SENSORS_PAGE == 1
     if (c == KEY_ENTER && _page == HomePage::SENSORS) {
@@ -2806,6 +3020,227 @@ public:
   #define UI_MSG_PREVIEW_SIZE 78
 #endif
 
+#ifdef HELTEC_LORA_V4
+class MsgPreviewScreen : public UIScreen {
+  static constexpr int HISTORY_SIZE = 32;
+  struct Message {
+    uint32_t timestamp;
+    char sender[32];
+    char text[MAX_TEXT_LEN + 1];
+    bool group;
+    bool unread;
+  };
+  enum View { LIST, MESSAGE, ACTIONS, INFO, REMOVE };
+  UITask* _task;
+  mesh::RTCClock* _rtc;
+  Message _messages[HISTORY_SIZE];
+  int _size = 0;
+  int _newest = HISTORY_SIZE - 1;
+  int _selected = _newest;
+  int _groups = 0;
+  int _chats = 0;
+  View _view = LIST;
+  int _row = 0;
+  int _page = 0;
+  int _next_offset = 0;
+  // Each page consumes at least one byte from the filtered message.
+  uint16_t _offsets[MAX_TEXT_LEN + 1] = {};
+
+  int slotAt(int index) const { return (_newest + HISTORY_SIZE - index) % HISTORY_SIZE; }
+  int selectedIndex() const { return (_newest + HISTORY_SIZE - _selected) % HISTORY_SIZE; }
+
+  void openMessage(int slot) {
+    _selected = slot;
+    _page = 0;
+    _next_offset = 0;
+    _view = MESSAGE;
+  }
+
+  void markRead(Message& msg) {
+    if (!msg.unread) return;
+    msg.unread = false;
+    if (msg.group) _groups--; else _chats--;
+  }
+
+  void removeSelected() {
+    int index = selectedIndex();
+    markRead(_messages[_selected]);
+    // Close the gap on the newer side, keeping older entries in place.
+    for (int i = index; i > 0; i--) _messages[slotAt(i)] = _messages[slotAt(i - 1)];
+    _newest = slotAt(1);
+    _size--;
+    _selected = slotAt(index < _size ? index : (_size > 0 ? _size - 1 : 0));
+    _view = LIST;
+  }
+
+  void formatAge(const Message& msg, char* buf, size_t size) const {
+    uint32_t now = _rtc->getCurrentTime();
+    unsigned secs = now >= msg.timestamp ? now - msg.timestamp : 0;
+    if (secs < 60) snprintf(buf, size, _("%u s"), secs);
+    else if (secs < 3600) snprintf(buf, size, _("%u min"), secs / 60);
+    else snprintf(buf, size, _("%u h"), secs / 3600);
+  }
+
+  void renderHeader(DisplayDriver& display, const char* title, const char* page = "") {
+    display.setTextSize(1);
+    display.setColor(UIColor::primary_txt);
+    display.fillRect(0, 0, display.width(), 13);
+    display.setColor(UIColor::window_bkg);
+    int right = display.width() - 30;
+    if (page[0]) {
+      display.drawTextRightAlign(right, 2, page);
+      right -= display.getTextWidth(page) + 3;
+    }
+    display.drawTextLeftAlign(0, 2, "./");
+    display.drawTextEllipsized(12, 2, right - 12, title);
+    HomeScreen::renderBatteryIndicator(display, _task->getBattMilliVolts(), true, _task->isBuzzerQuiet());
+    display.setColor(UIColor::primary_txt);
+  }
+
+public:
+  MsgPreviewScreen(UITask* task, mesh::RTCClock* rtc) : _task(task), _rtc(rtc) {}
+
+  int groupCount() const { return _groups; }
+  int chatCount() const { return _chats; }
+  int unreadCount() const { return _groups + _chats; }
+  int storedCount() const { return _size; }
+
+  bool reopen() {
+    _view = LIST;
+    _selected = _newest;
+    return true;
+  }
+
+  void openIncoming() { openMessage(_newest); }
+
+  void addPreview(uint8_t, const char* from_name, const char* text, bool group = false) {
+    _newest = (_newest + 1) % HISTORY_SIZE;
+    auto& msg = _messages[_newest];
+    if (_size == HISTORY_SIZE) {
+      markRead(msg);
+      if (_selected == _newest) {
+        _selected = slotAt(HISTORY_SIZE - 1);
+        _view = LIST;
+      }
+    } else {
+      _size++;
+    }
+    msg.timestamp = _rtc->getCurrentTime();
+    StrHelper::strncpy(msg.sender, from_name, sizeof(msg.sender));
+    StrHelper::strncpy(msg.text, text, sizeof(msg.text));
+    msg.group = group;
+    msg.unread = true;
+    if (group) _groups++; else _chats++;
+    if (_size == 1) _selected = _newest;
+  }
+
+  int render(DisplayDriver& display) override {
+    setUiLang(the_mesh.getNodePrefs()->ui_lang);
+    if (_view == LIST || _size == 0) {
+      renderHeader(display, _("Messages"));
+      if (_size == 0) display.drawTextLeftAlign(4, 18, _("No messages"));
+      int sel = selectedIndex();
+      int first = sel >= 4 ? sel - 3 : 0;
+      for (int i = first; i < _size && i < first + 4; i++) {
+        const auto& msg = _messages[slotAt(i)];
+        char age[20], right[24];
+        formatAge(msg, age, sizeof(age));
+        snprintf(right, sizeof(right), "%s%s", msg.unread ? "*" : "", age);
+        drawV4ListRow(display, i - first, i == sel, msg.sender, right);
+      }
+      return 1000;
+    }
+
+    const auto& msg = _messages[_selected];
+    if (_view == MESSAGE) {
+      char filtered[sizeof(msg.text)];
+      display.translateUTF8ToBlocks(filtered, msg.text, sizeof(filtered));
+      display.setTextSize(1);
+      display.setColor(UIColor::primary_txt);
+      display.setCursor(0, 15);
+      const char* start = filtered + _offsets[_page];
+      const char* rest = display.printWordWrap(start, display.width());
+      _next_offset = *rest && rest > start ? rest - filtered : 0;
+      char page[8] = "";
+      if (_page > 0 || _next_offset) snprintf(page, sizeof(page), "%u%s", (unsigned)(_page + 1), _next_offset ? "+" : "");
+      renderHeader(display, msg.sender, page);
+    } else if (_view == ACTIONS) {
+      renderHeader(display, _("Message"));
+      const char* actions[] = {_("Next message"), _("Mark as read"), _("Information"), _("Remove from view")};
+      for (int i = 0; i < 4; i++) drawV4ListRow(display, i, _row == i, actions[i]);
+    } else if (_view == INFO) {
+      renderHeader(display, _("Message"));
+      char age[20], label[64];
+      snprintf(label, sizeof(label), "%s %s", msg.group ? "#" : "@", msg.sender);
+      display.drawTextEllipsized(4, 18, display.width() - 8, label);
+      formatAge(msg, age, sizeof(age));
+      snprintf(label, sizeof(label), _("Received: %s"), age);
+      display.drawTextEllipsized(4, 30, display.width() - 8, label);
+      snprintf(label, sizeof(label), _("To phone: %d"), _task->getMsgCount());
+      display.drawTextLeftAlign(4, 42, label);
+    } else {
+      renderHeader(display, _("Message"));
+      display.drawTextLeftAlign(4, 18, _("Remove this copy?"));
+      drawV4ListRow(display, 1, _row == 0, _("Cancel"));
+      drawV4ListRow(display, 2, _row == 1, _("Remove"));
+    }
+    return 1000;
+  }
+
+  bool handleInput(char c) override {
+    bool next = c == KEY_NEXT || c == KEY_RIGHT;
+    bool prev = c == KEY_PREV || c == KEY_LEFT;
+    if (_view == LIST) {
+      int index = selectedIndex();
+      if (next && index + 1 < _size) _selected = slotAt(index + 1);
+      else if (prev) {
+        if (_size > 0 && index > 0) _selected = slotAt(index - 1);
+        else _task->gotoHomeScreen();
+      } else if (c == KEY_ENTER && _size > 0) openMessage(_selected);
+    } else if (_view == MESSAGE) {
+      if (next && _next_offset) {
+        _offsets[++_page] = _next_offset;
+        _next_offset = 0;
+      } else if (prev) {
+        _next_offset = 0;
+        if (_page > 0) _page--; else _view = LIST;
+      } else if (c == KEY_ENTER) {
+        _row = 0;
+        _view = ACTIONS;
+      }
+    } else if (_view == ACTIONS) {
+      if (next && _row < 3) _row++;
+      else if (prev) {
+        if (_row > 0) _row--; else _view = MESSAGE;
+      } else if (c == KEY_ENTER) {
+        if (_row == 0) {
+          int index = selectedIndex() + 1;
+          if (index < _size) openMessage(slotAt(index)); else _view = LIST;
+        } else if (_row == 1) {
+          markRead(_messages[_selected]);
+          _view = MESSAGE;
+        } else if (_row == 2) {
+          _view = INFO;
+        } else {
+          _row = 0;
+          _view = REMOVE;
+        }
+      }
+    } else if (_view == INFO) {
+      if (prev || c == KEY_ENTER) _view = ACTIONS;
+    } else {
+      if (next) _row = 1;
+      else if (prev && _row > 0) _row = 0;
+      else if (c == KEY_ENTER && _row == 1) removeSelected();
+      else if (prev || c == KEY_ENTER) {
+        _row = 3;
+        _view = ACTIONS;
+      }
+    }
+    return true;
+  }
+};
+#else
 class MsgPreviewScreen : public UIScreen {
   UITask* _task;
   mesh::RTCClock* _rtc;
@@ -3103,6 +3538,8 @@ public:
   }
 };
 
+#endif
+
 static void clockDraw(DisplayDriver& display, const ClockFace& face, int x, int y, const char* text) {
   for (const char* s = text; *s; ) {
     uint16_t cp;
@@ -3213,8 +3650,12 @@ public:
       _task->showMsgPreview();
       return true;
     }
-    if (_preview->unreadCount() > 0) _task->showMsgPreview();
-    else _task->gotoHomeScreen();
+    if (_preview->unreadCount() > 0) {
+#ifdef HELTEC_LORA_V4
+      _preview->reopen();
+#endif
+      _task->showMsgPreview();
+    } else _task->gotoHomeScreen();
     return true;
   }
 };
@@ -3322,7 +3763,11 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   if (!(txt_type == TXT_TYPE_PLAIN || txt_type == TXT_TYPE_SIGNED_PLAIN)) return;
 
   uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
-  ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, from.name, text);
+  auto* preview = (MsgPreviewScreen*)msg_preview;
+  preview->addPreview(path_len, from.name, text);
+#ifdef HELTEC_LORA_V4
+  if (curr != msg_preview) preview->openIncoming();
+#endif
   setCurrScreen(msg_preview);
 
   if (_display != NULL) {
@@ -3352,16 +3797,20 @@ int UITask::getUnreadCount() const {
 
 void UITask::clearTakenMsg() {
   if (!msg_preview) return;
+#ifndef HELTEC_LORA_V4
   bool empty = ((MsgPreviewScreen *) msg_preview)->dropOldest();
   if (empty && curr == msg_preview) {
     gotoHomeScreen();
-  } else if (curr == msg_preview || curr == clock || curr == home) {
-    _next_refresh = 100;
   }
+#endif
+  if (curr == msg_preview || curr == clock || curr == home) _next_refresh = 100;
 }
 
 void UITask::msgRead(int msgcount) {
   _msgcount = msgcount;
+#ifdef HELTEC_LORA_V4
+  if (curr == msg_preview || curr == clock || curr == home) _next_refresh = 100;
+#else
   // The phone drains the offline queue as soon as a message arrives. That must
   // not dismiss the e-ink clock; the footer count already updated in newMsg.
   if (msgcount == 0 && curr != clock) {
@@ -3369,15 +3818,20 @@ void UITask::msgRead(int msgcount) {
   } else if (curr == home) {
     _next_refresh = 100;
   }
+#endif
 }
 
 void UITask::newMsg(uint8_t path_len, const char* from_name, const char* text, int msgcount, bool group) {
   _msgcount = msgcount;
 
-  ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, from_name, text, group);
+  auto* preview = (MsgPreviewScreen*)msg_preview;
+  preview->addPreview(path_len, from_name, text, group);
   if (curr == clock) {
     _next_refresh = 100;
   } else {
+#ifdef HELTEC_LORA_V4
+    if (curr != msg_preview) preview->openIncoming();
+#endif
     setCurrScreen(msg_preview);
   }
 
@@ -3398,7 +3852,13 @@ void UITask::newMsg(uint8_t path_len, const char* from_name, const char* text, i
 
 void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_details, const char* text) {
   uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
-  ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text);
+  auto* preview = (MsgPreviewScreen*)msg_preview;
+#ifdef HELTEC_LORA_V4
+  preview->addPreview(path_len, channel_details.name, text, true);
+  if (curr != msg_preview) preview->openIncoming();
+#else
+  preview->addPreview(path_len, channel_details.name, text);
+#endif
   setCurrScreen(msg_preview);
 
   if (_display != NULL) {
@@ -3417,10 +3877,14 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
 }
 
 void UITask::onQueueSizeChanged(int msgcount) {
+#ifdef HELTEC_LORA_V4
+  msgRead(msgcount);
+#else
   _msgcount = msgcount;
   if (msgcount == 0) {
     gotoHomeScreen();
   }
+#endif
 }
 
 void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
