@@ -1137,7 +1137,7 @@ public:
         uint8_t home_sf = _node_prefs->home_sf, home_cr = _node_prefs->home_cr;
         bool repeat = applyRadioProfileChoice(_radio_target, freq, bw, sf, cr,
                                               home_freq, home_bw, home_sf, home_cr);
-        repeat = repeat && the_mesh.isValidClientRepeatFreq((uint32_t)(freq * 1000.0f + 0.5f));
+        repeat = repeat && the_mesh.isRepeatFreqAllowed((uint32_t)(freq * 1000.0f + 0.5f));
         snprintf(tmp, sizeof(tmp), "%s > %s", radioProfileLabel(the_mesh.radioProfile()),
                  radioProfileLabel(_radio_target));
         display.drawTextEllipsized(0, 17, display.width(), tmp);
