@@ -1,0 +1,1987 @@
+[
+  {
+    "section": "01 · Основной круг",
+    "key": "home",
+    "label": "Главная",
+    "title": "FDSKY",
+    "rows": [
+      "BLE подключён",
+      "Очередь телефона  3",
+      "Сообщений в памяти 5",
+      "05.11.2026  ЧТ"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 1,
+    "file": "001_home.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "messages",
+    "label": "Сообщения",
+    "title": "Сообщения",
+    "rows": [
+      "В памяти           5",
+      "На телефон         3",
+      "Непрочитанных      2",
+      "Последнее: 3 мин"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Локальная память и очередь телефона — разные счётчики.",
+    "kind": "",
+    "number": 2,
+    "file": "002_messages.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "links",
+    "label": "Связь",
+    "title": "Связь",
+    "rows": [
+      "BLE  вкл   клиент",
+      "WiFi вкл   нет",
+      "USB  вкл   ?",
+      "IP 192.168.1.42"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "USB ? — без детектора наличия клиента.",
+    "kind": "",
+    "number": 3,
+    "file": "003_links.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "network",
+    "label": "Сеть",
+    "title": "Сеть",
+    "rows": [
+      "Соседи: 4",
+      "South           +9",
+      "Hill-2          +5",
+      "Мост            -3"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Значения соседей — SNR, не RSSI.",
+    "kind": "",
+    "number": 4,
+    "file": "004_network.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "radio",
+    "label": "Радио · приём",
+    "title": "Радио",
+    "rows": [],
+    "root": true,
+    "selected": null,
+    "note": "Крупная частота, обведённый ряд параметров и NF как в референсе; обновление оценки примерно 2 с.",
+    "kind": "radio",
+    "number": 5,
+    "file": "005_radio.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "gps",
+    "label": "GPS · фикс",
+    "title": "GPS",
+    "rows": [],
+    "root": true,
+    "selected": null,
+    "note": "Расположение как в WhisperOS: спутники и шкала, высота и скорость, координаты. Скорость требует нового источника данных.",
+    "kind": "gps",
+    "number": 6,
+    "file": "006_gps.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "beacon",
+    "label": "Маяк",
+    "title": "Маяк",
+    "rows": [
+      "Группа     Squad",
+      "Интервал   30 мин",
+      "GPS        фикс есть",
+      "Отправлен  4 мин"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Отправлено не означает доставлено.",
+    "kind": "",
+    "number": 7,
+    "file": "007_beacon.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "freq",
+    "label": "Частоты · обзор",
+    "title": "Частоты",
+    "rows": [
+      "Сеть    868.731 MHz",
+      "Поиск шума",
+      "Доступен по команде",
+      "Радио: приём"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Сканирование запускается отдельно с предупреждением о временном прерывании приёма.",
+    "kind": "",
+    "number": 8,
+    "file": "008_freq.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "recent",
+    "label": "Недавние",
+    "title": "Недавние",
+    "rows": [
+      "Mytischi-4      12с",
+      "CAO_Tazanka      4м",
+      "Zelenograd      23м",
+      "MO_Klyazma       1ч"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 9,
+    "file": "009_recent.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "noise",
+    "label": "Шум",
+    "title": "Шум",
+    "rows": [
+      "RSSI       -109 dBm",
+      "NF         -111 dBm",
+      "Пик         -98 dBm",
+      "Приём пакета: нет"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Текущий RSSI, шумовой фон NF и пик — разные значения.",
+    "kind": "",
+    "number": 10,
+    "file": "010_noise.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "sensors",
+    "label": "Датчики",
+    "title": "Датчики",
+    "rows": [
+      "Напряж.      4.03 В",
+      "Температура  22.4 C",
+      "Влажность       48%",
+      "Давление  1013 hPa"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Внешние датчики выводятся только при наличии и поддержке сборки.",
+    "kind": "",
+    "number": 11,
+    "file": "011_sensors.png"
+  },
+  {
+    "section": "01 · Основной круг",
+    "key": "settings",
+    "label": "Настройки · вход",
+    "title": "Настройки",
+    "rows": [
+      "Радио и приём",
+      "Связь и питание",
+      "GPS, маяк, экран",
+      "Время и система"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 12,
+    "file": "012_settings.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "home_off",
+    "label": "Главная · без клиента",
+    "title": "FDSKY",
+    "rows": [
+      "Клиент не подключён",
+      "Очередь телефона  0",
+      "Сообщений в памяти 0",
+      "Время не задано"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 13,
+    "file": "013_home_off.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "msg_empty",
+    "label": "Сообщений нет",
+    "title": "Сообщения",
+    "rows": [
+      "Сообщений пока нет",
+      "",
+      "Приём работает"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 14,
+    "file": "014_msg_empty.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "links_wait",
+    "label": "Wi-Fi подключается",
+    "title": "Связь",
+    "rows": [
+      "BLE  вкл   нет",
+      "WiFi ждёт сеть",
+      "USB  вкл   ?",
+      "IP --"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 15,
+    "file": "015_links_wait.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "network_empty",
+    "label": "Нет соседей",
+    "title": "Сеть",
+    "rows": [
+      "Соседей пока нет",
+      "",
+      "Опрос из действий"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Нет полученных ответов не означает, что сеть пуста.",
+    "kind": "",
+    "number": 16,
+    "file": "016_network_empty.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "radio_wait",
+    "label": "Радио · нет оценки NF",
+    "title": "Радио",
+    "rows": [
+      "868.731 MHz",
+      "BW62.5 SF7 CR5 TX22",
+      "NF --",
+      "Данных пока нет"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "NF -- до первой оценки.",
+    "kind": "",
+    "number": 17,
+    "file": "017_radio_wait.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "gps_wait",
+    "label": "GPS · поиск",
+    "title": "GPS",
+    "rows": [
+      "SAT 3   поиск",
+      "ALT --       -- км/ч",
+      "LAT  --",
+      "LON  --"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Без fix не показывать сохранённые координаты как текущие.",
+    "kind": "",
+    "number": 18,
+    "file": "018_gps_wait.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "gps_off",
+    "label": "GPS · выключен",
+    "title": "GPS",
+    "rows": [
+      "Модуль выключен",
+      "SAT --",
+      "LAT  --",
+      "LON  --"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 19,
+    "file": "019_gps_off.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "gps_missing",
+    "label": "GPS · нет модуля",
+    "title": "GPS",
+    "rows": [
+      "GPS недоступен",
+      "Проверьте провода",
+      "SAT --",
+      "LAT/LON --"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 20,
+    "file": "020_gps_missing.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "beacon_off",
+    "label": "Маяк · выключен",
+    "title": "Маяк",
+    "rows": [
+      "Статус: выключен",
+      "Отправки нет",
+      "GPS: выкл",
+      ""
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 21,
+    "file": "021_beacon_off.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "beacon_wait",
+    "label": "Маяк · ожидание GPS",
+    "title": "Маяк",
+    "rows": [
+      "Группа     Squad",
+      "Интервал   30 мин",
+      "Нет фикса GPS",
+      "Отправка отложена"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 22,
+    "file": "022_beacon_wait.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "freq_run",
+    "label": "Частоты · сканирование",
+    "title": "Частоты",
+    "rows": [
+      "Сканирование   7/17",
+      "868.775 MHz",
+      "Шум      -114 dBm",
+      "Отмена: 2 клика"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "После отмены и завершения исходная частота восстанавливается.",
+    "kind": "",
+    "number": 23,
+    "file": "023_freq_run.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "freq_result",
+    "label": "Частоты · результат",
+    "title": "Частоты",
+    "rows": [
+      "868.481    -121 dBm",
+      "868.606    -119 dBm",
+      "868.731*   -112 dBm",
+      "* частота сети"
+    ],
+    "root": true,
+    "selected": null,
+    "note": "Частота автоматически не меняется.",
+    "kind": "",
+    "number": 24,
+    "file": "024_freq_result.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "recent_empty",
+    "label": "Нет объявлений",
+    "title": "Недавние",
+    "rows": [
+      "Объявлений пока нет",
+      "",
+      "",
+      ""
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 25,
+    "file": "025_recent_empty.png"
+  },
+  {
+    "section": "02 · Состояния основных окон",
+    "key": "sensors_empty",
+    "label": "Датчики · нет данных",
+    "title": "Датчики",
+    "rows": [
+      "Нет внешних данных",
+      "",
+      "",
+      ""
+    ],
+    "root": true,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 26,
+    "file": "026_sensors_empty.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "msg_list",
+    "label": "Сохранённые сообщения",
+    "title": "Сообщения",
+    "rows": [
+      "Алексей       3 мин",
+      "Группа        5 мин",
+      "Лиса         12 мин"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 27,
+    "file": "027_msg_list.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "msg_text1",
+    "label": "Сообщение · первая часть",
+    "title": "Алексей",
+    "rows": [
+      "Привет! Встречаемся",
+      "у старого моста",
+      "в 18:00. Возьми",
+      "1/2"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 28,
+    "file": "028_msg_text1.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "msg_text2",
+    "label": "Сообщение · продолжение",
+    "title": "Алексей",
+    "rows": [
+      "рацию и запасной",
+      "аккумулятор.",
+      "До встречи!",
+      "2/2"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 29,
+    "file": "029_msg_text2.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "msg_actions",
+    "label": "Действия сообщения",
+    "title": "Сообщение",
+    "rows": [
+      "Следующее",
+      "Отметить прочитанным",
+      "Информация",
+      "Удалить из просмотра"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 30,
+    "file": "030_msg_actions.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "msg_info",
+    "label": "Сведения о сообщении",
+    "title": "Сообщение",
+    "rows": [
+      "Личное: Алексей",
+      "Получено: 3 мин",
+      "Ещё в очереди: 1"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 31,
+    "file": "031_msg_info.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "msg_clear",
+    "label": "Подтвердить очистку",
+    "title": "Очистка",
+    "rows": [
+      "Отмена",
+      "Очистить просмотр"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "Локальный просмотр и очередь клиента не объединять.",
+    "kind": "",
+    "number": 32,
+    "file": "032_msg_clear.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "net_actions",
+    "label": "Действия сети",
+    "title": "Сеть",
+    "rows": [
+      "Опросить соседей",
+      "Объявить себя",
+      "Назад"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 33,
+    "file": "033_net_actions.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "recent_actions",
+    "label": "Действия объявлений",
+    "title": "Недавние",
+    "rows": [
+      "Объявить себя",
+      "Назад"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 34,
+    "file": "034_recent_actions.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "noise_actions",
+    "label": "Действия шума",
+    "title": "Шум",
+    "rows": [
+      "Сбросить пик",
+      "Назад"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 35,
+    "file": "035_noise_actions.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "noise_reset",
+    "label": "Пик шума сброшен",
+    "title": "Шум",
+    "rows": [
+      "Пик сброшен",
+      "Новые измерения",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 36,
+    "file": "036_noise_reset.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "sensors_refresh",
+    "label": "Датчики обновлены",
+    "title": "Датчики",
+    "rows": [
+      "Опрос выполнен",
+      "",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 37,
+    "file": "037_sensors_refresh.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "polling",
+    "label": "Опрос соседей",
+    "title": "Сеть",
+    "rows": [
+      "Запрос отправлен",
+      "Ожидаем ответы",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 38,
+    "file": "038_polling.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "poll_error",
+    "label": "Ошибка опроса",
+    "title": "Сеть",
+    "rows": [
+      "Запрос не отправлен",
+      "Попробуйте позже"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 39,
+    "file": "039_poll_error.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "advert_sent",
+    "label": "Объявление отправлено",
+    "title": "Недавние",
+    "rows": [
+      "Отправлено",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 40,
+    "file": "040_advert_sent.png"
+  },
+  {
+    "section": "03 · Сообщения и сеть",
+    "key": "advert_error",
+    "label": "Ошибка объявления",
+    "title": "Недавние",
+    "rows": [
+      "Не отправлено",
+      "Попробуйте позже"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 41,
+    "file": "041_advert_error.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "settings_a",
+    "label": "Настройки · начало",
+    "title": "Настройки",
+    "rows": [
+      "Радио",
+      "Интерфейсы",
+      "Питание",
+      "Батарея"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 42,
+    "file": "042_settings_a.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "settings_b",
+    "label": "Настройки · продолжение",
+    "title": "Настройки",
+    "rows": [
+      "GPS",
+      "Маяк",
+      "Дисплей",
+      "Время"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 43,
+    "file": "043_settings_b.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "settings_c",
+    "label": "Настройки · система",
+    "title": "Настройки",
+    "rows": [
+      "Язык",
+      "Звук",
+      "Выключение",
+      "Сведения"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "Звук — только при наличии buzzer.",
+    "kind": "",
+    "number": 44,
+    "file": "044_settings_c.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "radio_settings",
+    "label": "Радио · действия",
+    "title": "Радио",
+    "rows": [
+      "Профиль",
+      "RX Boost: вкл",
+      "LNA: выкл",
+      ""
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "LNA показывать только при поддержке управления FEM.",
+    "kind": "",
+    "number": 45,
+    "file": "045_radio_settings.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "profiles",
+    "label": "Выбор радиопрофиля",
+    "title": "Профиль",
+    "rows": [
+      "Normal",
+      "Long",
+      "HiNoise"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 46,
+    "file": "046_profiles.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "profile_normal",
+    "label": "Normal · предпросмотр",
+    "title": "Normal",
+    "rows": [
+      "868.731 BW62.5",
+      "SF7  CR5  TX22",
+      "Повтор: выкл",
+      "Проверить параметры"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Normal восстанавливает сохранённую сеть или параметры сборки.",
+    "kind": "",
+    "number": 47,
+    "file": "047_profile_normal.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "profile_long",
+    "label": "Long · предпросмотр",
+    "title": "Long",
+    "rows": [
+      "869.495 BW62.5",
+      "SF11 CR5  TX22",
+      "Повтор: вкл",
+      "Проверить параметры"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "TX не задаётся профилем. Repeat зависит от допустимости частоты в коде.",
+    "kind": "",
+    "number": 48,
+    "file": "048_profile_long.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "profile_noise",
+    "label": "HiNoise · предпросмотр",
+    "title": "HiNoise",
+    "rows": [
+      "869.495 BW31.25",
+      "SF10 CR7  TX22",
+      "Повтор: вкл",
+      "Проверить параметры"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 49,
+    "file": "049_profile_noise.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "profile_confirm",
+    "label": "Подтвердить профиль",
+    "title": "Профиль",
+    "rows": [
+      "Применить Long?",
+      "Отмена",
+      "Применить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 50,
+    "file": "050_profile_confirm.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "profile_applied",
+    "label": "Профиль применён",
+    "title": "Профиль",
+    "rows": [
+      "Профиль: Long",
+      "Радио обновлено",
+      "Повтор: вкл",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 51,
+    "file": "051_profile_applied.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "lna_on",
+    "label": "LNA · настройка",
+    "title": "LNA",
+    "rows": [
+      "Сейчас: выкл",
+      "Включить",
+      "Оставить выкл"
+    ],
+    "root": false,
+    "selected": 2,
+    "note": "",
+    "kind": "",
+    "number": 52,
+    "file": "052_lna_on.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "lna_na",
+    "label": "LNA · недоступен",
+    "title": "LNA",
+    "rows": [
+      "Управление FEM",
+      "недоступно",
+      "RX Boost отдельно",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 53,
+    "file": "053_lna_na.png"
+  },
+  {
+    "section": "04 · Настройки · меню",
+    "key": "rx_boost",
+    "label": "RX Boost · настройка",
+    "title": "RX Boost",
+    "rows": [
+      "Сейчас: вкл",
+      "Выключить",
+      "Оставить вкл"
+    ],
+    "root": false,
+    "selected": 2,
+    "note": "",
+    "kind": "",
+    "number": 54,
+    "file": "054_rx_boost.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power",
+    "label": "Питание",
+    "title": "Питание",
+    "rows": [
+      "Режим       Eco max",
+      "Сон CPU     нет",
+      "RX Boost    вкл",
+      "LNA         выкл"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Показаны фактические состояния; LNA только если аппаратно управляем.",
+    "kind": "",
+    "number": 55,
+    "file": "055_power.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_blocked",
+    "label": "Питание · сон занят",
+    "title": "Питание",
+    "rows": [
+      "Режим       Custom",
+      "Сон: недоступен",
+      "Причина: BLE",
+      "RX Boost: вкл"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Сон отображается как возможность, а не как выключенный CPU.",
+    "kind": "",
+    "number": 56,
+    "file": "056_power_blocked.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "interfaces",
+    "label": "Интерфейсы",
+    "title": "Интерфейсы",
+    "rows": [
+      "BLE      вкл",
+      "Wi-Fi    вкл",
+      "USB      вкл",
+      ""
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 57,
+    "file": "057_interfaces.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "ble",
+    "label": "Bluetooth · состояние",
+    "title": "BLE",
+    "rows": [
+      "Статус: вкл",
+      "Клиент: подключён",
+      "PIN: 123456",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 58,
+    "file": "058_ble.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "wifi",
+    "label": "Wi-Fi · состояние",
+    "title": "Wi-Fi",
+    "rows": [
+      "SSID: Home",
+      "IP: 192.168.1.42",
+      "5000: подключён",
+      "5001: нет"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Порт не определяет личность клиента.",
+    "kind": "",
+    "number": 59,
+    "file": "059_wifi.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "wifi_wait",
+    "label": "Wi-Fi · нет сети",
+    "title": "Wi-Fi",
+    "rows": [
+      "SSID: Home",
+      "Подключение...",
+      "IP: --",
+      "5000/5001: --"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 60,
+    "file": "060_wifi_wait.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "usb",
+    "label": "USB · состояние",
+    "title": "USB",
+    "rows": [
+      "Интерфейс: вкл",
+      "Клиент: неизвестно",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 61,
+    "file": "061_usb.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "interface_confirm",
+    "label": "Отключить интерфейс",
+    "title": "Wi-Fi",
+    "rows": [
+      "Выключить Wi-Fi?",
+      "Отмена",
+      "Выключить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "Отмена выбрана по умолчанию, чтобы не оборвать соединение случайно.",
+    "kind": "",
+    "number": 62,
+    "file": "062_interface_confirm.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_modes",
+    "label": "Режимы питания",
+    "title": "Питание",
+    "rows": [
+      "Eco max",
+      "Eco high",
+      "Eco good",
+      "Другие режимы"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 63,
+    "file": "063_power_modes.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_mode1",
+    "label": "Питание · вариант 1",
+    "title": "Режим 1",
+    "rows": [
+      "Сон CPU: да",
+      "RX Boost: выкл",
+      "LNA: выкл",
+      "Предпросмотр"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Варианты зависят от платы и ограничений сна.",
+    "kind": "",
+    "number": 64,
+    "file": "064_power_mode1.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_mode2",
+    "label": "Питание · вариант 2",
+    "title": "Режим 2",
+    "rows": [
+      "Сон CPU: да",
+      "RX Boost: вкл",
+      "LNA: выкл",
+      "Предпросмотр"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Варианты зависят от платы и ограничений сна.",
+    "kind": "",
+    "number": 65,
+    "file": "065_power_mode2.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_mode3",
+    "label": "Питание · вариант 3",
+    "title": "Режим 3",
+    "rows": [
+      "Сон CPU: да",
+      "RX Boost: вкл",
+      "LNA: вкл",
+      "Предпросмотр"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Варианты зависят от платы и ограничений сна.",
+    "kind": "",
+    "number": 66,
+    "file": "066_power_mode3.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_mode4",
+    "label": "Питание · вариант 4",
+    "title": "Режим 4",
+    "rows": [
+      "Сон CPU: нет",
+      "RX Boost: выкл",
+      "LNA: выкл",
+      "Предпросмотр"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Варианты зависят от платы и ограничений сна.",
+    "kind": "",
+    "number": 67,
+    "file": "067_power_mode4.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_mode5",
+    "label": "Питание · вариант 5",
+    "title": "Режим 5",
+    "rows": [
+      "Сон CPU: нет",
+      "RX Boost: вкл",
+      "LNA: выкл",
+      "Предпросмотр"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Варианты зависят от платы и ограничений сна.",
+    "kind": "",
+    "number": 68,
+    "file": "068_power_mode5.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_mode6",
+    "label": "Питание · вариант 6",
+    "title": "Режим 6",
+    "rows": [
+      "Сон CPU: нет",
+      "RX Boost: вкл",
+      "LNA: вкл",
+      "Предпросмотр"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Варианты зависят от платы и ограничений сна.",
+    "kind": "",
+    "number": 69,
+    "file": "069_power_mode6.png"
+  },
+  {
+    "section": "05 · Настройки · связь и питание",
+    "key": "power_confirm",
+    "label": "Подтвердить питание",
+    "title": "Питание",
+    "rows": [
+      "Применить режим?",
+      "Отмена",
+      "Применить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 70,
+    "file": "070_power_confirm.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "battery",
+    "label": "Батарея",
+    "title": "Батарея",
+    "rows": [
+      "Напряжение  4.030 В",
+      "Оценка заряда   83%",
+      "ADC           5.420",
+      "Источник: неизвестен"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Процент вычислен по напряжению; статус источника только при достоверном детекторе.",
+    "kind": "",
+    "number": 71,
+    "file": "071_battery.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "battery_unknown",
+    "label": "Батарея · нет измерения",
+    "title": "Батарея",
+    "rows": [
+      "Напряжение: --",
+      "Заряд: --%",
+      "ADC недоступен",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 72,
+    "file": "072_battery_unknown.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_menu",
+    "label": "Калибровка ADC",
+    "title": "ADC",
+    "rows": [
+      "Полный заряд 4.20 В",
+      "По мультиметру",
+      "Сброс коэффициента"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 73,
+    "file": "073_adc_menu.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_full",
+    "label": "Условия калибровки",
+    "title": "Полный заряд",
+    "rows": [
+      "Полностью заряжен?",
+      "Эталон: 4.200 В",
+      "Только 1S Li-ion",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "USB не означает полный заряд.",
+    "kind": "",
+    "number": 74,
+    "file": "074_adc_full.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_edit",
+    "label": "Ввод мультиметра",
+    "title": "Мультиметр",
+    "rows": [
+      "Эталон: 4.150 В",
+      "           ^",
+      "Далее: удержание",
+      "Отмена на проверке"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Клик увеличивает цифру, два клика уменьшают, удержание выбирает следующую; после последней — подтверждение.",
+    "kind": "",
+    "number": 75,
+    "file": "075_adc_edit.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_confirm",
+    "label": "Подтвердить ADC",
+    "title": "ADC",
+    "rows": [
+      "4.030 > 4.150 В",
+      "Отмена",
+      "Применить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 76,
+    "file": "076_adc_confirm.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_reset",
+    "label": "Сбросить ADC",
+    "title": "Сброс ADC",
+    "rows": [
+      "Вернуть ADC платы?",
+      "Отмена",
+      "Сбросить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 77,
+    "file": "077_adc_reset.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_done",
+    "label": "ADC · сохранено",
+    "title": "ADC",
+    "rows": [
+      "Калибровка записана",
+      "ADC: 5.581",
+      "Напряжение: 4.150 В",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 78,
+    "file": "078_adc_done.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "adc_error",
+    "label": "ADC · ошибка",
+    "title": "ADC",
+    "rows": [
+      "Не сохранено",
+      "Значение не изменено",
+      "Попробуйте снова",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 79,
+    "file": "079_adc_error.png"
+  },
+  {
+    "section": "06 · Аккумулятор и ADC",
+    "key": "battery_low",
+    "label": "Низкий заряд",
+    "title": "Батарея",
+    "rows": [
+      "Низкое напряжение",
+      "Подключите питание",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 80,
+    "file": "080_battery_low.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "gps_settings",
+    "label": "Настройка GPS",
+    "title": "GPS",
+    "rows": [
+      "GPS: включён",
+      "Выключить GPS",
+      "Назад"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 81,
+    "file": "081_gps_settings.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "gps_powered",
+    "label": "GPS без отключения питания",
+    "title": "GPS",
+    "rows": [
+      "GPS логически выкл",
+      "Питание осталось",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Только если плата не умеет физически отключать питание модуля.",
+    "kind": "",
+    "number": 82,
+    "file": "082_gps_powered.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_settings",
+    "label": "Настройки маяка",
+    "title": "Маяк",
+    "rows": [
+      "Режим",
+      "Получатель",
+      "Интервал",
+      "Остановить"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 83,
+    "file": "083_beacon_settings.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_modes",
+    "label": "Режимы маяка · 1",
+    "title": "Режим маяка",
+    "rows": [
+      "Выключен",
+      "Локальный advert",
+      "Flood advert",
+      "Группа"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 84,
+    "file": "084_beacon_modes.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_modes2",
+    "label": "Режимы маяка · 2",
+    "title": "Режим маяка",
+    "rows": [
+      "Flood advert",
+      "Группа",
+      "Личное сообщение"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 85,
+    "file": "085_beacon_modes2.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_target",
+    "label": "Получатель маяка",
+    "title": "Получатель",
+    "rows": [
+      "Squad North",
+      "Общий канал",
+      "Алексей"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 86,
+    "file": "086_beacon_target.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_no_target",
+    "label": "Нет получателя",
+    "title": "Маяк",
+    "rows": [
+      "Нет получателя",
+      "Добавьте контакт",
+      "или канал в app",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 87,
+    "file": "087_beacon_no_target.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_interval1",
+    "label": "Интервал маяка · 1",
+    "title": "Интервал",
+    "rows": [
+      "5 мин",
+      "10 мин",
+      "15 мин",
+      "30 мин"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 88,
+    "file": "088_beacon_interval1.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_interval2",
+    "label": "Интервал маяка · 2",
+    "title": "Интервал",
+    "rows": [
+      "15 мин",
+      "30 мин",
+      "60 мин",
+      "120 мин"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 89,
+    "file": "089_beacon_interval2.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "beacon_stop",
+    "label": "Выключить маяк",
+    "title": "Маяк",
+    "rows": [
+      "Остановить маяк?",
+      "Отмена",
+      "Остановить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 90,
+    "file": "090_beacon_stop.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "scan_confirm",
+    "label": "Начать поиск частоты",
+    "title": "Частоты",
+    "rows": [
+      "Приём прервётся",
+      "Отмена",
+      "Начать поиск"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "Это исследование шума; не переключать сеть автоматически.",
+    "kind": "",
+    "number": 91,
+    "file": "091_scan_confirm.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "scan_cancel",
+    "label": "Поиск частоты отменён",
+    "title": "Частоты",
+    "rows": [
+      "Поиск отменён",
+      "Радио восстановлено",
+      "868.731 MHz",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 92,
+    "file": "092_scan_cancel.png"
+  },
+  {
+    "section": "07 · GPS, маяк и частоты",
+    "key": "scan_actions",
+    "label": "Действия поиска",
+    "title": "Частоты",
+    "rows": [
+      "Повторить поиск",
+      "Закрыть результат"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 93,
+    "file": "093_scan_actions.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "about",
+    "label": "О прошивке",
+    "title": "Сведения",
+    "rows": [
+      "MeshCore Companion",
+      "v1.18.0-0.2.0",
+      "Heltec V4 OLED",
+      "by FDSKY"
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Номер версии пример; на заставке подпись by FDSKY.",
+    "kind": "",
+    "number": 94,
+    "file": "094_about.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "display",
+    "label": "Настройки дисплея",
+    "title": "Дисплей",
+    "rows": [
+      "Часы: вкл",
+      "Таймаут: 30 с",
+      "Язык: русский",
+      ""
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 95,
+    "file": "095_display.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "screen_timeout",
+    "label": "Таймаут экрана",
+    "title": "Таймаут",
+    "rows": [
+      "Никогда",
+      "15 с",
+      "30 с",
+      "60 с"
+    ],
+    "root": false,
+    "selected": 2,
+    "note": "",
+    "kind": "",
+    "number": 96,
+    "file": "096_screen_timeout.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "screen_timeout2",
+    "label": "Таймаут · продолжение",
+    "title": "Таймаут",
+    "rows": [
+      "30 с",
+      "60 с",
+      "120 с"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 97,
+    "file": "097_screen_timeout2.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "language",
+    "label": "Язык интерфейса",
+    "title": "Язык",
+    "rows": [
+      "Русский",
+      "English"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 98,
+    "file": "098_language.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "clock_actions",
+    "label": "Настройки времени",
+    "title": "Время",
+    "rows": [
+      "Запросить время",
+      "Узлы времени",
+      "Часовой пояс",
+      ""
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 99,
+    "file": "099_clock_actions.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "clock_nodes",
+    "label": "Узлы времени",
+    "title": "Узлы времени",
+    "rows": [
+      "Добавить узел",
+      "Запросить время",
+      "Очистить список",
+      ""
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 100,
+    "file": "100_clock_nodes.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "node_picker",
+    "label": "Выбрать узел времени",
+    "title": "Выбор узла",
+    "rows": [
+      "South",
+      "Hill-2",
+      "Base",
+      ""
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "",
+    "kind": "",
+    "number": 101,
+    "file": "101_node_picker.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "node_empty",
+    "label": "Нет контактов",
+    "title": "Выбор узла",
+    "rows": [
+      "Контактов пока нет",
+      "Добавьте в app",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 102,
+    "file": "102_node_empty.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "clock_clear",
+    "label": "Очистить узлы времени",
+    "title": "Узлы времени",
+    "rows": [
+      "Очистить список?",
+      "Отмена",
+      "Очистить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 103,
+    "file": "103_clock_clear.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "clock_request",
+    "label": "Запрос времени",
+    "title": "Время",
+    "rows": [
+      "Запрос отправлен",
+      "Ожидаем ответ",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 104,
+    "file": "104_clock_request.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "clock_missing",
+    "label": "Нет источника времени",
+    "title": "Время",
+    "rows": [
+      "Некому отправить",
+      "Добавьте узел",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 105,
+    "file": "105_clock_missing.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "timezone",
+    "label": "Часовой пояс",
+    "title": "Часовой пояс",
+    "rows": [
+      "UTC +03:00",
+      "Изменение через CLI",
+      "set tz +3",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 106,
+    "file": "106_timezone.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "sound",
+    "label": "Звук",
+    "title": "Звук",
+    "rows": [
+      "Включён",
+      "Выключен"
+    ],
+    "root": false,
+    "selected": 0,
+    "note": "Показывать только если есть buzzer.",
+    "kind": "",
+    "number": 107,
+    "file": "107_sound.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "shutdown",
+    "label": "Выключение",
+    "title": "Выключение",
+    "rows": [
+      "Выключить питание?",
+      "Отмена",
+      "Выключить"
+    ],
+    "root": false,
+    "selected": 1,
+    "note": "",
+    "kind": "",
+    "number": 108,
+    "file": "108_shutdown.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "shutdown_run",
+    "label": "Выключение выполняется",
+    "title": "Выключение",
+    "rows": [
+      "Выключаю питание",
+      "",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 109,
+    "file": "109_shutdown_run.png"
+  },
+  {
+    "section": "08 · Дисплей, время и система",
+    "key": "error",
+    "label": "Ошибка действия",
+    "title": "Настройка",
+    "rows": [
+      "Не удалось применить",
+      "Значение не изменено",
+      "Попробуйте снова",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 110,
+    "file": "110_error.png"
+  },
+  {
+    "section": "09 · Загрузка и системные состояния",
+    "key": "boot",
+    "label": "Заставка",
+    "title": "MeshCore",
+    "rows": [
+      "Companion",
+      "v1.18.0-0.2.0",
+      "by FDSKY",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 111,
+    "file": "111_boot.png"
+  },
+  {
+    "section": "09 · Загрузка и системные состояния",
+    "key": "display_off",
+    "label": "Экран выключен",
+    "title": "",
+    "rows": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "",
+    "kind": "",
+    "number": 112,
+    "file": "112_display_off.png"
+  },
+  {
+    "section": "09 · Загрузка и системные состояния",
+    "key": "cli_rescue",
+    "label": "CLI rescue",
+    "title": "CLI rescue",
+    "rows": [
+      "Подключите USB",
+      "Служебная консоль",
+      "",
+      ""
+    ],
+    "root": false,
+    "selected": null,
+    "note": "Доступ через удержание во время загрузки сохраняется.",
+    "kind": "",
+    "number": 113,
+    "file": "113_cli_rescue.png"
+  }
+]
