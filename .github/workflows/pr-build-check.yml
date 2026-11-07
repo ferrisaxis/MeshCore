@@ -25,6 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         environment:
+          # Heltec V4 OLED companion (combined USB/BLE/Wi-Fi configuration)
+          - heltec_v4_oled_companion_usb_ble_wifi
           # ESP32-S3 (most common platform)
           - Heltec_v3_companion_radio_ble
           - Heltec_v3_repeater
