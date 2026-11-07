@@ -234,6 +234,7 @@ private:
   bool _battery_apply = false;
   bool _adc_edit = false;        // multimeter reference editor
   uint16_t _adc_mv = 4200;       // reference voltage being entered
+  uint8_t _adc_digit = 0;        // thousands, hundreds, tens, ones
 #endif
   uint8_t _conn_selected = 0;
   // One entry per nested screen; a double click always returns one level.
@@ -244,11 +245,26 @@ private:
   bool _radio_details = false;
   bool _radio_confirm = false;
   bool _radio_apply = false;
+#ifdef HELTEC_LORA_V4
+  bool _scan_confirm = false;
+  bool _scan_apply = false;
+  bool _settings_action_page = false;
+  bool _conn_confirm = false;
+  bool _conn_apply = false;
+  bool _conn_was_enabled = false;
+  bool _power_confirm = false;
+  bool _power_apply = false;
+  bool _power_boost = false, _power_lna = false, _power_cpu = false;
+  const char* _power_name = "";
+#endif
   uint8_t _radio_target = RADIO_PROFILE_NORMAL;
   int16_t _nf_history[12] = {};
   uint8_t _nf_count = 0;
   uint8_t _nf_next = 0;
   unsigned long _nf_sample_at = 0;
+  unsigned long _nf_valid_at = 0;
+  float _nf_freq = 0, _nf_bw = 0;
+  uint8_t _nf_sf = 0, _nf_cr = 0;
 
 public:
   // Accessors for UITask
@@ -408,7 +424,7 @@ private:
   }
 
 
-  void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts) {
+  void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts, bool inverted = false) {
     // Display a smoothed one-percent estimate; ADC calibration corrects the
     // voltage first. This is a voltage estimate, not a capacity measurement.
 #ifndef BATT_MIN_MILLIVOLTS
@@ -422,7 +438,7 @@ private:
     static uint16_t samples[5] = {};
     static uint8_t count = 0, index = 0;
     static int displayed = -1;
-    display.setColor(UIColor::title_txt);
+    display.setColor(inverted ? UIColor::window_bkg : UIColor::title_txt);
     if (batteryMilliVolts < 2000 || maxMilliVolts <= minMilliVolts) {
       displayed = -1;
       count = index = 0;
@@ -474,7 +490,7 @@ private:
     display.drawTextRightAlign(display.width() - 2, 1, label);
 #ifdef PIN_BUZZER
     if (_task->isBuzzerQuiet()) {
-      display.setColor(UIColor::warning_txt);
+      display.setColor(inverted ? UIColor::window_bkg : UIColor::warning_txt);
       display.drawXbm(display.width() == 128 && !display.isEink() ? 0 : display.width() - 37,
                       2, muted_icon, 8, 8);
     }
@@ -520,6 +536,19 @@ private:
       case HomePage::MESSAGES:
       case HomePage::BLUETOOTH:
       case HomePage::NEIGHBORS:
+#ifdef HELTEC_LORA_V4
+      case HomePage::RADIO:
+      case HomePage::FSCAN:
+      case HomePage::RECENT:
+      case HomePage::SCAN:
+#if ENV_INCLUDE_GPS == 1
+      case HomePage::GPS:
+      case HomePage::BEACON:
+#endif
+#if UI_SENSORS_PAGE == 1
+      case HomePage::SENSORS:
+#endif
+#endif
       case HomePage::MENU:
         return true;
       default:
@@ -530,6 +559,13 @@ private:
   // Entries of the МЕНЮ list, in display order. Conditional ones are dropped
   // when the build or the hardware does not provide them.
   uint8_t menuCount() const {
+#ifdef HELTEC_LORA_V4
+    uint8_t n = 7;  // radio, links, power, battery, display, time, shutdown
+#if ENV_INCLUDE_GPS == 1
+    n += 2;  // GPS, beacon
+#endif
+    return n + 1;  // firmware information is always last
+#else
     uint8_t n = 0;
     n++;  // Радио
     n++;  // Питание
@@ -551,10 +587,25 @@ private:
     n++;  // О прошивке
     n++;  // Выключить
     return n;
+#endif
   }
 
   uint8_t menuPageAt(uint8_t idx) const {
     uint8_t i = 0;
+#ifdef HELTEC_LORA_V4
+    if (idx == i++) return HomePage::RADIO;
+    if (idx == i++) return HomePage::CONNECTIONS;
+    if (idx == i++) return HomePage::POWER;
+    if (idx == i++) return HomePage::BATTERY;
+#if ENV_INCLUDE_GPS == 1
+    if (idx == i++) return HomePage::GPS;
+    if (idx == i++) return HomePage::BEACON;
+#endif
+    if (idx == i++) return HomePage::SETUP;
+    if (idx == i++) return HomePage::TIME;
+    if (idx == i++) return HomePage::SHUTDOWN;
+    return HomePage::ABOUT;
+#else
     if (idx == i++) return HomePage::RADIO;
     if (idx == i++) return HomePage::POWER;
 #ifdef HELTEC_LORA_V4
@@ -574,6 +625,7 @@ private:
     if (idx == i++) return HomePage::SETUP;
     if (idx == i++) return HomePage::ABOUT;
     return HomePage::SHUTDOWN;
+#endif
   }
 
   const char* pageTitle() const {
@@ -602,8 +654,18 @@ private:
       case CLOCK_NODES: return _("Nodes");
       case NODE_PICKER: return _("Pick node");
       case SETUP: return _("Display");
-      case ABOUT: return _("Firmware");
-      case MENU: return _("Menu");
+      case ABOUT:
+#ifdef HELTEC_LORA_V4
+        return _("Information");
+#else
+        return _("Firmware");
+#endif
+      case MENU:
+#ifdef HELTEC_LORA_V4
+        return _("Settings");
+#else
+        return _("Menu");
+#endif
       case SHUTDOWN: return _("Power off");
       default: return "MeshCore";
     }
@@ -614,6 +676,7 @@ private:
     switch (page) {
       case HomePage::RADIO: return _("Radio");
       case HomePage::POWER: return _("Power");
+      case HomePage::CONNECTIONS: return _("Interfaces");
 #ifdef HELTEC_LORA_V4
       case HomePage::BATTERY: return _("Battery");
 #endif
@@ -629,7 +692,12 @@ private:
 #endif
       case HomePage::TIME: return _("Time");
       case HomePage::SETUP: return _("Display");
-      case HomePage::ABOUT: return _("Firmware");
+      case HomePage::ABOUT:
+#ifdef HELTEC_LORA_V4
+        return _("Information");
+#else
+        return _("Firmware");
+#endif
       case HomePage::SHUTDOWN: return _("Power off");
       default: return "?";
     }
@@ -689,6 +757,9 @@ private:
       case HomePage::NODE_PICKER: return 1;
 #if ENV_INCLUDE_GPS == 1
       case HomePage::BEACON: return 3;
+#ifdef HELTEC_LORA_V4
+      case HomePage::GPS: return 1;
+#endif
 #endif
       default: return 0;
     }
@@ -711,6 +782,12 @@ private:
       case HomePage::NODE_PICKER:
         return _("Add as node");
 #if ENV_INCLUDE_GPS == 1
+      case HomePage::GPS:
+#ifdef HELTEC_LORA_V4
+        return _task->getGPSState() ? _("GPS: off") : _("GPS: on");
+#else
+        return "";
+#endif
       case HomePage::BEACON:
         if (i == 0) return _("Mode: next");
         if (i == 1) return _("Interval: next");
@@ -735,7 +812,16 @@ private:
       if (choices[i].boost == boost && choices[i].lna == lna && choices[i].cpu == cpu) { cur = i; break; }
     }
     int next = (cur < 0) ? 0 : ((cur + (dir >= 0 ? 1 : n - 1)) % n);
+#ifdef HELTEC_LORA_V4
+    _power_boost = choices[next].boost;
+    _power_lna = choices[next].lna;
+    _power_cpu = choices[next].cpu;
+    _power_name = choices[next].name;
+    _power_apply = false;
+    _power_confirm = true;
+#else
     _task->applyPowerProfile(choices[next].boost, choices[next].lna, choices[next].cpu);
+#endif
   }
 
   void toggleRxBoost() {
@@ -783,6 +869,11 @@ private:
         addClockNodeFromPicker();
         break;
 #if ENV_INCLUDE_GPS == 1
+#ifdef HELTEC_LORA_V4
+      case HomePage::GPS:
+        _task->toggleGPS();
+        break;
+#endif
       case HomePage::BEACON:
         if (i == 0) {
           the_mesh.cycleBeacon();
@@ -837,6 +928,26 @@ private:
   }
 
   uint8_t stepPage(int dir) {
+#ifdef HELTEC_LORA_V4
+    // V4 companion: information screens in a fixed, bidirectional cycle.
+    static const uint8_t roots[] = {
+      HomePage::FIRST, HomePage::MESSAGES, HomePage::BLUETOOTH,
+      HomePage::NEIGHBORS, HomePage::RADIO,
+#if ENV_INCLUDE_GPS == 1
+      HomePage::GPS, HomePage::BEACON,
+#endif
+      HomePage::FSCAN, HomePage::RECENT, HomePage::SCAN,
+#if UI_SENSORS_PAGE == 1
+      HomePage::SENSORS,
+#endif
+      HomePage::MENU
+    };
+    const int count = sizeof(roots) / sizeof(roots[0]);
+    for (int i = 0; i < count; i++) {
+      if (roots[i] == _page) return roots[(i + (dir < 0 ? count - 1 : 1)) % count];
+    }
+    return roots[0];
+#else
     uint8_t page = _page;
     for (uint8_t n = 0; n < HomePage::Count; n++) {
       int next = (int)page + dir;
@@ -846,6 +957,7 @@ private:
       if (isPageVisible(page)) return page;
     }
     return _page;
+#endif
   }
 
 public:
@@ -920,13 +1032,38 @@ public:
     // on a root screen that is not visible in this build.
     if (!isInSub() && !isPageVisible(_page)) _page = stepPage(1);
 
+    char tmp[80];
+    bool compact_header = display.width() == 128 && !display.isEink();
+#ifdef HELTEC_LORA_V4
+    if (compact_header) {
+      const bool nested = isInSub() || _act_open || _radio_confirm || _scan_confirm || _power_confirm;
+      display.setColor(UIColor::primary_txt);
+      display.fillRect(0, 0, display.width(), 12);
+      display.setTextSize(1);
+      display.setColor(UIColor::window_bkg);
+      char title[40];
+      display.translateUTF8ToBlocks(title, pageTitle(), sizeof(title));
+      if (nested) {
+        display.drawTextLeftAlign(0, 2, "./");
+        display.drawTextEllipsized(12, 2, 88, title);
+      } else {
+        display.drawTextEllipsized(0, 2, 64, title);
+        char hm[8];
+        if (_rtc->getCurrentTime() < 1000000000UL) snprintf(hm, sizeof(hm), "--:--");
+        else formatClockHm(_rtc->getCurrentTime(), _node_prefs ? _node_prefs->tz_offset_mins : 0, hm, sizeof(hm));
+        display.drawTextLeftAlign(68, 2, hm);
+      }
+      renderBatteryIndicator(display, _task->getBattMilliVolts(), true);
+      display.setColor(UIColor::primary_txt);
+      display.fillRect(0, 12, display.width(), 1);
+    } else
+#endif
+    {
     display.setColor(UIColor::title_bkg);
     display.fillRect(0, 0, display.width(), 12);
-    char tmp[80];
     // node name
     display.setTextSize(1);
     display.setColor(UIColor::title_txt);
-    bool compact_header = display.width() == 128 && !display.isEink();
     char filtered_name[40];
     display.translateUTF8ToBlocks(filtered_name, compact_header ? pageTitle() : _node_prefs->node_name, sizeof(filtered_name));
     int title_x = 0;
@@ -971,6 +1108,8 @@ public:
         x += 10;
         drawn++;
       }
+    }
+
     }
 
     if (_page == HomePage::FIRST) {
@@ -1154,7 +1293,15 @@ public:
         if (!_radio_details) {
           // The receiver already maintains this estimate; do not tune away or
           // start a scan merely to populate the tiny history graph.
-          int nf = radio_driver.getNoiseFloor();
+          if (fabsf(_node_prefs->freq - _nf_freq) > 0.0005f ||
+              fabsf(_node_prefs->bw - _nf_bw) > 0.001f ||
+              _node_prefs->sf != _nf_sf || _node_prefs->cr != _nf_cr) {
+            _nf_freq = _node_prefs->freq; _nf_bw = _node_prefs->bw;
+            _nf_sf = _node_prefs->sf; _nf_cr = _node_prefs->cr;
+            _nf_count = _nf_next = 0;
+            _nf_valid_at = millis() + 2000;
+          }
+          int nf = (long)(millis() - _nf_valid_at) >= 0 ? radio_driver.getNoiseFloor() : 0;
           if (nf != 0 && (_nf_count == 0 || (long)(millis() - _nf_sample_at) >= 0)) {
             _nf_history[_nf_next] = (int16_t)nf;
             _nf_next = (_nf_next + 1) % 12;
@@ -1163,11 +1310,13 @@ public:
           }
           display.setTextSize(2);
           snprintf(tmp, sizeof(tmp), "%.3f", _node_prefs->freq);
-          display.drawTextCentered(display.width() / 2, 17, tmp);
+          display.drawTextCentered(54, 17, tmp);
           display.setTextSize(1);
+          display.drawTextRightAlign(display.width() - 1, 25, "MHz");
           snprintf(tmp, sizeof(tmp), "BW%g SF%u CR%u TX%d", _node_prefs->bw,
                    (unsigned)_node_prefs->sf, (unsigned)_node_prefs->cr,
                    (int)_node_prefs->tx_power_dbm);
+          display.drawRect(1, 36, display.width() - 2, 12);
           display.drawTextCentered(display.width() / 2, 39, tmp);
           display.setColor(UIColor::secondary_txt);
           if (nf != 0) snprintf(tmp, sizeof(tmp), "NF %d dBm", nf);
@@ -1222,6 +1371,21 @@ public:
         (_node_prefs && _node_prefs->rx_boosted_gain) ? _("RXB: on") : _("RXB: off"));
       }
     } else if (_page == HomePage::POWER) {
+#ifdef HELTEC_LORA_V4
+      if (_power_confirm) {
+        display.setTextSize(1);
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, _power_name);
+        display.drawTextRightAlign(display.width() - 1, 18, _power_cpu ? _("Sleep: yes") : _("Sleep: no"));
+        display.drawTextLeftAlign(0, 30, _power_boost ? _("RXB: on") : _("RXB: off"));
+        if (_task->canControlFemLna())
+          display.drawTextRightAlign(display.width() - 1, 30, _power_lna ? _("LNA: on") : _("LNA: off"));
+        display.setColor(_power_apply ? UIColor::primary_txt : UIColor::warning_txt);
+        display.drawTextLeftAlign(0, 42, _power_apply ? _("Cancel") : _("> Cancel"));
+        display.setColor(_power_apply ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 54, _power_apply ? _("> Apply") : _("Apply"));
+      } else {
+#endif
       bool fem = _task->canControlFemLna();
       bool cpu_hw = _task->canSelectMcuSleep();
       bool cpu_ok = cpu_hw && !_task->gpsBlocksCpuSleep() && !_task->bleBlocksCpuSleep();
@@ -1267,6 +1431,9 @@ public:
           display.drawTextCentered(display.width() / 2, y, hold);
         }
       }
+#ifdef HELTEC_LORA_V4
+      }
+#endif
     } else if (_page == HomePage::SCAN) {
       if (scan_cnt == 0) sampleNoise();
       if (scan_cnt > 0) {
@@ -1323,6 +1490,16 @@ public:
       }
     } else if (_page == HomePage::FSCAN) {
       display.setTextSize(1);
+#ifdef HELTEC_LORA_V4
+      if (_scan_confirm) {
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, _("RX pauses for scan"));
+        display.setColor(_scan_apply ? UIColor::primary_txt : UIColor::warning_txt);
+        display.drawTextLeftAlign(0, 34, _scan_apply ? _("Cancel") : _("> Cancel"));
+        display.setColor(_scan_apply ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 46, _scan_apply ? _("> Start scan") : _("Start scan"));
+      } else
+#endif
       if (fscan_state == FSCAN_RUN) {
         display.setColor(UIColor::primary_txt);
         if (fscan_n > 0) {
@@ -1401,6 +1578,19 @@ public:
         display.drawTextLeftAlign(0, y, buf);
       }
     } else if (_page == HomePage::CONNECTIONS) {
+#ifdef HELTEC_LORA_V4
+      if (_conn_confirm) {
+        const char* names[] = {"BLE", "Wi-Fi", "USB"};
+        snprintf(tmp, sizeof(tmp), _conn_was_enabled ? _("Disable %s?") : _("Enable %s?"), names[_conn_selected]);
+        display.setTextSize(1);
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, tmp);
+        display.setColor(_conn_apply ? UIColor::primary_txt : UIColor::warning_txt);
+        display.drawTextLeftAlign(0, 34, _conn_apply ? _("Cancel") : _("> Cancel"));
+        display.setColor(_conn_apply ? UIColor::warning_txt : UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 46, _conn_apply ? _("> Apply") : _("Apply"));
+      } else {
+#endif
       // CONNECTIONS sub-screen (long press on BLUETOOTH):
       // click = move the marker, hold = toggle the selected interface,
       // double click = back to BLUETOOTH
@@ -1435,11 +1625,40 @@ public:
         snprintf(buf, sizeof(buf), _("ports: --"));
       }
       display.drawTextLeftAlign(0, y, buf);
+#ifdef HELTEC_LORA_V4
+      }
+#endif
 
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {
       LocationProvider* nmea = sensors.getLocationProvider();
       char buf[50];
+#ifdef HELTEC_LORA_V4
+      if (compact_header) {
+        const bool active = _task->getGPSState() && nmea != NULL;
+        const bool fix = active && nmea->isValid();
+        long sats = active ? nmea->satellitesCount() : 0;
+        display.setTextSize(1);
+        display.setColor(UIColor::primary_txt);
+        if (active) snprintf(buf, sizeof(buf), "SAT %ld", sats);
+        else snprintf(buf, sizeof(buf), "SAT --");
+        display.drawTextLeftAlign(0, 16, buf);
+        display.drawRect(45, 15, 81, 10);
+        int count = constrain(sats, 0L, 12L);
+        int fill = (count * 77) / 12;
+        if (fill > 0) display.fillRect(47, 17, fill, 6);
+        if (fix) snprintf(buf, sizeof(buf), "ALT %ldm", nmea->getAltitude() / 1000L);
+        else snprintf(buf, sizeof(buf), "ALT --");
+        display.drawTextEllipsized(0, 28, 62, buf);
+        display.drawTextRightAlign(display.width() - 1, 28, "--.-km/h");
+        if (fix) snprintf(buf, sizeof(buf), "LAT %+.6f", nmea->getLatitude() / 1000000.0);
+        else snprintf(buf, sizeof(buf), "LAT --");
+        display.drawTextLeftAlign(0, 40, buf);
+        if (fix) snprintf(buf, sizeof(buf), "LON %+.6f", nmea->getLongitude() / 1000000.0);
+        else snprintf(buf, sizeof(buf), "LON --");
+        display.drawTextLeftAlign(0, 52, buf);
+      } else {
+#endif
       int y = 20;
       bool gps_state = _task->getGPSState();
       const char* module = gps_state ? _("on") : _("off");
@@ -1488,6 +1707,9 @@ public:
           }
         }
       }
+#ifdef HELTEC_LORA_V4
+      }
+#endif
     } else if (_page == HomePage::BEACON) {
       char mode[20];
       char target[32];
@@ -1717,8 +1939,10 @@ public:
         display.drawTextRightAlign(display.width() - 1, y, rows_r[i]);
       }
       if (_setup_edit && display.height() >= 64 && nrows <= 3) {
+#ifndef HELTEC_LORA_V4
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(display.width() / 2, 56, _("3 clicks: change"));
+#endif
       }
 #ifdef HELTEC_LORA_V4
     } else if (_page == HomePage::BATTERY) {
@@ -1737,8 +1961,10 @@ public:
                  (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
         display.drawTextLeftAlign(0, 32, tmp);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, 46, _("click: +10 mV"));
-        display.drawTextLeftAlign(0, 56, _("hold: next"));
+        display.drawTextLeftAlign(_adc_digit == 0 ? 0 : (_adc_digit + 1) * 6, 43, "^");
+        display.drawTextLeftAlign(0, 56, "1:+ 2:-");
+        display.fillRect(57, 60, 7, 1);
+        display.drawTextLeftAlign(69, 56, _("next"));
       } else if (_battery_confirm) {
         display.setColor(UIColor::primary_txt);
         display.drawTextLeftAlign(0, 18, _("Confirm"));
@@ -1782,6 +2008,16 @@ public:
       display.setColor(UIColor::secondary_txt);
       display.drawTextLeftAlign(0, 54, tmp);
     } else if (_page == HomePage::MENU) {
+#ifdef HELTEC_LORA_V4
+      if (!isInSub()) {
+        display.setTextSize(1);
+        display.setColor(UIColor::primary_txt);
+        display.drawTextLeftAlign(0, 18, _("Radio and RX"));
+        display.drawTextLeftAlign(0, 30, _("Links and power"));
+        display.drawTextLeftAlign(0, 42, _("GPS, beacon, display"));
+        display.drawTextLeftAlign(0, 54, _("Time and system"));
+      } else {
+#endif
       // Root 5: the only way into the settings sub-screens.
       // click moves the marker, hold opens the selected page.
       const uint8_t total = menuCount();
@@ -1807,6 +2043,9 @@ public:
         display.setColor((_menu_index == _menu_scroll + rows - 1) ? UIColor::window_bkg : UIColor::secondary_txt);
         display.drawTextRightAlign(display.width() - 1, 18 + (rows - 1) * 12, "v");
       }
+#ifdef HELTEC_LORA_V4
+      }
+#endif
     } else if (_page == HomePage::SHUTDOWN) {
       display.setTextSize(1);
       if (_shutdown_init) {
@@ -1870,25 +2109,112 @@ public:
     if (_act_open) {
       uint8_t total = actionCount();
       if (c == KEY_NEXT || c == KEY_RIGHT) {
+#ifdef HELTEC_LORA_V4
+        if (_act_idx + 1 < total) _act_idx++;
+#else
         if (total > 0) _act_idx = (uint8_t)((_act_idx + 1) % total);
+#endif
       } else if (c == KEY_LEFT || c == KEY_PREV) {
+#ifdef HELTEC_LORA_V4
+        if (_act_idx > 0) _act_idx--;
+        else if (_settings_action_page) { _settings_action_page = false; leaveSub(); }
+        else _act_open = false;
+#else
         _act_open = false;
+#endif
       } else if (c == KEY_ENTER) {
         uint8_t idx = _act_idx;
         _act_open = false;
         runAction(idx);
+#ifdef HELTEC_LORA_V4
+        if (_settings_action_page && !_radio_confirm) {
+          _settings_action_page = false;
+          leaveSub();
+        }
+#endif
       }
       return true;
     }
     if (_radio_confirm && _page == HomePage::RADIO) {
-      if (c == KEY_NEXT || c == KEY_RIGHT) _radio_apply = !_radio_apply;
-      else if (c == KEY_LEFT || c == KEY_PREV) _radio_confirm = false;
-      else if (c == KEY_ENTER) {
-        if (_radio_apply) _task->cycleRadioProfile();
+      if (c == KEY_NEXT || c == KEY_RIGHT) {
+#ifdef HELTEC_LORA_V4
+        _radio_apply = true;
+#else
+        _radio_apply = !_radio_apply;
+#endif
+      }
+      else if (c == KEY_LEFT || c == KEY_PREV) {
+#ifdef HELTEC_LORA_V4
+        if (_radio_apply) { _radio_apply = false; return true; }
+#endif
         _radio_confirm = false;
+#ifdef HELTEC_LORA_V4
+        if (_settings_action_page) { _settings_action_page = false; leaveSub(); }
+#endif
+      }
+      else if (c == KEY_ENTER) {
+        if (_radio_apply) {
+          if (radioNextProfile(the_mesh.radioProfile()) == _radio_target) _task->cycleRadioProfile();
+          else _task->showAlert(_("radio changed"), 1200);
+        }
+        _radio_confirm = false;
+#ifdef HELTEC_LORA_V4
+        if (_settings_action_page) { _settings_action_page = false; leaveSub(); }
+#endif
       }
       return true;
     }
+#ifdef HELTEC_LORA_V4
+    if (_power_confirm && _page == HomePage::POWER) {
+      if (c == KEY_NEXT || c == KEY_RIGHT) _power_apply = true;
+      else if (c == KEY_LEFT || c == KEY_PREV) {
+        if (_power_apply) _power_apply = false; else _power_confirm = false;
+      } else if (c == KEY_ENTER) {
+        _power_confirm = false;
+        if (_power_apply) {
+          bool cpu_ok = _task->canSelectMcuSleep() && !_task->gpsBlocksCpuSleep() && !_task->bleBlocksCpuSleep();
+          if ((_power_cpu && !cpu_ok) || (_power_lna && !_task->canControlFemLna()))
+            _task->showAlert(_("state changed"), 1200);
+          else _task->applyPowerProfile(_power_boost, _power_lna, _power_cpu);
+        }
+      }
+      return true;
+    }
+    if (_scan_confirm && _page == HomePage::FSCAN) {
+      if (c == KEY_NEXT || c == KEY_RIGHT) _scan_apply = true;
+      else if (c == KEY_LEFT || c == KEY_PREV) {
+        if (_scan_apply) _scan_apply = false; else _scan_confirm = false;
+      } else if (c == KEY_ENTER) {
+        _scan_confirm = false;
+        if (_scan_apply) {
+          _task->notify(UIEventType::ack);
+          startFreqScan();
+        }
+      }
+      return true;
+    }
+    if (_conn_confirm && _page == HomePage::CONNECTIONS) {
+      if (c == KEY_NEXT || c == KEY_RIGHT) _conn_apply = true;
+      else if (c == KEY_LEFT || c == KEY_PREV) {
+        if (_conn_apply) _conn_apply = false; else _conn_confirm = false;
+      } else if (c == KEY_ENTER) {
+        _conn_confirm = false;
+        bool enabled = _conn_selected == 0 ? _task->isBluetoothEnabled() :
+                       _conn_selected == 1 ? _task->isWiFiEnabled() : _task->isUSBEnabled();
+        if (_conn_apply && enabled != _conn_was_enabled) {
+          _task->showAlert(_("state changed"), 1200);
+        } else if (_conn_apply && _conn_selected == 0) {
+          if (enabled) _task->disableBluetooth(); else _task->enableBluetooth();
+        } else if (_conn_apply && _conn_selected == 1) {
+          if (enabled) { _task->disableWiFi(); _task->disableWiFi2(); }
+          else { _task->enableWiFi(); _task->enableWiFi2(); }
+        } else if (_conn_apply) {
+          if (enabled) _task->disableUSB(); else _task->enableUSB();
+        }
+      }
+      return true;
+    }
+#endif
     if (c == KEY_QUAD) {
 #if ENV_INCLUDE_GPS == 1
       if (_page != HomePage::BEACON) return false;
@@ -1940,16 +2266,51 @@ public:
     }
     if (c == KEY_LEFT || c == KEY_PREV) {
 #ifdef HELTEC_LORA_V4
+      if (_page == HomePage::MENU && isInSub()) {
+        if (_menu_index > 0) _menu_index--; else leaveSub();
+        return true;
+      }
+      if (_page == HomePage::CONNECTIONS && isInSub() && _conn_selected > 0) {
+        _conn_selected--;
+        return true;
+      }
+      if (_page == HomePage::NODE_PICKER && _pick_idx > 0) {
+        _pick_idx--;
+        return true;
+      }
+      if (_page == HomePage::SHUTDOWN && _shutdown_apply) {
+        _shutdown_apply = false;
+        return true;
+      }
       if (_page == HomePage::BATTERY_CAL) {
-        if (_adc_edit) { _adc_edit = false; return true; }
-        if (_battery_confirm) { _battery_confirm = false; return true; }
+        if (_adc_edit) {
+          static const uint16_t place[] = {1000, 100, 10, 1};
+          uint16_t unit = place[_adc_digit];
+          uint16_t digit = (_adc_mv / unit) % 10;
+          _adc_mv = (uint16_t)(_adc_mv - digit * unit + ((digit + 9) % 10) * unit);
+          return true;
+        }
+        if (_battery_confirm) {
+          if (_battery_apply) _battery_apply = false; else _battery_confirm = false;
+          return true;
+        }
+        if (_battery_choice > 0) { _battery_choice--; return true; }
         _page = HomePage::BATTERY;
         return true;
       }
 #endif
-      if (_page == HomePage::FSCAN) stopFreqScan();
+      if (_page == HomePage::FSCAN) {
+#ifdef HELTEC_LORA_V4
+        if (fscan_state == FSCAN_RUN) { stopFreqScan(); return true; }
+#endif
+        stopFreqScan();
+      }
       if (_page == HomePage::SETUP && _setup_edit) {
+#ifdef HELTEC_LORA_V4
+        if (_setup_row > 0) _setup_row--; else _setup_edit = false;
+#else
         _setup_edit = false;
+#endif
         return true;
       }
       if (isInSub()) {
@@ -1970,45 +2331,76 @@ public:
     }
     // Экран «Выключить»: click switches between Отмена and Применить.
     if (_page == HomePage::SHUTDOWN && (c == KEY_NEXT || c == KEY_RIGHT)) {
+#ifdef HELTEC_LORA_V4
+      _shutdown_apply = true;
+#else
       _shutdown_apply = !_shutdown_apply;
+#endif
       return true;
     }
     // МЕНЮ: click moves the marker, hold opens the selected sub-screen.
-    if (_page == HomePage::MENU && (c == KEY_NEXT || c == KEY_RIGHT)) {
+    if (_page == HomePage::MENU && (c == KEY_NEXT || c == KEY_RIGHT)
+#ifdef HELTEC_LORA_V4
+        && isInSub()
+#endif
+        ) {
       uint8_t total = menuCount();
+#ifdef HELTEC_LORA_V4
+      if (_menu_index + 1 < total) _menu_index++;
+#else
       if (total > 0) _menu_index = (_menu_index + 1) % total;
+#endif
       return true;
     }
     // CONNECTIONS: click selects, double click exits, hold toggles selection.
     if (_page == HomePage::CONNECTIONS && (c == KEY_NEXT || c == KEY_RIGHT)) {
+#ifdef HELTEC_LORA_V4
+      if (_conn_selected < 2) _conn_selected++;
+#else
       _conn_selected = (_conn_selected + 1) % 3;
+#endif
       return true;
     }
     if (c == KEY_NEXT || c == KEY_RIGHT) {
-      if (_page == HomePage::RADIO) {
+      if (_page == HomePage::RADIO
+#ifdef HELTEC_LORA_V4
+          && isInSub()
+#endif
+          ) {
         _radio_details = !_radio_details;
         return true;
       }
 #ifdef HELTEC_LORA_V4
       if (_page == HomePage::BATTERY_CAL) {
         if (_adc_edit) {
-          _adc_mv = (_adc_mv >= 4250) ? 3000 : (uint16_t)(_adc_mv + 10);
+          static const uint16_t place[] = {1000, 100, 10, 1};
+          uint16_t unit = place[_adc_digit];
+          uint16_t digit = (_adc_mv / unit) % 10;
+          _adc_mv = (uint16_t)(_adc_mv - digit * unit + ((digit + 1) % 10) * unit);
         } else if (_battery_confirm) {
-          _battery_apply = !_battery_apply;
+          _battery_apply = true;
         } else {
-          _battery_choice = (_battery_choice + 1) % 3;
+          if (_battery_choice < 2) _battery_choice++;
         }
         return true;
       }
 #endif
       if (_page == HomePage::NODE_PICKER) {
         int total = the_mesh.getNumContacts();
+#ifdef HELTEC_LORA_V4
+        if (_pick_idx + 1 < (uint32_t)total) _pick_idx++;
+#else
         if (total > 0) _pick_idx = (uint32_t)((_pick_idx + 1) % (uint32_t)total);
+#endif
         return true;
       }
       if (_page == HomePage::FSCAN && !isInSub()) stopFreqScan();
       if (_page == HomePage::SETUP && _setup_edit) {
+#ifdef HELTEC_LORA_V4
+        if (_setup_row + 1 < setupRowCount()) _setup_row++;
+#else
         stepSetupRow(1);
+#endif
         return true;
       }
       if (isInSub()) return true;   // sub-screens stay put; double click goes back
@@ -2025,9 +2417,14 @@ public:
     }
     if (c == KEY_ENTER && _page == HomePage::FSCAN) {
       if (fscan_state != FSCAN_RUN) {
+#ifdef HELTEC_LORA_V4
+        _scan_apply = false;
+        _scan_confirm = true;
+#else
         _task->notify(UIEventType::ack);
         startFreqScan();
         _task->showAlert("Scanning...", 600);
+#endif
       }
       return true;
     }
@@ -2085,7 +2482,13 @@ public:
     }
     if (c == KEY_ENTER && _page == HomePage::BATTERY_CAL) {
       if (_adc_edit) {
-        _adc_edit = false;        // reference entered: go to the confirmation
+        if (_adc_digit < 3) { _adc_digit++; return true; }
+        if (_adc_mv < 3000 || _adc_mv > 4250) {
+          _task->showAlert(_("ADC ref 3.00-4.25V"), 1600);
+          _adc_digit = 0;
+          return true;
+        }
+        _adc_edit = false;
         _battery_confirm = true;
         _battery_apply = false;
         return true;
@@ -2095,6 +2498,7 @@ public:
           uint16_t mv = _task->getBattMilliVolts();
           if (mv < 3000 || mv > 4250) mv = 4150;
           _adc_mv = mv;
+          _adc_digit = 0;
           _adc_edit = true;
           return true;
         }
@@ -2122,6 +2526,12 @@ public:
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::CONNECTIONS) {
+#ifdef HELTEC_LORA_V4
+      _conn_was_enabled = _conn_selected == 0 ? _task->isBluetoothEnabled() :
+                          _conn_selected == 1 ? _task->isWiFiEnabled() : _task->isUSBEnabled();
+      _conn_apply = false;
+      _conn_confirm = true;
+#else
       if (_conn_selected == 0) {
         if (_task->isBluetoothEnabled()) _task->disableBluetooth(); else _task->enableBluetooth();
       } else if (_conn_selected == 1) {
@@ -2130,6 +2540,7 @@ public:
       } else {
         if (_task->isUSBEnabled()) _task->disableUSB(); else _task->enableUSB();
       }
+#endif
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::RECENT) {
@@ -2178,7 +2589,11 @@ public:
     }
 #endif
     if (c == KEY_ENTER && _page == HomePage::SETUP) {
+#ifdef HELTEC_LORA_V4
+      if (_setup_edit) changeSetupValue(); else { _setup_row = 0; _setup_edit = true; }
+#else
       _setup_edit = !_setup_edit;
+#endif
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::SHUTDOWN && !_shutdown_apply) {
@@ -2201,11 +2616,30 @@ public:
     }
     // МЕНЮ: hold opens the highlighted sub-screen
     if (c == KEY_ENTER && _page == HomePage::MENU) {
+#ifdef HELTEC_LORA_V4
+      if (!isInSub()) {
+        _menu_index = 0;
+        _menu_scroll = 0;
+        enterSub(HomePage::MENU);
+        return true;
+      }
+#endif
       if (_menu_index >= menuCount()) _menu_index = 0;
       uint8_t target = menuPageAt(_menu_index);
       // Every dialog opens with its safe choice preselected.
       if (target == HomePage::SHUTDOWN) _shutdown_apply = false;
       enterSub(target);
+#ifdef HELTEC_LORA_V4
+      if (target == HomePage::RADIO
+#if ENV_INCLUDE_GPS == 1
+          || target == HomePage::GPS || target == HomePage::BEACON
+#endif
+          ) {
+        _settings_action_page = true;
+        _act_idx = 0;
+        _act_open = true;
+      }
+#endif
       return true;
     }
     return false;
@@ -3097,6 +3531,7 @@ char UITask::handleLongPress(char c) {
     the_mesh.enterCLIRescue();
     c = 0;   // consume event
   }
+  if (c == 0) return 0;
   // Long press on Bluetooth opens Connections. Inside, the selected row
   // receives KEY_ENTER and can be toggled explicitly.
   if (curr == home) {
