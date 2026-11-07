@@ -110,6 +110,7 @@ public:
   void showAlert(const char* text, int duration_millis);
   int  getMsgCount() const { return _msgcount; }
   int  getDeviceStored() const;
+  int  getUnreadCount() const;
   bool hasDisplay() const { return _display != NULL; }
   bool isEink() const { return _display != NULL && _display->isEink(); }
   void syncDisplayRefresh() {

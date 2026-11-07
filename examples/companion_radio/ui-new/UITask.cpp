@@ -197,6 +197,7 @@ public:
 #ifdef HELTEC_LORA_V4
     BATTERY,
     BATTERY_CAL,
+    LANG,
 #endif
     SCAN,
     FSCAN,
@@ -235,6 +236,7 @@ private:
   bool _adc_edit = false;        // multimeter reference editor
   uint16_t _adc_mv = 4200;       // reference voltage being entered
   uint8_t _adc_digit = 0;        // thousands, hundreds, tens, ones
+  uint8_t _lang_sel = UI_LANG_EN;
 #endif
   uint8_t _conn_selected = 0;
   // One entry per nested screen; a double click always returns one level.
@@ -560,7 +562,7 @@ private:
   // when the build or the hardware does not provide them.
   uint8_t menuCount() const {
 #ifdef HELTEC_LORA_V4
-    uint8_t n = 7;  // radio, links, power, battery, display, time, shutdown
+    uint8_t n = 8;  // radio, links, power, battery, display, time, language, shutdown
 #if ENV_INCLUDE_GPS == 1
     n += 2;  // GPS, beacon
 #endif
@@ -603,6 +605,7 @@ private:
 #endif
     if (idx == i++) return HomePage::SETUP;
     if (idx == i++) return HomePage::TIME;
+    if (idx == i++) return HomePage::LANG;
     if (idx == i++) return HomePage::SHUTDOWN;
     return HomePage::ABOUT;
 #else
@@ -638,6 +641,7 @@ private:
       case POWER: return _("Power");
 #ifdef HELTEC_LORA_V4
       case BATTERY: case BATTERY_CAL: return _("Battery");
+      case LANG: return _("Language");
 #endif
       case SCAN: return _("Noise");
       case FSCAN: return _("Freqs");
@@ -679,6 +683,7 @@ private:
       case HomePage::CONNECTIONS: return _("Interfaces");
 #ifdef HELTEC_LORA_V4
       case HomePage::BATTERY: return _("Battery");
+      case HomePage::LANG: return _("Language");
 #endif
       case HomePage::SCAN: return _("Noise");
       case HomePage::FSCAN: return _("Freqs");
@@ -1113,78 +1118,155 @@ public:
     }
 
     if (_page == HomePage::FIRST) {
-      display.setColor(UIColor::primary_txt);
-      // MSG: still waiting for the phone / still kept on this device
-      display.setTextSize(2);
-      sprintf(tmp, "MSG %d/%d", _task->getMsgCount(), _task->getDeviceStored());
-      display.drawTextCentered(display.width() / 2, 20, tmp);
-
-      bool show_date = !display.isEink() && _rtc->getCurrentTime() >= 1000000000UL;
-      // hasConnection() reports any transport, not necessarily Wi-Fi. Show the
-      // Wi-Fi address only when that link is actually up; otherwise the generic
-      // indicator (USB / BLE client), and the PIN when nothing is attached.
-      if (_task->hasConnection()) {
-        display.setColor(UIColor::warning_txt);
-        #ifdef WIFI_SSID
-        if (WiFi.status() == WL_CONNECTED) {
+#ifdef HELTEC_LORA_V4
+      if (compact_header) {
+        // V4 home: connection state, the queue for the phone, the local store and
+        // the date. No big MSG counter: the numbers read better on Messages.
+        display.setTextSize(1);
+        char buf[48];
+        int y = 17;
+  #ifdef ENABLE_WIFI_INTERFACE
+        if (_task->isWiFiEnabled() && WiFi.status() == WL_CONNECTED) {
           IPAddress ip = WiFi.localIP();
-          snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+          display.setColor(UIColor::primary_txt);
+          snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        } else
+  #endif
+        if (_task->hasConnection()) {
+          display.setColor(UIColor::primary_txt);
+          snprintf(buf, sizeof(buf), "%s", _("client connected"));
+        } else if (_task->isBluetoothEnabled() && the_mesh.getBLEPin() != 0) {
+          display.setColor(UIColor::warning_txt);
+          snprintf(buf, sizeof(buf), "PIN %06lu", (unsigned long)the_mesh.getBLEPin());
         } else {
-          snprintf(tmp, sizeof(tmp), "< Connected >");
+          display.setColor(UIColor::secondary_txt);
+          snprintf(buf, sizeof(buf), "%s", _("no client"));
         }
-        #else
-        snprintf(tmp, sizeof(tmp), "< Connected >");
-        #endif
-        display.setTextSize(1);
-        #ifdef UI_SHOW_CLOCK
-        display.drawTextCentered(display.width() / 2, 110, tmp);
-        #else
-        display.drawTextCentered(display.width() / 2, 43, tmp);
-        #endif
-      } else if (the_mesh.getBLEPin() != 0) { // BT pin
-        display.setColor(UIColor::warning_txt);
-        bool room = !show_date || display.height() > 64;
-        display.setTextSize(room ? 2 : 1);
-        sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
-        #ifdef UI_SHOW_CLOCK
-        display.setTextSize(1);
-        display.drawTextCentered(display.width() / 2, 110, tmp);
-        #else
-        // A size-2 PIN at y=43 overlaps the date at y=53 on the 64px OLED.
-        display.setTextSize(show_date && display.height() <= 64 ? 1 : 2);
-        display.drawTextCentered(display.width() / 2, 43, tmp);
-        #endif
-      }
-      if (show_date) {
-        int16_t tz = _node_prefs ? _node_prefs->tz_offset_mins : 0;
-        uint32_t now = _rtc->getCurrentTime();
-        char hm[8];
-        char date_buf[24];
-        char line[36];
-        formatClockHm(now, tz, hm, sizeof(hm));
-        formatClockDate(now, tz, _node_prefs ? _node_prefs->ui_lang : UI_LANG_RU,
-                        date_buf, sizeof(date_buf));
-        snprintf(line, sizeof(line), "%s  %s", hm, date_buf);
-        display.setTextSize(1);
+        display.drawTextLeftAlign(0, y, buf);
+        y += 12;
+
+        display.setColor(UIColor::primary_txt);
+        snprintf(buf, sizeof(buf), _("Phone queue %d"), _task->getMsgCount());
+        display.drawTextLeftAlign(0, y, buf);
+        y += 12;
+        snprintf(buf, sizeof(buf), _("Stored %d"), _task->getDeviceStored());
+        display.drawTextLeftAlign(0, y, buf);
+        y += 12;
+
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, display.height() - 11, line);
+        if (!display.isEink() && _rtc->getCurrentTime() >= 1000000000UL) {
+          int16_t tz = _node_prefs ? _node_prefs->tz_offset_mins : 0;
+          uint32_t now = _rtc->getCurrentTime();
+          char date_buf[24];
+          formatClockDate(now, tz, _node_prefs ? _node_prefs->ui_lang : UI_LANG_RU,
+                          date_buf, sizeof(date_buf));
+          snprintf(buf, sizeof(buf), "%s", date_buf);
+        } else {
+          snprintf(buf, sizeof(buf), "%s", _("time not set"));
+        }
+        display.drawTextLeftAlign(0, y, buf);
+      } else
+#endif
+      {
+        display.setColor(UIColor::primary_txt);
+        // MSG: still waiting for the phone / still kept on this device
+        display.setTextSize(2);
+        sprintf(tmp, "MSG %d/%d", _task->getMsgCount(), _task->getDeviceStored());
+        display.drawTextCentered(display.width() / 2, 20, tmp);
+
+        bool show_date = !display.isEink() && _rtc->getCurrentTime() >= 1000000000UL;
+        // hasConnection() reports any transport, not necessarily Wi-Fi. Show the
+        // Wi-Fi address only when that link is actually up; otherwise the generic
+        // indicator (USB / BLE client), and the PIN when nothing is attached.
+        if (_task->hasConnection()) {
+          display.setColor(UIColor::warning_txt);
+          #ifdef WIFI_SSID
+          if (WiFi.status() == WL_CONNECTED) {
+            IPAddress ip = WiFi.localIP();
+            snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+          } else {
+            snprintf(tmp, sizeof(tmp), "< Connected >");
+          }
+          #else
+          snprintf(tmp, sizeof(tmp), "< Connected >");
+          #endif
+          display.setTextSize(1);
+          #ifdef UI_SHOW_CLOCK
+          display.drawTextCentered(display.width() / 2, 110, tmp);
+          #else
+          display.drawTextCentered(display.width() / 2, 43, tmp);
+          #endif
+        } else if (the_mesh.getBLEPin() != 0) { // BT pin
+          display.setColor(UIColor::warning_txt);
+          bool room = !show_date || display.height() > 64;
+          display.setTextSize(room ? 2 : 1);
+          sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
+          #ifdef UI_SHOW_CLOCK
+          display.setTextSize(1);
+          display.drawTextCentered(display.width() / 2, 110, tmp);
+          #else
+          // A size-2 PIN at y=43 overlaps the date at y=53 on the 64px OLED.
+          display.setTextSize(show_date && display.height() <= 64 ? 1 : 2);
+          display.drawTextCentered(display.width() / 2, 43, tmp);
+          #endif
+        }
+        if (show_date) {
+          int16_t tz = _node_prefs ? _node_prefs->tz_offset_mins : 0;
+          uint32_t now = _rtc->getCurrentTime();
+          char hm[8];
+          char date_buf[24];
+          char line[36];
+          formatClockHm(now, tz, hm, sizeof(hm));
+          formatClockDate(now, tz, _node_prefs ? _node_prefs->ui_lang : UI_LANG_RU,
+                          date_buf, sizeof(date_buf));
+          snprintf(line, sizeof(line), "%s  %s", hm, date_buf);
+          display.setTextSize(1);
+          display.setColor(UIColor::secondary_txt);
+          display.drawTextCentered(display.width() / 2, display.height() - 11, line);
+        }
       }
     } else if (_page == HomePage::MESSAGES) {
-      // Root 2: message counters only. The preview itself is a separate screen
-      // (long press here or on the main screen).
-      display.setTextSize(1);
-      int y = 20;
-      char mbuf[32];
-      display.setColor(UIColor::primary_txt);
-      snprintf(mbuf, sizeof(mbuf), _("In memory: %d"), _task->getDeviceStored());
-      display.drawTextLeftAlign(0, y, mbuf);
-      y += 12;
-      snprintf(mbuf, sizeof(mbuf), _("To phone: %d"), _task->getMsgCount());
-      display.drawTextLeftAlign(0, y, mbuf);
-      y += 12;
-      bool any = _task->getDeviceStored() > 0 || _task->getMsgCount() > 0;
-      display.setColor(any ? UIColor::primary_txt : UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, any ? _("hold: read") : _("no messages"));
+#ifdef HELTEC_LORA_V4
+      if (compact_header) {
+        // V4: counters only, the list and the text are separate screens.
+        display.setTextSize(1);
+        char buf[40];
+        int y = 17;
+        int unread = _task->getUnreadCount();
+        display.setColor(UIColor::primary_txt);
+        snprintf(buf, sizeof(buf), _("In memory: %d"), _task->getDeviceStored());
+        display.drawTextLeftAlign(0, y, buf); y += 12;
+        snprintf(buf, sizeof(buf), _("To phone: %d"), _task->getMsgCount());
+        display.drawTextLeftAlign(0, y, buf); y += 12;
+        display.setColor(unread > 0 ? UIColor::warning_txt : UIColor::secondary_txt);
+        snprintf(buf, sizeof(buf), _("Unread %d"), unread);
+        display.drawTextLeftAlign(0, y, buf); y += 12;
+        if (_task->getDeviceStored() == 0 && _task->getMsgCount() == 0) {
+          display.setColor(UIColor::secondary_txt);
+          display.drawTextLeftAlign(0, y, _("no messages"));
+        } else {
+          display.setColor(UIColor::secondary_txt);
+          display.drawTextLeftAlign(0, y, _("hold: read"));
+        }
+      } else
+#endif
+      {
+        // Root 2: message counters only. The preview itself is a separate screen
+        // (long press here or on the main screen).
+        display.setTextSize(1);
+        int y = 20;
+        char mbuf[32];
+        display.setColor(UIColor::primary_txt);
+        snprintf(mbuf, sizeof(mbuf), _("In memory: %d"), _task->getDeviceStored());
+        display.drawTextLeftAlign(0, y, mbuf);
+        y += 12;
+        snprintf(mbuf, sizeof(mbuf), _("To phone: %d"), _task->getMsgCount());
+        display.drawTextLeftAlign(0, y, mbuf);
+        y += 12;
+        bool any = _task->getDeviceStored() > 0 || _task->getMsgCount() > 0;
+        display.setColor(any ? UIColor::primary_txt : UIColor::secondary_txt);
+        display.drawTextLeftAlign(0, y, any ? _("hold: read") : _("no messages"));
+      }
     } else if (_page == HomePage::RECENT) {
       the_mesh.getRecentlyHeard(recent, UI_RECENT_LIST_SIZE);
       int shown = 0;
@@ -1233,7 +1315,16 @@ public:
         display.drawTextCentered(display.width() / 2, 28, _("no neighbors"));
       } else {
         const int line_h = 11;
-        const int y0 = 20;
+        int y0 = 20;
+#ifdef HELTEC_LORA_V4
+        if (compact_header) {
+          display.setColor(UIColor::secondary_txt);
+          snprintf(tmp, sizeof(tmp), _("Neighbors %d"), n);
+          display.drawTextLeftAlign(0, 15, tmp);
+          display.setColor(UIColor::primary_txt);
+          y0 = 27;
+        }
+#endif
         int visible = (display.height() - y0) / line_h;
         if (visible < 1) visible = 1;
         if (n <= visible) {
@@ -1566,16 +1657,38 @@ public:
       if (usb_on) display.drawTextLeftAlign(72, y, "?");
       y += line_h;
 
-      display.setColor(UIColor::secondary_txt);
-      if (the_mesh.getBLEPin() != 0) {
-        // While a client holds the link the PIN is not needed, so the row shows
-        // the Wi-Fi network name instead of repeating the pairing code.
-        if (ble_link || wifi_link) {
-          snprintf(buf, sizeof(buf), "%.20s", wifi_on ? WiFi.SSID().c_str() : _("connected"));
-        } else {
-          snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
+#ifdef HELTEC_LORA_V4
+      if (compact_header) {
+        display.setColor(UIColor::secondary_txt);
+#ifdef ENABLE_WIFI_INTERFACE
+        if (wifi_on && WiFi.status() == WL_CONNECTED) {
+          IPAddress ip = WiFi.localIP();
+          snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+          display.drawTextLeftAlign(0, y, buf);
+        } else
+#endif
+        if (!ble_link && !wifi_link && ble_on && the_mesh.getBLEPin() != 0) {
+          snprintf(buf, sizeof(buf), "PIN %06lu", (unsigned long)the_mesh.getBLEPin());
+          display.drawTextLeftAlign(0, y, buf);
         }
-        display.drawTextLeftAlign(0, y, buf);
+      } else
+#endif
+      {
+        display.setColor(UIColor::secondary_txt);
+        if (the_mesh.getBLEPin() != 0) {
+          // While a client holds the link the PIN is not needed, so the row shows
+          // the Wi-Fi network name instead of repeating the pairing code.
+          if (ble_link || wifi_link) {
+#ifdef ENABLE_WIFI_INTERFACE
+            snprintf(buf, sizeof(buf), "%.20s", wifi_on ? WiFi.SSID().c_str() : _("connected"));
+#else
+            snprintf(buf, sizeof(buf), "%s", _("connected"));
+#endif
+          } else {
+            snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
+          }
+          display.drawTextLeftAlign(0, y, buf);
+        }
       }
     } else if (_page == HomePage::CONNECTIONS) {
 #ifdef HELTEC_LORA_V4
@@ -1635,28 +1748,33 @@ public:
       char buf[50];
 #ifdef HELTEC_LORA_V4
       if (compact_header) {
-        const bool active = _task->getGPSState() && nmea != NULL;
-        const bool fix = active && nmea->isValid();
-        long sats = active ? nmea->satellitesCount() : 0;
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        if (active) snprintf(buf, sizeof(buf), "SAT %ld", sats);
-        else snprintf(buf, sizeof(buf), "SAT --");
-        display.drawTextLeftAlign(0, 16, buf);
-        display.drawRect(45, 15, 81, 10);
-        int count = constrain(sats, 0L, 12L);
-        int fill = (count * 77) / 12;
-        if (fill > 0) display.fillRect(47, 17, fill, 6);
-        if (fix) snprintf(buf, sizeof(buf), "ALT %ldm", nmea->getAltitude() / 1000L);
-        else snprintf(buf, sizeof(buf), "ALT --");
-        display.drawTextEllipsized(0, 28, 62, buf);
-        display.drawTextRightAlign(display.width() - 1, 28, "--.-km/h");
-        if (fix) snprintf(buf, sizeof(buf), "LAT %+.6f", nmea->getLatitude() / 1000000.0);
-        else snprintf(buf, sizeof(buf), "LAT --");
-        display.drawTextLeftAlign(0, 40, buf);
-        if (fix) snprintf(buf, sizeof(buf), "LON %+.6f", nmea->getLongitude() / 1000000.0);
-        else snprintf(buf, sizeof(buf), "LON --");
-        display.drawTextLeftAlign(0, 52, buf);
+        if (!nmea) {
+          display.drawTextLeftAlign(0, 17, _("GPS unavailable"));
+          display.drawTextLeftAlign(0, 29, _("check the wires"));
+        } else if (!_task->getGPSState()) {
+          display.drawTextLeftAlign(0, 17, _("module off"));
+          display.drawTextLeftAlign(0, 29, nmea->isEnabled() ? _("still powered") : _("powered off"));
+        } else {
+          const bool fix = nmea->isValid();
+          const int sats = nmea->satellitesCount();
+          snprintf(buf, sizeof(buf), _("SAT %d"), sats);
+          display.drawTextEllipsized(0, 16, 60, buf);
+          display.drawRect(62, 15, 64, 10);
+          const int fill = (constrain(sats, 0, 12) * 60) / 12;
+          if (fill > 0) display.fillRect(64, 17, fill, 6);
+          if (fix) snprintf(buf, sizeof(buf), _("ALT %.0f m"), nmea->getAltitude() / 1000.0);
+          else snprintf(buf, sizeof(buf), "%s", _("ALT --"));
+          display.drawTextEllipsized(0, 28, 66, buf);
+          display.drawTextRightAlign(display.width() - 1, 28, fix ? "--.-km/h" : _("searching"));
+          if (fix) snprintf(buf, sizeof(buf), _("LAT %.6f"), nmea->getLatitude() / 1000000.0);
+          else snprintf(buf, sizeof(buf), "%s", _("LAT --"));
+          display.drawTextLeftAlign(0, 40, buf);
+          if (fix) snprintf(buf, sizeof(buf), _("LON %.6f"), nmea->getLongitude() / 1000000.0);
+          else snprintf(buf, sizeof(buf), "%s", _("LON --"));
+          display.drawTextLeftAlign(0, 52, buf);
+        }
       } else {
 #endif
       int y = 20;
@@ -2046,6 +2164,25 @@ public:
 #ifdef HELTEC_LORA_V4
       }
 #endif
+#ifdef HELTEC_LORA_V4
+    } else if (_page == HomePage::LANG) {
+      display.setTextSize(1);
+      uint8_t cur = _node_prefs ? _node_prefs->ui_lang : UI_LANG_EN;
+      for (uint8_t i = 0; i < 2; i++) {
+        bool sel = i == _lang_sel;
+        int y = 20 + i * 12;
+        if (sel) {
+          display.setColor(UIColor::primary_txt);
+          display.fillRect(0, y - 1, display.width(), 11);
+        }
+        display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
+        display.drawTextEllipsized(4, y, display.width() - 20, i == UI_LANG_RU ? _("Russian") : "English");
+        if (i == cur) {
+          display.setColor(sel ? UIColor::window_bkg : UIColor::secondary_txt);
+          display.drawTextRightAlign(display.width() - 4, y, "*");
+        }
+      }
+#endif
     } else if (_page == HomePage::SHUTDOWN) {
       display.setTextSize(1);
       if (_shutdown_init) {
@@ -2264,6 +2401,22 @@ public:
       _act_idx = 0;
       return true;
     }
+#ifdef HELTEC_LORA_V4
+    if (_page == HomePage::LANG) {
+      if (c == KEY_NEXT || c == KEY_RIGHT) {
+        _lang_sel = UI_LANG_EN;
+      } else if (c == KEY_LEFT || c == KEY_PREV) {
+        if (_lang_sel == UI_LANG_EN) _lang_sel = UI_LANG_RU;
+        else leaveSub();
+      } else if (c == KEY_ENTER && _node_prefs) {
+        _node_prefs->ui_lang = _lang_sel;
+        setUiLang(_lang_sel);
+        the_mesh.savePrefs();
+        _task->notify(UIEventType::ack);
+      }
+      return true;
+    }
+#endif
     if (c == KEY_LEFT || c == KEY_PREV) {
 #ifdef HELTEC_LORA_V4
       if (_page == HomePage::MENU && isInSub()) {
@@ -2628,6 +2781,9 @@ public:
       uint8_t target = menuPageAt(_menu_index);
       // Every dialog opens with its safe choice preselected.
       if (target == HomePage::SHUTDOWN) _shutdown_apply = false;
+#ifdef HELTEC_LORA_V4
+      if (target == HomePage::LANG) _lang_sel = _node_prefs && _node_prefs->ui_lang == UI_LANG_RU ? UI_LANG_RU : UI_LANG_EN;
+#endif
       enterSub(target);
 #ifdef HELTEC_LORA_V4
       if (target == HomePage::RADIO
@@ -3187,6 +3343,11 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
 int UITask::getDeviceStored() const {
   if (!msg_preview) return 0;
   return ((MsgPreviewScreen *) msg_preview)->storedCount();
+}
+
+int UITask::getUnreadCount() const {
+  if (!msg_preview) return 0;
+  return ((MsgPreviewScreen *) msg_preview)->unreadCount();
 }
 
 void UITask::clearTakenMsg() {
