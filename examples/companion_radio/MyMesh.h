@@ -241,6 +241,10 @@ public:
   // To check if there is pending work
   bool hasPendingWork() const;
 
+  // UI helper: the client repeat rule is enforced privately, the UI only needs
+  // to know whether a frequency is allowed so it can show RPT on/off.
+  bool isRepeatFreqAllowed(uint32_t f) const { return isValidClientRepeatFreq(f); }
+
 private:
   void writeOKFrame();
   void writeErrFrame(uint8_t err_code);
