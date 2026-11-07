@@ -89,6 +89,7 @@ class UITask : public AbstractUITask {
   char handleQuadClick(char c);
 
   void setCurrScreen(UIScreen* c);
+  void refreshAfterIncomingMessage();
 
 public:
 

@@ -184,8 +184,12 @@ static void formatClockDate(uint32_t t, int16_t tz_mins, uint8_t lang, char* buf
 }
 
 #ifdef HELTEC_LORA_V4
+static constexpr int OLED_INSET = 3;
+static constexpr int OLED_HEADER_HEIGHT = 16;
+static constexpr int OLED_HEADER_TEXT_Y = 4;  // Cyrillic cell starts one pixel above the cursor
+
 static void drawV4ListRow(DisplayDriver& display, int row, bool selected, const char* text, const char* right = "") {
-  const int y = 18 + row * 12;
+  const int y = 18 + row * 11;
   if (selected) {
     display.setColor(UIColor::primary_txt);
     display.fillRect(0, y - 1, display.width(), 11);
@@ -196,7 +200,9 @@ static void drawV4ListRow(DisplayDriver& display, int row, bool selected, const 
     display.drawTextRightAlign(display.width() - 4, y, right);
     right_width += 4;
   }
-  display.drawTextEllipsized(4, y, display.width() - 8 - right_width, text);
+  char label[64];
+  display.translateUTF8ToBlocks(label, text, sizeof(label));
+  display.drawTextEllipsized(4, y, display.width() - 8 - right_width, label);
 }
 #endif
 
@@ -304,6 +310,17 @@ public:
   void setConnSelected(uint8_t v) { _conn_selected = v; }
   // Navigation from outside (e.g., triple-click on CONNECTIONS)
   void stepPageNav(int dir) { _page = stepPage(dir); }
+#ifdef HELTEC_LORA_V4
+  void returnToMain() {
+    stopFreqScan();
+    _page = HomePage::FIRST;
+    _sub_depth = 0;
+    _act_open = _settings_action_page = false;
+    _radio_details = _radio_confirm = _scan_confirm = _conn_confirm = _power_confirm = false;
+    _setup_edit = _adc_edit = _battery_confirm = false;
+    _shutdown_init = _shutdown_apply = false;
+  }
+#endif
   // Jump straight to a sub-screen, bypassing the root flip cycle
   void enterSub(uint8_t p) {
     if (_sub_depth >= sizeof(_sub_stack)) return;
@@ -457,7 +474,8 @@ private:
 
 
 public:
-  static void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts, bool inverted, bool buzzer_quiet) {
+  static void renderBatteryIndicator(DisplayDriver& display, uint16_t batteryMilliVolts, bool inverted,
+                                     bool buzzer_quiet, int right, int y) {
     // Display a smoothed one-percent estimate; ADC calibration corrects the
     // voltage first. This is a voltage estimate, not a capacity measurement.
 #ifndef BATT_MIN_MILLIVOLTS
@@ -475,7 +493,7 @@ public:
     if (batteryMilliVolts < 2000 || maxMilliVolts <= minMilliVolts) {
       displayed = -1;
       count = index = 0;
-      display.drawTextRightAlign(display.width() - 2, 1, "--%");
+      display.drawTextRightAlign(right, y, "--%");
       return;
     }
     samples[index] = batteryMilliVolts;
@@ -520,7 +538,7 @@ public:
     if (displayed < 0 || abs(pct - displayed) >= 2) displayed = pct;
     char label[6];
     snprintf(label, sizeof(label), "%d%%", displayed);
-    display.drawTextRightAlign(display.width() - 2, 1, label);
+    display.drawTextRightAlign(right, y, label);
 #ifdef PIN_BUZZER
     if (buzzer_quiet) {
       display.setColor(inverted ? UIColor::window_bkg : UIColor::warning_txt);
@@ -531,6 +549,33 @@ public:
     (void)buzzer_quiet;
 #endif
   }
+
+#ifdef HELTEC_LORA_V4
+  static void renderV4Header(DisplayDriver& display, UITask& task, const char* title, bool nested,
+                             const char* status = "") {
+    display.setTextSize(1);
+    display.setColor(UIColor::primary_txt);
+    display.fillRect(0, 0, display.width(), OLED_HEADER_HEIGHT);
+    display.setColor(UIColor::window_bkg);
+
+    const int right = display.width() - OLED_INSET;
+    int title_end = right - display.getTextWidth("100%") - OLED_INSET;
+    if (status[0]) {
+      display.drawTextRightAlign(title_end, OLED_HEADER_TEXT_Y, status);
+      title_end -= display.getTextWidth(status) + OLED_INSET;
+    }
+
+    int x = OLED_INSET;
+    if (nested) {
+      display.drawTextLeftAlign(x, OLED_HEADER_TEXT_Y, "./");
+      x += display.getTextWidth("./");
+    }
+    char shown_title[40];
+    display.translateUTF8ToBlocks(shown_title, title, sizeof(shown_title));
+    display.drawTextEllipsized(x, OLED_HEADER_TEXT_Y, title_end - x, shown_title);
+    renderBatteryIndicator(display, task.getBattMilliVolts(), true, task.isBuzzerQuiet(), right, OLED_HEADER_TEXT_Y);
+  }
+#endif
 
 private:
   CayenneLPP sensors_lpp;
@@ -1234,25 +1279,13 @@ public:
 #ifdef HELTEC_LORA_V4
     if (compact_header) {
       const bool nested = isInSub() || _act_open || _radio_confirm || _scan_confirm || _power_confirm;
-      display.setColor(UIColor::primary_txt);
-      display.fillRect(0, 0, display.width(), 12);
-      display.setTextSize(1);
-      display.setColor(UIColor::window_bkg);
-      char title[40];
-      display.translateUTF8ToBlocks(title, pageTitle(), sizeof(title));
-      if (nested) {
-        display.drawTextLeftAlign(0, 2, "./");
-        display.drawTextEllipsized(12, 2, 88, title);
-      } else {
-        display.drawTextEllipsized(0, 2, 64, title);
-        char hm[8];
-        if (_rtc->getCurrentTime() < 1000000000UL) snprintf(hm, sizeof(hm), "--:--");
-        else formatClockHm(_rtc->getCurrentTime(), _node_prefs ? _node_prefs->tz_offset_mins : 0, hm, sizeof(hm));
-        display.drawTextLeftAlign(68, 2, hm);
+      char hm[8] = "";
+      if (!nested) {
+        const uint32_t now = _rtc->getCurrentTime();
+        if (now < 1000000000UL) snprintf(hm, sizeof(hm), "--:--");
+        else formatClockHm(now, _node_prefs ? _node_prefs->tz_offset_mins : 0, hm, sizeof(hm));
       }
-      renderBatteryIndicator(display, _task->getBattMilliVolts(), true, _task->isBuzzerQuiet());
-      display.setColor(UIColor::primary_txt);
-      display.fillRect(0, 12, display.width(), 1);
+      renderV4Header(display, *_task, pageTitle(), nested, hm);
     } else
 #endif
     {
@@ -1270,7 +1303,8 @@ public:
     display.drawTextEllipsized(title_x, 2, compact_header ? 64 - title_x : display.width() - 40, filtered_name);
 
     // battery voltage
-    renderBatteryIndicator(display, _task->getBattMilliVolts(), false, _task->isBuzzerQuiet());
+    renderBatteryIndicator(display, _task->getBattMilliVolts(), false, _task->isBuzzerQuiet(),
+                           display.width() - 2, 1);
 
     // curr page indicator
     if (UIColor::title_bkg == UIColor::window_bkg) {
@@ -1309,6 +1343,53 @@ public:
 
     }
 
+    // The OLED uses one content boundary, including names and translated labels
+    // whose pixel widths vary. Keep the other displays' coordinates intact.
+#ifdef HELTEC_LORA_V4
+    const bool padded = compact_header && display.height() == 64;
+    const int inset = padded ? OLED_INSET : 0;
+#else
+    const bool padded = false;
+    const int inset = 0;
+#endif
+    const int row_right = display.width() - (padded ? inset : 1);
+    const int column_gap = padded ? inset : 0;
+    const int frame_inset = padded ? inset : 1;
+    const int last_text_y = display.height() - inset - 9; // Cyrillic cell ends 8 px below cursor
+    auto textY = [&](int y) { return padded && y > last_text_y ? last_text_y : y; };
+    auto drawClipped = [&](int x, int y, int width, const char* text) {
+      if (padded) {
+        if (x < inset) x = inset;
+        if (width > row_right - x) width = row_right - x;
+        if (width <= 0) return;
+        char line[96];
+        display.translateUTF8ToBlocks(line, text, sizeof(line));
+        if (width < display.getTextWidth("...") && display.getTextWidth(line) > width) return;
+        display.drawTextEllipsized(x, textY(y), width, line);
+      } else {
+        display.drawTextEllipsized(x, y, width, text);
+      }
+    };
+    auto drawLeft = [&](int x, int y, const char* text) {
+      if (padded) drawClipped(x, y, row_right - x, text);
+      else display.drawTextLeftAlign(x, y, text);
+    };
+    auto drawRight = [&](int x, int y, const char* text) {
+      if (padded && x > row_right) x = row_right;
+      if (padded && display.getTextWidth(text) > x - inset) drawClipped(inset, y, x - inset, text);
+      else display.drawTextRightAlign(x, textY(y), text);
+    };
+    auto drawCentered = [&](int x, int y, const char* text) {
+      if (padded) {
+        int width = display.getTextWidth(text);
+        if (x - width / 2 < inset || x + (width + 1) / 2 > row_right) {
+          drawClipped(inset, y, row_right - inset, text);
+          return;
+        }
+      }
+      display.drawTextCentered(x, textY(y), text);
+    };
+
     if (_page == HomePage::FIRST) {
 #ifdef HELTEC_LORA_V4
       if (compact_header) {
@@ -1334,15 +1415,15 @@ public:
           display.setColor(UIColor::secondary_txt);
           snprintf(buf, sizeof(buf), "%s", _("no client"));
         }
-        display.drawTextLeftAlign(0, y, buf);
+        drawLeft(0, y, buf);
         y += 12;
 
         display.setColor(UIColor::primary_txt);
         snprintf(buf, sizeof(buf), _("Phone queue %d"), _task->getMsgCount());
-        display.drawTextLeftAlign(0, y, buf);
+        drawLeft(0, y, buf);
         y += 12;
         snprintf(buf, sizeof(buf), _("Stored %d"), _task->getDeviceStored());
-        display.drawTextLeftAlign(0, y, buf);
+        drawLeft(0, y, buf);
         y += 12;
 
         display.setColor(UIColor::secondary_txt);
@@ -1356,7 +1437,7 @@ public:
         } else {
           snprintf(buf, sizeof(buf), "%s", _("time not set"));
         }
-        display.drawTextLeftAlign(0, y, buf);
+        drawLeft(0, y, buf);
       } else
 #endif
       {
@@ -1364,7 +1445,7 @@ public:
         // MSG: still waiting for the phone / still kept on this device
         display.setTextSize(2);
         sprintf(tmp, "MSG %d/%d", _task->getMsgCount(), _task->getDeviceStored());
-        display.drawTextCentered(display.width() / 2, 20, tmp);
+        drawCentered(display.width() / 2, 20, tmp);
 
         bool show_date = !display.isEink() && _rtc->getCurrentTime() >= 1000000000UL;
         // hasConnection() reports any transport, not necessarily Wi-Fi. Show the
@@ -1384,9 +1465,9 @@ public:
           #endif
           display.setTextSize(1);
           #ifdef UI_SHOW_CLOCK
-          display.drawTextCentered(display.width() / 2, 110, tmp);
+          drawCentered(display.width() / 2, 110, tmp);
           #else
-          display.drawTextCentered(display.width() / 2, 43, tmp);
+          drawCentered(display.width() / 2, 43, tmp);
           #endif
         } else if (the_mesh.getBLEPin() != 0) { // BT pin
           display.setColor(UIColor::warning_txt);
@@ -1395,11 +1476,11 @@ public:
           sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
           #ifdef UI_SHOW_CLOCK
           display.setTextSize(1);
-          display.drawTextCentered(display.width() / 2, 110, tmp);
+          drawCentered(display.width() / 2, 110, tmp);
           #else
           // A size-2 PIN at y=43 overlaps the date at y=53 on the 64px OLED.
           display.setTextSize(show_date && display.height() <= 64 ? 1 : 2);
-          display.drawTextCentered(display.width() / 2, 43, tmp);
+          drawCentered(display.width() / 2, 43, tmp);
           #endif
         }
         if (show_date) {
@@ -1414,7 +1495,7 @@ public:
           snprintf(line, sizeof(line), "%s  %s", hm, date_buf);
           display.setTextSize(1);
           display.setColor(UIColor::secondary_txt);
-          display.drawTextCentered(display.width() / 2, display.height() - 11, line);
+          drawCentered(display.width() / 2, display.height() - 11, line);
         }
       }
     } else if (_page == HomePage::MESSAGES) {
@@ -1427,18 +1508,18 @@ public:
         int unread = _task->getUnreadCount();
         display.setColor(UIColor::primary_txt);
         snprintf(buf, sizeof(buf), _("In memory: %d"), _task->getDeviceStored());
-        display.drawTextLeftAlign(0, y, buf); y += 12;
+        drawLeft(0, y, buf); y += 12;
         snprintf(buf, sizeof(buf), _("To phone: %d"), _task->getMsgCount());
-        display.drawTextLeftAlign(0, y, buf); y += 12;
+        drawLeft(0, y, buf); y += 12;
         display.setColor(unread > 0 ? UIColor::warning_txt : UIColor::secondary_txt);
         snprintf(buf, sizeof(buf), _("Unread %d"), unread);
-        display.drawTextLeftAlign(0, y, buf); y += 12;
+        drawLeft(0, y, buf); y += 12;
         if (_task->getDeviceStored() == 0 && _task->getMsgCount() == 0) {
           display.setColor(UIColor::secondary_txt);
-          display.drawTextLeftAlign(0, y, _("no messages"));
+          drawLeft(0, y, _("no messages"));
         } else {
           display.setColor(UIColor::secondary_txt);
-          display.drawTextLeftAlign(0, y, _("hold: read"));
+          drawLeft(0, y, _("hold: read"));
         }
       } else
 #endif
@@ -1450,20 +1531,21 @@ public:
         char mbuf[32];
         display.setColor(UIColor::primary_txt);
         snprintf(mbuf, sizeof(mbuf), _("In memory: %d"), _task->getDeviceStored());
-        display.drawTextLeftAlign(0, y, mbuf);
+        drawLeft(0, y, mbuf);
         y += 12;
         snprintf(mbuf, sizeof(mbuf), _("To phone: %d"), _task->getMsgCount());
-        display.drawTextLeftAlign(0, y, mbuf);
+        drawLeft(0, y, mbuf);
         y += 12;
         bool any = _task->getDeviceStored() > 0 || _task->getMsgCount() > 0;
         display.setColor(any ? UIColor::primary_txt : UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, any ? _("hold: read") : _("no messages"));
+        drawLeft(0, y, any ? _("hold: read") : _("no messages"));
       }
     } else if (_page == HomePage::RECENT) {
       the_mesh.getRecentlyHeard(recent, UI_RECENT_LIST_SIZE);
       int shown = 0;
       display.setColor(UIColor::primary_txt);
-      int y = 20;
+      const int first_row_y = padded ? 18 : 20;
+      int y = first_row_y;
       for (int i = 0; i < UI_RECENT_LIST_SIZE; i++, y += 11) {
         auto a = &recent[i];
         if (a->name[0] == 0) continue;  // empty slot
@@ -1478,23 +1560,22 @@ public:
         }
 
         int timestamp_width = display.getTextWidth(tmp);
-        int max_name_width = display.width() - timestamp_width - 1;
+        int max_name_width = row_right - inset - timestamp_width - column_gap;
 
         char filtered_recent_name[sizeof(a->name)];
         display.translateUTF8ToBlocks(filtered_recent_name, a->name, sizeof(filtered_recent_name));
-        display.drawTextEllipsized(0, y, max_name_width, filtered_recent_name);
-        display.setCursor(display.width() - timestamp_width - 1, y);
-        display.print(tmp);
+        drawClipped(0, y, max_name_width, filtered_recent_name);
+        drawRight(row_right, y, tmp);
       }
       if (shown == 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 28, _("no adverts"));
+        drawCentered(display.width() / 2, 28, _("no adverts"));
       }
       // last slot stays free until the list is full, so real data fits there
       if (recent[UI_RECENT_LIST_SIZE - 1].name[0] == 0) {
         display.setColor(UIColor::secondary_txt);
         snprintf(tmp, sizeof(tmp), _("In list: %d"), shown);
-        display.drawTextCentered(display.width() / 2, 20 + (UI_RECENT_LIST_SIZE - 1) * 11, tmp);
+        drawCentered(display.width() / 2, first_row_y + (UI_RECENT_LIST_SIZE - 1) * 11, tmp);
       }
     } else if (_page == HomePage::NEIGHBORS) {
       int n = the_mesh.getNeighbors(neighbor_list, NEIGHBOR_TABLE_SIZE);
@@ -1504,7 +1585,7 @@ public:
         neighbors_scroll_offset = 0;
         neighbors_next_scroll = 0;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 28, _("no neighbors"));
+        drawCentered(display.width() / 2, 28, _("no neighbors"));
       } else {
         const int line_h = 11;
         int y0 = 20;
@@ -1512,9 +1593,9 @@ public:
         if (compact_header) {
           display.setColor(UIColor::secondary_txt);
           snprintf(tmp, sizeof(tmp), _("Neighbors %d"), n);
-          display.drawTextLeftAlign(0, 15, tmp);
+          drawLeft(0, 18, tmp);
           display.setColor(UIColor::primary_txt);
-          y0 = 27;
+          y0 = 29;
         }
 #endif
         int visible = (display.height() - y0) / line_h;
@@ -1540,13 +1621,12 @@ public:
           sprintf(tmp, "%+.0f", snr);
 
           int snr_width = display.getTextWidth(tmp);
-          int max_name_width = display.width() - snr_width - 1;
+          int max_name_width = row_right - inset - snr_width - column_gap;
 
           char filtered_name[sizeof(a->name)];
           display.translateUTF8ToBlocks(filtered_name, a->name, sizeof(filtered_name));
-          display.drawTextEllipsized(0, y, max_name_width, filtered_name);
-          display.setCursor(display.width() - snr_width - 1, y);
-          display.print(tmp);
+          drawClipped(0, y, max_name_width, filtered_name);
+          drawRight(row_right, y, tmp);
         }
       }
     } else if (_page == HomePage::RADIO) {
@@ -1562,16 +1642,16 @@ public:
         repeat = repeat && the_mesh.isRepeatFreqAllowed((uint32_t)(freq * 1000.0f + 0.5f));
         snprintf(tmp, sizeof(tmp), "%s > %s", radioProfileLabel(the_mesh.radioProfile()),
                  radioProfileLabel(_radio_target));
-        display.drawTextEllipsized(0, 17, display.width(), tmp);
+        drawClipped(0, 17, display.width(), tmp);
         snprintf(tmp, sizeof(tmp), "%.3f BW%g", freq, bw);
-        display.drawTextEllipsized(0, 29, display.width(), tmp);
+        drawClipped(0, 29, display.width(), tmp);
         snprintf(tmp, sizeof(tmp), "SF%u CR%u  %s", (unsigned)sf, (unsigned)cr,
                  repeat ? _("RPT on") : _("RPT off"));
-        display.drawTextEllipsized(0, 41, display.width(), tmp);
+        drawClipped(0, 41, display.width(), tmp);
         display.setColor(_radio_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(0, 53, _radio_apply ? _("Cancel") : _("> Cancel"));
+        drawLeft(0, 53, _radio_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_radio_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextRightAlign(display.width() - 1, 53, _radio_apply ? _("> Apply") : _("Apply"));
+        drawRight(display.width() - 1, 53, _radio_apply ? _("> Apply") : _("Apply"));
       } else if (compact_header) {
         if (!_radio_details) {
           // The receiver already maintains this estimate; do not tune away or
@@ -1593,37 +1673,46 @@ public:
           }
           display.setTextSize(2);
           snprintf(tmp, sizeof(tmp), "%.3f", _node_prefs->freq);
-          display.drawTextCentered(54, 17, tmp);
+          drawCentered(54, 17, tmp);
           display.setTextSize(1);
-          display.drawTextRightAlign(display.width() - 1, 25, "MHz");
+          drawRight(display.width() - 1, 25, "MHz");
           snprintf(tmp, sizeof(tmp), "BW%g SF%u CR%u TX%d", _node_prefs->bw,
                    (unsigned)_node_prefs->sf, (unsigned)_node_prefs->cr,
                    (int)_node_prefs->tx_power_dbm);
-          display.drawRect(1, 36, display.width() - 2, 12);
-          display.drawTextCentered(display.width() / 2, 39, tmp);
+          const int frame_width = display.width() - 2 * frame_inset;
+          if (padded && display.getTextWidth(tmp) > frame_width - 2) {
+            snprintf(tmp, sizeof(tmp), "BW%g SF%uCR%uTX%d", _node_prefs->bw,
+                     (unsigned)_node_prefs->sf, (unsigned)_node_prefs->cr,
+                     (int)_node_prefs->tx_power_dbm);
+          }
+          display.drawRect(frame_inset, 36, frame_width, 12);
+          drawCentered(display.width() / 2, 39, tmp);
           display.setColor(UIColor::secondary_txt);
           if (nf != 0) snprintf(tmp, sizeof(tmp), "NF %d dBm", nf);
           else snprintf(tmp, sizeof(tmp), "NF --");
-          display.drawTextLeftAlign(0, 53, tmp);
-          display.drawRect(78, 50, 50, 13);
+          drawLeft(0, 53, tmp);
+          const int graph_w = 50;
+          const int graph_x = padded ? row_right - graph_w : 78;
+          const int graph_bottom = padded ? 59 : 61;
+          display.drawRect(graph_x, graph_bottom - 11, graph_w, 13);
           for (uint8_t i = 0; i < _nf_count; i++) {
             int v = _nf_history[(_nf_next + 12 - _nf_count + i) % 12];
             int h = constrain((v + 125) * 10 / 55, 1, 10);
-            display.fillRect(80 + i * 4, 61 - h, 3, h);
+            display.fillRect(graph_x + 2 + i * 4, graph_bottom - h, 3, h);
           }
         } else {
-          display.drawTextLeftAlign(0, 18, radioProfileLabel(the_mesh.radioProfile()));
-          display.drawTextRightAlign(127, 18, _node_prefs->isRepeatEn() ? _("Repeat: on") : _("Repeat: off"));
-          display.drawTextLeftAlign(0, 30, _node_prefs->rx_boosted_gain ? _("RXB: on") : _("RXB: off"));
+          drawLeft(0, 18, radioProfileLabel(the_mesh.radioProfile()));
+          drawRight(127, 18, _node_prefs->isRepeatEn() ? _("Repeat: on") : _("Repeat: off"));
+          drawLeft(0, 30, _node_prefs->rx_boosted_gain ? _("RXB: on") : _("RXB: off"));
           if (_task->canControlFemLna()) {
-            display.drawTextRightAlign(127, 30, _task->isFemLnaEnabled() ? _("LNA: on") : _("LNA: off"));
+            drawRight(127, 30, _task->isFemLnaEnabled() ? _("LNA: on") : _("LNA: off"));
           }
           snprintf(tmp, sizeof(tmp), "%.3f MHz", _node_prefs->freq);
-          display.drawTextLeftAlign(0, 42, tmp);
+          drawLeft(0, 42, tmp);
           snprintf(tmp, sizeof(tmp), "BW%g SF%u CR%u TX%d", _node_prefs->bw,
                    (unsigned)_node_prefs->sf, (unsigned)_node_prefs->cr,
                    (int)_node_prefs->tx_power_dbm);
-          display.drawTextLeftAlign(0, 54, tmp);
+          drawLeft(0, 54, tmp);
         }
       } else {
       // freq / sf
@@ -1646,11 +1735,11 @@ public:
       }
       display.print(tmp);
       display.setCursor(0, 53);
-      display.drawTextLeftAlign(0, 53, radioProfileLabel(the_mesh.radioProfile()));
+      drawLeft(0, 53, radioProfileLabel(the_mesh.radioProfile()));
       // RX Boost is an SX1262 gain setting, unrelated to the FEM LNA: keep it
       // on its own row instead of hiding it behind a gesture hint.
       display.setColor(UIColor::secondary_txt);
-      display.drawTextRightAlign(display.width() - 1, 53,
+      drawRight(display.width() - 1, 53,
         (_node_prefs && _node_prefs->rx_boosted_gain) ? _("RXB: on") : _("RXB: off"));
       }
     } else if (_page == HomePage::POWER) {
@@ -1658,15 +1747,15 @@ public:
       if (_power_confirm) {
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, _power_name);
-        display.drawTextRightAlign(display.width() - 1, 18, _power_cpu ? _("Sleep: yes") : _("Sleep: no"));
-        display.drawTextLeftAlign(0, 30, _power_boost ? _("RXB: on") : _("RXB: off"));
+        drawLeft(0, 18, _power_name);
+        drawRight(display.width() - 1, 18, _power_cpu ? _("Sleep: yes") : _("Sleep: no"));
+        drawLeft(0, 30, _power_boost ? _("RXB: on") : _("RXB: off"));
         if (_task->canControlFemLna())
-          display.drawTextRightAlign(display.width() - 1, 30, _power_lna ? _("LNA: on") : _("LNA: off"));
+          drawRight(display.width() - 1, 30, _power_lna ? _("LNA: on") : _("LNA: off"));
         display.setColor(_power_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(0, 42, _power_apply ? _("Cancel") : _("> Cancel"));
+        drawLeft(0, 42, _power_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_power_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 54, _power_apply ? _("> Apply") : _("Apply"));
+        drawLeft(0, 54, _power_apply ? _("> Apply") : _("Apply"));
       } else {
 #endif
       bool fem = _task->canControlFemLna();
@@ -1689,18 +1778,18 @@ public:
       display.setTextSize(1);
       int y = 18;
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, _("Mode"));
+      drawLeft(0, y, _("Mode"));
       display.setColor(UIColor::secondary_txt);
-      display.drawTextRightAlign(display.width() - 1, y, name);
+      drawRight(display.width() - 1, y, name);
       y += 12;
       // "Sleep allowed" is the honest wording: the CPU still runs while the UI
       // is being drawn, the profile only permits light sleep between frames.
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, !cpu_hw ? _("Sleep: n/a") : (cpu ? _("Sleep: yes") : _("Sleep: no")));
-      display.drawTextRightAlign(display.width() - 1, y, boost ? _("RX: on") : _("RX: off"));
+      drawLeft(0, y, !cpu_hw ? _("Sleep: n/a") : (cpu ? _("Sleep: yes") : _("Sleep: no")));
+      drawRight(display.width() - 1, y, boost ? _("RX: on") : _("RX: off"));
       y += 12;
       if (fem) {
-        display.drawTextLeftAlign(0, y, lna ? _("LNA: on") : _("LNA: off"));
+        drawLeft(0, y, lna ? _("LNA: on") : _("LNA: off"));
         y += 12;
       }
       if (y + 8 <= display.height()) {
@@ -1711,7 +1800,7 @@ public:
         else if (_task->bleBlocksCpuSleep()) hold = _("BLE holds CPU");
         if (hold) {
           display.setColor(UIColor::warning_txt);
-          display.drawTextCentered(display.width() / 2, y, hold);
+          drawCentered(display.width() / 2, y, hold);
         }
       }
 #ifdef HELTEC_LORA_V4
@@ -1732,12 +1821,12 @@ public:
       display.setColor(UIColor::primary_txt);
       display.setTextSize(2);
       sprintf(tmp, "%d", live);
-      display.drawTextCentered(display.width() / 2, 18, tmp);
+      drawCentered(display.width() / 2, 18, tmp);
 
       display.setTextSize(1);
       if (pkt) {
         display.setColor(UIColor::warning_txt);
-        display.drawTextRightAlign(display.width() - 1, 18, "PKT");
+        drawRight(display.width() - 1, 18, "PKT");
       }
 
       display.setColor(UIColor::secondary_txt);
@@ -1746,20 +1835,20 @@ public:
       } else {
         sprintf(tmp, "NL %d", nl);
       }
-      display.drawTextLeftAlign(0, 36, tmp);
+      drawLeft(0, 36, tmp);
       if (scan_peak < -120) {
         sprintf(tmp, "pk --");
       } else {
         sprintf(tmp, "pk %d", (int)scan_peak);
       }
-      display.drawTextRightAlign(display.width() - 1, 36, tmp);
+      drawRight(display.width() - 1, 36, tmp);
 
       const int rssi_min = -120;
       const int rssi_max = -50;
-      int bar_x = 2;
+      int bar_x = padded ? inset : 2;
       int bar_y = 48;
       int bar_h = 8;
-      int bar_w = display.width() - 4;
+      int bar_w = display.width() - 2 * bar_x;
       int clamped = live;
       if (clamped < rssi_min) clamped = rssi_min;
       if (clamped > rssi_max) clamped = rssi_max;
@@ -1776,23 +1865,24 @@ public:
 #ifdef HELTEC_LORA_V4
       if (_scan_confirm) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, _("RX pauses for scan"));
+        drawLeft(0, 18, _("RX pauses for scan"));
         display.setColor(_scan_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(0, 34, _scan_apply ? _("Cancel") : _("> Cancel"));
+        drawLeft(0, 34, _scan_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_scan_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 46, _scan_apply ? _("> Start scan") : _("Start scan"));
+        drawLeft(0, 46, _scan_apply ? _("> Start scan") : _("Start scan"));
       } else
 #endif
       if (fscan_state == FSCAN_RUN) {
         display.setColor(UIColor::primary_txt);
         if (fscan_n > 0) {
           sprintf(tmp, "scan %d/%d", (int)fscan_i, (int)fscan_n);
-          display.drawTextCentered(display.width() / 2, 22, tmp);
+          drawCentered(display.width() / 2, 22, tmp);
           if (fscan_i < fscan_n) {
             sprintf(tmp, "%06.3f", fscan[fscan_i].freq);
-            display.drawTextCentered(display.width() / 2, 36, tmp);
+            drawCentered(display.width() / 2, 36, tmp);
           }
-          int bar_w = display.width() - 4;
+          int bar_x = padded ? inset : 2;
+          int bar_w = display.width() - 2 * bar_x;
           int fill = ((int)fscan_i * bar_w) / fscan_n;
           display.setColor(UIColor::secondary_txt);
           display.drawRect(2, 50, bar_w, 8);
@@ -1802,18 +1892,18 @@ public:
       } else if (fscan_state == FSCAN_DONE) {
         display.setColor(UIColor::secondary_txt);
         sprintf(tmp, "now %06.3f", _node_prefs->freq);
-        display.drawTextLeftAlign(0, 18, tmp);
+        drawLeft(0, 18, tmp);
         display.setColor(UIColor::primary_txt);
         int y = 29;
         for (int i = 0; i < 3; i++, y += 11) {
           if (i >= fscan_n) break;
           bool here = fabsf(fscan_best[i].freq - _node_prefs->freq) < 0.001f;
           sprintf(tmp, "%06.3f  %d%s", fscan_best[i].freq, (int)fscan_best[i].rssi, here ? " *" : "");
-          display.drawTextLeftAlign(0, y, tmp);
+          drawLeft(0, y, tmp);
         }
       } else {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 28, _("find quiet freq"));
+        drawCentered(display.width() / 2, 28, _("find quiet freq"));
       }
     } else if (_page == HomePage::BLUETOOTH) {
       // Adapter state and link state are different things: the middle column is
@@ -1833,20 +1923,20 @@ public:
       // Fixed columns: Cyrillic is multi-byte in UTF-8, so printf field widths
       // would misalign the rows. Draw each column at an explicit x instead.
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, "BLE");
-      display.drawTextLeftAlign(36, y, ble_on ? _("on") : _("off"));
-      if (ble_on) display.drawTextLeftAlign(72, y, ble_link ? _("client") : _("no"));
+      drawLeft(0, y, "BLE");
+      drawLeft(36, y, ble_on ? _("on") : _("off"));
+      if (ble_on) drawLeft(72, y, ble_link ? _("client") : _("no"));
       y += line_h;
 
-      display.drawTextLeftAlign(0, y, "WiFi");
-      display.drawTextLeftAlign(36, y, wifi_on ? _("on") : _("off"));
-      if (wifi_on) display.drawTextLeftAlign(72, y, wifi_link ? _("client") : _("no"));
+      drawLeft(0, y, "WiFi");
+      drawLeft(36, y, wifi_on ? _("on") : _("off"));
+      if (wifi_on) drawLeft(72, y, wifi_link ? _("client") : _("no"));
       y += line_h;
 
       // USB: the serial transport always reports _("connected"), so show "?"
-      display.drawTextLeftAlign(0, y, "USB");
-      display.drawTextLeftAlign(36, y, usb_on ? _("on") : _("off"));
-      if (usb_on) display.drawTextLeftAlign(72, y, "?");
+      drawLeft(0, y, "USB");
+      drawLeft(36, y, usb_on ? _("on") : _("off"));
+      if (usb_on) drawLeft(72, y, "?");
       y += line_h;
 
 #ifdef HELTEC_LORA_V4
@@ -1856,12 +1946,12 @@ public:
         if (wifi_on && WiFi.status() == WL_CONNECTED) {
           IPAddress ip = WiFi.localIP();
           snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-          display.drawTextLeftAlign(0, y, buf);
+          drawLeft(0, y, buf);
         } else
 #endif
         if (!ble_link && !wifi_link && ble_on && the_mesh.getBLEPin() != 0) {
           snprintf(buf, sizeof(buf), "PIN %06lu", (unsigned long)the_mesh.getBLEPin());
-          display.drawTextLeftAlign(0, y, buf);
+          drawLeft(0, y, buf);
         }
       } else
 #endif
@@ -1879,7 +1969,7 @@ public:
           } else {
             snprintf(buf, sizeof(buf), "Pin:%06lu", (unsigned long)the_mesh.getBLEPin());
           }
-          display.drawTextLeftAlign(0, y, buf);
+          drawLeft(0, y, buf);
         }
       }
     } else if (_page == HomePage::CONNECTIONS) {
@@ -1889,11 +1979,11 @@ public:
         snprintf(tmp, sizeof(tmp), _conn_was_enabled ? _("Disable %s?") : _("Enable %s?"), names[_conn_selected]);
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, tmp);
+        drawLeft(0, 18, tmp);
         display.setColor(_conn_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(0, 34, _conn_apply ? _("Cancel") : _("> Cancel"));
+        drawLeft(0, 34, _conn_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_conn_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 46, _conn_apply ? _("> Apply") : _("Apply"));
+        drawLeft(0, 46, _conn_apply ? _("> Apply") : _("Apply"));
       } else {
 #endif
       // CONNECTIONS sub-screen (long press on BLUETOOTH):
@@ -1911,9 +2001,9 @@ public:
                          _task->isUSBEnabled() };
       for (int i = 0; i < 3; i++) {
         display.setColor(selected == i ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(0, y, selected == i ? ">" : " ");
-        display.drawTextLeftAlign(10, y, names[i]);
-        display.drawTextLeftAlign(46, y, states[i] ? _("on") : _("off"));
+        drawLeft(0, y, selected == i ? ">" : " ");
+        drawLeft(10, y, names[i]);
+        drawLeft(46, y, states[i] ? _("on") : _("off"));
         y += line_h;
         conn_count++;
       }
@@ -1929,7 +2019,7 @@ public:
       } else {
         snprintf(buf, sizeof(buf), _("ports: --"));
       }
-      display.drawTextLeftAlign(0, y, buf);
+      drawLeft(0, y, buf);
 #ifdef HELTEC_LORA_V4
       }
 #endif
@@ -1943,29 +2033,32 @@ public:
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
         if (!nmea) {
-          display.drawTextLeftAlign(0, 17, _("GPS unavailable"));
-          display.drawTextLeftAlign(0, 29, _("check the wires"));
+          drawLeft(0, 17, _("GPS unavailable"));
+          drawLeft(0, 29, _("check the wires"));
         } else if (!_task->getGPSState()) {
-          display.drawTextLeftAlign(0, 17, _("module off"));
-          display.drawTextLeftAlign(0, 29, nmea->isEnabled() ? _("still powered") : _("powered off"));
+          drawLeft(0, 17, _("module off"));
+          drawLeft(0, 29, nmea->isEnabled() ? _("still powered") : _("powered off"));
         } else {
           const bool fix = nmea->isValid();
           const int sats = nmea->satellitesCount();
           snprintf(buf, sizeof(buf), _("SAT %d"), sats);
-          display.drawTextEllipsized(0, 16, 60, buf);
-          display.drawRect(62, 15, 64, 10);
-          const int fill = (constrain(sats, 0, 12) * 60) / 12;
-          if (fill > 0) display.fillRect(64, 17, fill, 6);
+          drawClipped(0, 18, 58, buf);
+          const int bar_x = 62;
+          const int bar_w = row_right - bar_x;
+          display.drawRect(bar_x, 17, bar_w, 10);
+          const int fill = constrain(sats, 0, 12) * (bar_w - 4) / 12;
+          if (fill > 0) display.fillRect(bar_x + 2, 19, fill, 6);
           if (fix) snprintf(buf, sizeof(buf), _("ALT %.0f m"), nmea->getAltitude() / 1000.0);
           else snprintf(buf, sizeof(buf), "%s", _("ALT --"));
-          display.drawTextEllipsized(0, 28, 66, buf);
-          display.drawTextRightAlign(display.width() - 1, 28, fix ? "--.-km/h" : _("searching"));
+          const char* speed = fix ? "--.-km/h" : _("searching");
+          drawClipped(0, 30, row_right - inset - display.getTextWidth(speed) - column_gap, buf);
+          drawRight(row_right, 30, speed);
           if (fix) snprintf(buf, sizeof(buf), _("LAT %.6f"), nmea->getLatitude() / 1000000.0);
           else snprintf(buf, sizeof(buf), "%s", _("LAT --"));
-          display.drawTextLeftAlign(0, 40, buf);
+          drawLeft(0, 40, buf);
           if (fix) snprintf(buf, sizeof(buf), _("LON %.6f"), nmea->getLongitude() / 1000000.0);
           else snprintf(buf, sizeof(buf), "%s", _("LON --"));
-          display.drawTextLeftAlign(0, 52, buf);
+          drawLeft(0, 52, buf);
         }
       } else {
 #endif
@@ -1979,41 +2072,41 @@ public:
       }
 #endif
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, _("module"));
+      drawLeft(0, y, _("module"));
       display.setColor(gps_state ? UIColor::primary_txt : UIColor::warning_txt);
-      display.drawTextRightAlign(display.width() - 1, y, module);
+      drawRight(display.width() - 1, y, module);
       y += 12;
       if (nmea == NULL) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, _("no GPS access"));
+        drawLeft(0, y, _("no GPS access"));
       } else if (!gps_state) {
         // isEnabled() reads the enable pin. With no pin it stays true, so the
         // chip can keep drawing current after the software switch is off.
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, nmea->isEnabled() ? _("still powered") : _("powered off"));
+        drawLeft(0, y, nmea->isEnabled() ? _("still powered") : _("powered off"));
         y += 12;
       } else {
         display.setColor(UIColor::secondary_txt);
         sprintf(buf, _("fix: %s"), nmea->isValid() ? _("yes") : _("no"));
-        display.drawTextLeftAlign(0, y, buf);
+        drawLeft(0, y, buf);
         display.setColor(UIColor::primary_txt);
         sprintf(buf, _("sats %d"), nmea->satellitesCount());
-        display.drawTextRightAlign(display.width() - 1, y, buf);
+        drawRight(display.width() - 1, y, buf);
         y += 12;
         if (nmea->isValid()) {
           display.setColor(UIColor::secondary_txt);
-          display.drawTextLeftAlign(0, y, _("pos"));
+          drawLeft(0, y, _("pos"));
           display.setColor(UIColor::primary_txt);
           sprintf(buf, "%.4f %.4f",
             nmea->getLatitude() / 1000000., nmea->getLongitude() / 1000000.);
-          display.drawTextRightAlign(display.width() - 1, y, buf);
+          drawRight(display.width() - 1, y, buf);
           y += 12;
           if (y + 8 <= display.height()) {
             display.setColor(UIColor::secondary_txt);
-            display.drawTextLeftAlign(0, y, _("alt"));
+            drawLeft(0, y, _("alt"));
             display.setColor(UIColor::primary_txt);
             sprintf(buf, "%.2f", nmea->getAltitude() / 1000.);
-            display.drawTextRightAlign(display.width() - 1, y, buf);
+            drawRight(display.width() - 1, y, buf);
           }
         }
       }
@@ -2047,26 +2140,28 @@ public:
       }
       int y = 18;
       display.setColor(UIColor::primary_txt);
-      display.drawTextLeftAlign(0, y, kind);
+      drawLeft(0, y, kind);
       if (iv[0]) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextRightAlign(display.width() - 1, y, iv);
+        drawRight(display.width() - 1, y, iv);
       }
       y += 12;
       char shown[32];
       display.translateUTF8ToBlocks(shown, target, sizeof(shown));
       display.setColor(UIColor::primary_txt);
-      display.drawTextEllipsized(0, y, display.width() - 1, shown);
+      drawClipped(0, y, display.width() - 1, shown);
       y += 12;
       display.setColor(strcmp(pos, _("no fix")) == 0 || strcmp(pos, _("no gps")) == 0
           ? UIColor::warning_txt : UIColor::secondary_txt);
-      display.drawTextEllipsized(0, y, display.width() - 1, pos);
+      drawClipped(0, y, display.width() - 1, pos);
       y += 12;
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, sent);
+      drawLeft(0, y, sent);
+#ifndef HELTEC_LORA_V4
       if (display.height() > 80 && strcmp(kind, _("off")) != 0) {
-        display.drawTextCentered(display.width() / 2, display.height() - 11, "3x time    4x off");
+        drawCentered(display.width() / 2, display.height() - 11, "3x time    4x off");
       }
+#endif
 #endif
 #if UI_SENSORS_PAGE == 1
     } else if (_page == HomePage::SENSORS) {
@@ -2089,7 +2184,6 @@ public:
           r.readHeader(channel, type);
         }
 
-        display.setCursor(0, y);
         float v;
         switch (type) {
           case LPP_GPS: // GPS
@@ -2129,21 +2223,21 @@ public:
             r.skipData(type);
             strcpy(name, "?"); sprintf(buf, "");
         }
-        display.setCursor(0, y);
         display.setColor(UIColor::secondary_txt);
-        display.print(name);
+        if (padded) {
+          drawClipped(0, y, row_right - inset - display.getTextWidth(buf) - column_gap, name);
+        } else {
+          drawLeft(0, y, name);
+        }
         display.setColor(UIColor::primary_txt);
-        display.setCursor(
-          display.width()-display.getTextWidth(buf)-1, y
-        );
-        display.print(buf);
+        drawRight(row_right, y, buf);
         y = y + 12;
       }
       if (sensors_scroll) sensors_scroll_offset = (sensors_scroll_offset+1)%sensors_nb;
       else sensors_scroll_offset = 0;
       if (sensors_nb == 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 30, _("no sensors"));
+        drawCentered(display.width() / 2, 30, _("no sensors"));
       }
 #endif
     } else if (_page == HomePage::CLOCK_NODES) {
@@ -2151,7 +2245,7 @@ public:
       int used = usedClockNodes();
       if (used == 0) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 22, _("no nodes set"));
+        drawLeft(0, 22, _("no nodes set"));
       } else {
         display.setColor(UIColor::primary_txt);
         char name[24];
@@ -2159,14 +2253,14 @@ public:
         for (int i = 0; i < CLOCK_NODE_MAX && row < 3; i++) {
           if (!clockNodeSlotUsed(_node_prefs->clock_nodes[i])) continue;
           the_mesh.lookupClockNodeName(_node_prefs->clock_nodes[i], name, sizeof(name));
-          display.drawTextLeftAlign(0, 18 + row * 12, name[0] ? name : _("(no name)"));
+          drawLeft(0, 18 + row * 12, name[0] ? name : _("(no name)"));
           row++;
         }
         display.setColor(UIColor::secondary_txt);
         if (used > 3) {
           char more[16];
           snprintf(more, sizeof(more), _("+%d more"), used - 3);
-          display.drawTextRightAlign(display.width() - 1, 54, more);
+          drawRight(display.width() - 1, 54, more);
         }
       }
     } else if (_page == HomePage::NODE_PICKER) {
@@ -2174,7 +2268,7 @@ public:
       int total = the_mesh.getNumContacts();
       if (total <= 0) {
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 26, _("no contacts"));
+        drawCentered(display.width() / 2, 26, _("no contacts"));
       } else {
         if (_pick_idx >= (uint32_t)total) _pick_idx = 0;
         int maxrows = 3;
@@ -2186,14 +2280,14 @@ public:
           if (!the_mesh.getContactByIdx((uint32_t)idx, c)) continue;
           bool sel = ((uint32_t)idx == _pick_idx);
           display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
-          if (sel) display.drawTextLeftAlign(0, 18 + r * 12, ">");
-          display.drawTextLeftAlign(10, 18 + r * 12, c.name[0] ? c.name : _("(no name)"));
+          if (sel) drawLeft(0, 18 + r * 12, ">");
+          drawLeft(10, 18 + r * 12, c.name[0] ? c.name : _("(no name)"));
         }
         display.setColor(UIColor::secondary_txt);
         char cnt[16];
         snprintf(cnt, sizeof(cnt), "%d/%d", (int)_pick_idx + 1, total);
-        display.drawTextRightAlign(display.width() - 1, 54, cnt);
-        display.drawTextLeftAlign(0, 54, _("hold: add"));
+        drawRight(display.width() - 1, 54, cnt);
+        drawLeft(0, 54, _("hold: add"));
       }
     } else if (_page == HomePage::TIME) {
       display.setTextSize(1);
@@ -2211,16 +2305,16 @@ public:
       } else {
         snprintf(tbuf, sizeof(tbuf), _("time not set"));
       }
-      display.drawTextLeftAlign(0, y, tbuf);
+      drawLeft(0, y, tbuf);
       y += 12;
       display.setColor(UIColor::primary_txt);
       snprintf(tbuf, sizeof(tbuf), _("tz: %+d h"), (int)(tz / 60));
-      display.drawTextLeftAlign(0, y, tbuf);
-      display.drawTextRightAlign(display.width() - 1, y,
+      drawLeft(0, y, tbuf);
+      drawRight(display.width() - 1, y,
         (_node_prefs && _node_prefs->ui_lang == 0) ? _("lang: RU") : _("lang: EN"));
       y += 12;
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, y, valid ? _("source: set") : _("source: none"));
+      drawLeft(0, y, valid ? _("source: set") : _("source: none"));
     } else if (_page == HomePage::SETUP) {
       uint8_t mode = _node_prefs ? _node_prefs->eink_refresh : EINK_REFRESH_CLEAR;
       if (mode >= EINK_REFRESH_COUNT) mode = EINK_REFRESH_CLEAR;
@@ -2248,14 +2342,14 @@ public:
       for (int i = 0; i < nrows; i++) {
         int y = 20 + i * 12;
         display.setColor(UIColor::primary_txt);
-        if (_setup_edit && (uint8_t)i == _setup_row) display.drawTextLeftAlign(0, y, ">");
-        display.drawTextLeftAlign(10, y, rows_l[i]);
-        display.drawTextRightAlign(display.width() - 1, y, rows_r[i]);
+        if (_setup_edit && (uint8_t)i == _setup_row) drawLeft(0, y, ">");
+        drawLeft(10, y, rows_l[i]);
+        drawRight(display.width() - 1, y, rows_r[i]);
       }
       if (_setup_edit && display.height() >= 64 && nrows <= 3) {
 #ifndef HELTEC_LORA_V4
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(display.width() / 2, 56, _("3 clicks: change"));
+        drawCentered(display.width() / 2, 56, _("3 clicks: change"));
 #endif
       }
 #ifdef HELTEC_LORA_V4
@@ -2263,73 +2357,74 @@ public:
       display.setColor(UIColor::primary_txt);
       display.setTextSize(1);
       snprintf(tmp, sizeof(tmp), _("Voltage: %.3f V"), _task->getBattMilliVolts() / 1000.0f);
-      display.drawTextLeftAlign(0, 24, tmp);
+      drawLeft(0, 24, tmp);
       snprintf(tmp, sizeof(tmp), "ADC: %.3f", board.getAdcMultiplier());
-      display.drawTextLeftAlign(0, 42, tmp);
+      drawLeft(0, 42, tmp);
     } else if (_page == HomePage::BATTERY_CAL) {
       display.setTextSize(1);
       if (_adc_edit) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, _("Multimeter"));
+        drawLeft(0, 18, _("Multimeter"));
         snprintf(tmp, sizeof(tmp), _("%u.%03u V"),
                  (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
-        display.drawTextLeftAlign(0, 32, tmp);
+        drawLeft(0, 32, tmp);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(_adc_digit == 0 ? 0 : (_adc_digit + 1) * 6, 43, "^");
-        display.drawTextLeftAlign(0, 56, "1:+ 2:-");
-        display.fillRect(57, 60, 7, 1);
-        display.drawTextLeftAlign(69, 56, _("next"));
+        drawLeft(inset + (_adc_digit == 0 ? 0 : (_adc_digit + 1) * 6), 43, "^");
+        const int help_y = textY(56);
+        drawLeft(0, help_y, "1:+ 2:-");
+        display.fillRect(57, help_y + 4, 7, 1);
+        drawLeft(69, help_y, _("next"));
       } else if (_battery_confirm) {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, _("Confirm"));
+        drawLeft(0, 18, _("Confirm"));
         if (_battery_choice == 0) {
-          display.drawTextLeftAlign(0, 30, _("ref 4.200 V"));
+          drawLeft(0, 30, _("ref 4.200 V"));
         } else if (_battery_choice == 1) {
           snprintf(tmp, sizeof(tmp), _("ref %u.%03u V"),
                    (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
-          display.drawTextLeftAlign(0, 30, tmp);
+          drawLeft(0, 30, tmp);
         } else {
-          display.drawTextLeftAlign(0, 30, _("restore factory"));
+          drawLeft(0, 30, _("restore factory"));
         }
         display.setColor(_battery_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(4, 42, _battery_apply ? _("Cancel") : _("> Cancel"));
+        drawLeft(4, 42, _battery_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_battery_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(4, 54, _battery_apply ? _("> Apply") : _("Apply"));
+        drawLeft(4, 54, _battery_apply ? _("> Apply") : _("Apply"));
       } else {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, _("ADC calibration"));
+        drawLeft(0, 18, _("ADC calibration"));
         const char* items[3] = { _("Full 4.20 V"), _("Multimeter"), _("Reset ADC") };
         for (uint8_t i = 0; i < 3; i++) {
           bool sel = (i == _battery_choice);
           display.setColor(sel ? UIColor::warning_txt : UIColor::primary_txt);
-          display.drawTextLeftAlign(4, 30 + i * 11, sel ? ">" : " ");
-          display.drawTextLeftAlign(14, 30 + i * 11, items[i]);
+          drawLeft(4, 30 + i * 11, sel ? ">" : " ");
+          drawLeft(14, 30 + i * 11, items[i]);
         }
       }
 #endif
     } else if (_page == HomePage::ABOUT) {
       display.setTextSize(1);
       display.setColor(UIColor::primary_txt);
-      display.drawTextCentered(display.width() / 2, 18, FIRMWARE_VERSION);
+      drawCentered(display.width() / 2, 18, FIRMWARE_VERSION);
       snprintf(tmp, sizeof(tmp), _("build: %s"), __DATE__);
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, 30, tmp);
+      drawLeft(0, 30, tmp);
       display.setColor(UIColor::primary_txt);
       snprintf(tmp, sizeof(tmp), _("node %s"), _node_prefs ? _node_prefs->node_name : "?");
-      display.drawTextLeftAlign(0, 42, tmp);
+      drawLeft(0, 42, tmp);
       uint32_t up = millis() / 1000UL;
       snprintf(tmp, sizeof(tmp), _("uptime %luh %lum"), (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60));
       display.setColor(UIColor::secondary_txt);
-      display.drawTextLeftAlign(0, 54, tmp);
+      drawLeft(0, 54, tmp);
     } else if (_page == HomePage::MENU) {
 #ifdef HELTEC_LORA_V4
       if (!isInSub()) {
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 18, _("Radio and RX"));
-        display.drawTextLeftAlign(0, 30, _("Links and power"));
-        display.drawTextLeftAlign(0, 42, _("GPS, beacon, display"));
-        display.drawTextLeftAlign(0, 54, _("Time and system"));
+        drawLeft(0, 18, _("Radio and RX"));
+        drawLeft(0, 30, _("Links and power"));
+        drawLeft(0, 42, _("GPS, beacon, display"));
+        drawLeft(0, 54, _("Time and system"));
       } else {
 #endif
       // Root 5: the only way into the settings sub-screens.
@@ -2345,17 +2440,19 @@ public:
         if (idx >= total) break;
         uint8_t page = menuPageAt(idx);
         bool sel = idx == _menu_index;
-        int y = 18 + r * 12;
+        int y = 18 + r * (padded ? 11 : 12);
         if (sel) {
           display.setColor(UIColor::primary_txt);
           display.fillRect(0, y - 1, display.width(), 11);
         }
         display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
-        display.drawTextEllipsized(4, y, display.width() - 8, menuLabel(page));
+        const bool more = r == rows - 1 && _menu_scroll + rows < total;
+        const int width = display.width() - 8 - (padded && more ? display.getTextWidth("v") + column_gap : 0);
+        drawClipped(4, y, width, menuLabel(page));
       }
       if (_menu_scroll + rows < total) {
         display.setColor((_menu_index == _menu_scroll + rows - 1) ? UIColor::window_bkg : UIColor::secondary_txt);
-        display.drawTextRightAlign(display.width() - 1, 18 + (rows - 1) * 12, "v");
+        drawRight(row_right, 18 + (rows - 1) * (padded ? 11 : 12), "v");
       }
 #ifdef HELTEC_LORA_V4
       }
@@ -2372,10 +2469,10 @@ public:
           display.fillRect(0, y - 1, display.width(), 11);
         }
         display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
-        display.drawTextEllipsized(4, y, display.width() - 20, i == UI_LANG_RU ? _("Russian") : "English");
+        drawClipped(4, y, display.width() - 20, i == UI_LANG_RU ? _("Russian") : "English");
         if (i == cur) {
           display.setColor(sel ? UIColor::window_bkg : UIColor::secondary_txt);
-          display.drawTextRightAlign(display.width() - 4, y, "*");
+          drawRight(display.width() - 4, y, "*");
         }
       }
 #endif
@@ -2383,15 +2480,15 @@ public:
       display.setTextSize(1);
       if (_shutdown_init) {
         display.setColor(UIColor::warning_txt);
-        display.drawTextCentered(display.width() / 2, 34, _("powering off"));
+        drawCentered(display.width() / 2, 34, _("powering off"));
       } else {
         display.setColor(UIColor::primary_txt);
-        display.drawTextLeftAlign(0, 20, _("Power off?"));
+        drawLeft(0, 20, _("Power off?"));
         // Cancel is preselected: a stray long press must not power the board off.
         display.setColor(_shutdown_apply ? UIColor::primary_txt : UIColor::warning_txt);
-        display.drawTextLeftAlign(4, 34, _shutdown_apply ? _("Cancel") : _("> Cancel"));
+        drawLeft(4, 34, _shutdown_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_shutdown_apply ? UIColor::warning_txt : UIColor::primary_txt);
-        display.drawTextLeftAlign(4, 46, _shutdown_apply ? _("> Apply") : _("Apply"));
+        drawLeft(4, 46, _shutdown_apply ? _("> Apply") : _("Apply"));
       }
     }
     if (_act_open) {
@@ -2401,7 +2498,11 @@ public:
       if (_act_idx >= total) _act_idx = 0;
       // wipe the body first: the screen render below already painted it
       display.setColor(UIColor::window_bkg);
-      display.fillRect(0, 13, display.width(), display.height() - 13);
+      int body_top = 13;
+#ifdef HELTEC_LORA_V4
+      if (compact_header) body_top = OLED_HEADER_HEIGHT;
+#endif
+      display.fillRect(0, body_top, display.width(), display.height() - body_top);
       display.setTextSize(1);
       for (uint8_t i = 0; i < total && i < 4; i++) {
 #ifdef HELTEC_LORA_V4
@@ -2414,7 +2515,7 @@ public:
           display.fillRect(0, y - 1, display.width(), 11);
         }
         display.setColor(sel ? UIColor::window_bkg : UIColor::primary_txt);
-        display.drawTextEllipsized(4, y, display.width() - 8, actionLabel(i));
+        drawClipped(4, y, display.width() - 8, actionLabel(i));
 #endif
       }
       return 2000;
@@ -3082,18 +3183,7 @@ class MsgPreviewScreen : public UIScreen {
   }
 
   void renderHeader(DisplayDriver& display, const char* title, const char* page = "") {
-    display.setTextSize(1);
-    display.setColor(UIColor::primary_txt);
-    display.fillRect(0, 0, display.width(), 13);
-    display.setColor(UIColor::window_bkg);
-    int right = display.width() - 30;
-    if (page[0]) {
-      display.drawTextRightAlign(right, 2, page);
-      right -= display.getTextWidth(page) + 3;
-    }
-    display.drawTextLeftAlign(0, 2, "./");
-    display.drawTextEllipsized(12, 2, right - 12, title);
-    HomeScreen::renderBatteryIndicator(display, _task->getBattMilliVolts(), true, _task->isBuzzerQuiet());
+    HomeScreen::renderV4Header(display, *_task, title, true, page);
     display.setColor(UIColor::primary_txt);
   }
 
@@ -3110,8 +3200,6 @@ public:
     _selected = _newest;
     return true;
   }
-
-  void openIncoming() { openMessage(_newest); }
 
   void addPreview(uint8_t, const char* from_name, const char* text, bool group = false) {
     _newest = (_newest + 1) % HISTORY_SIZE;
@@ -3157,9 +3245,9 @@ public:
       display.translateUTF8ToBlocks(filtered, msg.text, sizeof(filtered));
       display.setTextSize(1);
       display.setColor(UIColor::primary_txt);
-      display.setCursor(0, 15);
+      display.setCursor(OLED_INSET, 18);
       const char* start = filtered + _offsets[_page];
-      const char* rest = display.printWordWrap(start, display.width());
+      const char* rest = display.printWordWrap(start, display.width() - 2 * OLED_INSET);
       _next_offset = *rest && rest > start ? rest - filtered : 0;
       char page[8] = "";
       if (_page > 0 || _next_offset) snprintf(page, sizeof(page), "%u%s", (unsigned)(_page + 1), _next_offset ? "+" : "");
@@ -3177,7 +3265,7 @@ public:
       snprintf(label, sizeof(label), _("Received: %s"), age);
       display.drawTextEllipsized(4, 30, display.width() - 8, label);
       snprintf(label, sizeof(label), _("To phone: %d"), _task->getMsgCount());
-      display.drawTextLeftAlign(4, 42, label);
+      display.drawTextEllipsized(4, 42, display.width() - 8, label);
     } else {
       renderHeader(display, _("Message"));
       display.drawTextLeftAlign(4, 18, _("Remove this copy?"));
@@ -3758,6 +3846,19 @@ switch(t){
 #endif
 }
 
+void UITask::refreshAfterIncomingMessage() {
+#ifdef HELTEC_LORA_V4
+  requestRefresh();
+#else
+  if (_display == NULL) return;
+  if (!_display->isOn() && !hasConnection()) _display->turnOn();
+  if (_display->isOn()) {
+    _auto_off = millis() + autoOffMs();
+    _next_refresh = 100;
+  }
+#endif
+}
+
 void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t txt_type, uint32_t sender_timestamp, const char* text) {
   // we only want to show text messages on display, not cli data
   if (!(txt_type == TXT_TYPE_PLAIN || txt_type == TXT_TYPE_SIGNED_PLAIN)) return;
@@ -3765,20 +3866,11 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
   auto* preview = (MsgPreviewScreen*)msg_preview;
   preview->addPreview(path_len, from.name, text);
-#ifdef HELTEC_LORA_V4
-  if (curr != msg_preview) preview->openIncoming();
-#endif
+#ifndef HELTEC_LORA_V4
   setCurrScreen(msg_preview);
+#endif
 
-  if (_display != NULL) {
-    if (!_display->isOn() && !hasConnection()) {
-      _display->turnOn();
-    }
-    if (_display->isOn()) {
-    _auto_off = millis() + autoOffMs();  // extend the auto-off timer
-    _next_refresh = 100;  // trigger refresh
-    }
-  }
+  refreshAfterIncomingMessage();
 
   if (!hasConnection()) {
     notify(UIEventType::contactMessage);
@@ -3826,24 +3918,12 @@ void UITask::newMsg(uint8_t path_len, const char* from_name, const char* text, i
 
   auto* preview = (MsgPreviewScreen*)msg_preview;
   preview->addPreview(path_len, from_name, text, group);
-  if (curr == clock) {
-    _next_refresh = 100;
-  } else {
-#ifdef HELTEC_LORA_V4
-    if (curr != msg_preview) preview->openIncoming();
+#ifndef HELTEC_LORA_V4
+  if (curr == clock) _next_refresh = 100;
+  else setCurrScreen(msg_preview);
 #endif
-    setCurrScreen(msg_preview);
-  }
 
-  if (_display != NULL) {
-    if (!_display->isOn() && !hasConnection()) {
-      _display->turnOn();
-    }
-    if (_display->isOn()) {
-    _auto_off = millis() + autoOffMs();  // extend the auto-off timer
-    _next_refresh = 100;  // trigger refresh
-    }
-  }
+  refreshAfterIncomingMessage();
 
   if (!hasConnection()) {
     notify(UIEventType::contactMessage);
@@ -3855,21 +3935,12 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   auto* preview = (MsgPreviewScreen*)msg_preview;
 #ifdef HELTEC_LORA_V4
   preview->addPreview(path_len, channel_details.name, text, true);
-  if (curr != msg_preview) preview->openIncoming();
 #else
   preview->addPreview(path_len, channel_details.name, text);
-#endif
   setCurrScreen(msg_preview);
+#endif
 
-  if (_display != NULL) {
-    if (!_display->isOn() && !hasConnection()) {
-      _display->turnOn();
-    }
-    if (_display->isOn()) {
-    _auto_off = millis() + autoOffMs();  // extend the auto-off timer
-    _next_refresh = 100;  // trigger refresh
-    }
-  }
+  refreshAfterIncomingMessage();
 
   if (!hasConnection()) {
     notify(UIEventType::channelMessage);
@@ -4082,7 +4153,15 @@ void UITask::loop() {
         _display->fillRect(p, y, _display->width() - p*2, y);
         _display->setColor(UIColor::popup_txt);  // draw box border
         _display->drawRect(p, y, _display->width() - p*2, y);
-        _display->drawTextCentered(_display->width() / 2, y + p*3, _alert);
+#ifdef HELTEC_LORA_V4
+        const int inset = p + OLED_INSET;
+        if (_display->getTextWidth(_alert) > _display->width() - 2 * inset) {
+          _display->drawTextEllipsized(inset, y + p * 3, _display->width() - 2 * inset, _alert);
+        } else
+#endif
+        {
+          _display->drawTextCentered(_display->width() / 2, y + p * 3, _alert);
+        }
         _next_refresh = _alert_expiry;   // will need refresh when alert is dismissed
       } else {
         _next_refresh = millis() + delay_millis;
@@ -4122,7 +4201,11 @@ void UITask::loop() {
       if(!board.isExternalPowered()) {
         if (_display != NULL) {
           _display->startFrame();
-          _display->setTextSize(2);
+          int text_size = 2;
+#ifdef HELTEC_LORA_V4
+          if (_display->width() == 128) text_size = 1;
+#endif
+          _display->setTextSize(text_size);
           _display->setColor(UIColor::warning_txt);
           _display->drawTextCentered(_display->width() / 2, 20, "Low Battery.");
           _display->drawTextCentered(_display->width() / 2, 40, "Shutting Down!");
@@ -4178,8 +4261,16 @@ char UITask::handleDoubleClick(char c) {
 char UITask::handleQuadClick(char c) {
   c = checkDisplayOn(c);
   if (c == 0) return 0;
+#ifdef HELTEC_LORA_V4
+  static_cast<HomeScreen*>(home)->returnToMain();
+  _alert_expiry = 0;
+  gotoHomeScreen();
+  requestRefresh();
+  return 0;
+#else
   if (curr == home) return c;
   return 0;
+#endif
 }
 
 char UITask::handleTripleClick(char c) {
