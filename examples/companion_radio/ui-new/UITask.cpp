@@ -190,11 +190,13 @@ static void formatClockDate(uint32_t t, int16_t tz_mins, uint8_t lang, char* buf
 
 #ifdef HELTEC_LORA_V4
 static constexpr int OLED_INSET = 3;
-static constexpr int OLED_HEADER_HEIGHT = 16;
-static constexpr int OLED_HEADER_TEXT_Y = 4;  // Cyrillic cell starts one pixel above the cursor
+// The bar only needs the 10 px glyph cell plus a hair of padding: 16 px read as
+// a thick band with the same empty space above and below the text.
+static constexpr int OLED_HEADER_HEIGHT = 12;
+static constexpr int OLED_HEADER_TEXT_Y = 2;  // Cyrillic cell starts one pixel above the cursor
 
 static void drawV4ListRow(DisplayDriver& display, int row, bool selected, const char* text, const char* right = "") {
-  const int y = 18 + row * 11;
+  const int y = 14 + row * 11;
   if (selected) {
     display.setColor(UIColor::primary_txt);
     display.fillRect(0, y - 1, display.width(), 11);
@@ -891,24 +893,24 @@ private:
     display.setColor(UIColor::primary_txt);
     int count = beaconPickerCount();
     if (_page == HomePage::BEACON_RECIPIENT && count == 0) {
-      display.drawTextEllipsized(4, 18, display.width() - 8, _("No recipient"));
-      display.drawTextEllipsized(4, 29, display.width() - 8, _("Add a contact"));
-      display.drawTextEllipsized(4, 40, display.width() - 8, _("or channel in app"));
+      display.drawTextEllipsized(4, 14, display.width() - 8, _("No recipient"));
+      display.drawTextEllipsized(4, 25, display.width() - 8, _("Add a contact"));
+      display.drawTextEllipsized(4, 36, display.width() - 8, _("or channel in app"));
       return;
     }
     if (_page == HomePage::BEACON_INTERVAL && count == 0) {
       if (_node_prefs->beacon_mode != BEACON_OFF) {
         char interval[24];
         snprintf(interval, sizeof(interval), _("%u min"), (unsigned)the_mesh.beaconMinutes());
-        display.drawTextEllipsized(4, 18, display.width() - 8, interval);
-        display.drawTextEllipsized(4, 29, display.width() - 8, _("Fixed for adverts"));
+        display.drawTextEllipsized(4, 14, display.width() - 8, interval);
+        display.drawTextEllipsized(4, 25, display.width() - 8, _("Fixed for adverts"));
       } else {
-        display.drawTextEllipsized(4, 18, display.width() - 8, _("Choose beacon mode"));
+        display.drawTextEllipsized(4, 14, display.width() - 8, _("Choose beacon mode"));
       }
       return;
     }
     if (_page == HomePage::BEACON_STOP) {
-      display.drawTextEllipsized(4, 18, display.width() - 8, _("Stop beacon?"));
+      display.drawTextEllipsized(4, 14, display.width() - 8, _("Stop beacon?"));
       drawV4ListRow(display, 1, _beacon_sel == 0, _("Cancel"));
       drawV4ListRow(display, 2, _beacon_sel == 1, _("Stop"));
       return;
@@ -1610,7 +1612,7 @@ public:
         if (compact_header) {
           display.setColor(UIColor::secondary_txt);
           snprintf(tmp, sizeof(tmp), _("Neighbors %d"), n);
-          drawLeft(0, 18, tmp);
+          drawLeft(0, 14, tmp);
           display.setColor(UIColor::primary_txt);
           y0 = 29;
         }
@@ -1659,9 +1661,9 @@ public:
         repeat = repeat && the_mesh.isRepeatFreqAllowed((uint32_t)(freq * 1000.0f + 0.5f));
         snprintf(tmp, sizeof(tmp), "%s > %s", radioProfileLabel(the_mesh.radioProfile()),
                  radioProfileLabel(_radio_target));
-        drawClipped(0, 17, display.width(), tmp);
+        drawClipped(0, 13, display.width(), tmp);
         snprintf(tmp, sizeof(tmp), "%.3f BW%g", freq, bw);
-        drawClipped(0, 29, display.width(), tmp);
+        drawClipped(0, 25, display.width(), tmp);
         snprintf(tmp, sizeof(tmp), "SF%u CR%u  %s", (unsigned)sf, (unsigned)cr,
                  repeat ? _("RPT on") : _("RPT off"));
         drawClipped(0, 41, display.width(), tmp);
@@ -1690,7 +1692,7 @@ public:
           }
           display.setTextSize(2);
           snprintf(tmp, sizeof(tmp), "%.3f", _node_prefs->freq);
-          drawCentered(54, 17, tmp);
+          drawCentered(54, 13, tmp);
           display.setTextSize(1);
           drawRight(display.width() - 1, 25, "MHz");
           snprintf(tmp, sizeof(tmp), "BW%g SF%u CR%u TX%d", _node_prefs->bw,
@@ -1721,8 +1723,8 @@ public:
             display.fillRect(graph_x + 2 + i * 4, graph_bottom - h, 3, h);
           }
         } else {
-          drawColumnLeft(0, 18, radioProfileLabel(the_mesh.radioProfile()));
-          drawColumnRight(127, 18, _node_prefs->isRepeatEn() ? _("RPT on") : _("RPT off"));
+          drawColumnLeft(0, 14, radioProfileLabel(the_mesh.radioProfile()));
+          drawColumnRight(127, 14, _node_prefs->isRepeatEn() ? _("RPT on") : _("RPT off"));
           drawColumnLeft(0, (padded ? 29 : 30), _node_prefs->rx_boosted_gain ? _("RXB: on") : _("RXB: off"));
           if (_task->canControlFemLna()) {
             drawColumnRight(127, (padded ? 29 : 30), _task->isFemLnaEnabled() ? _("LNA: on") : _("LNA: off"));
@@ -1767,8 +1769,8 @@ public:
       if (_power_confirm) {
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        drawColumnLeft(0, 18, _power_name);
-        drawColumnRight(display.width() - 1, 18, _power_cpu ? _("Sleep: yes") : _("Sleep: no"));
+        drawColumnLeft(0, 14, _power_name);
+        drawColumnRight(display.width() - 1, 14, _power_cpu ? _("Sleep: yes") : _("Sleep: no"));
         drawColumnLeft(0, (padded ? 29 : 30), _power_boost ? _("RXB: on") : _("RXB: off"));
         if (_task->canControlFemLna())
           drawColumnRight(display.width() - 1, (padded ? 29 : 30), _power_lna ? _("LNA: on") : _("LNA: off"));
@@ -1841,12 +1843,12 @@ public:
       display.setColor(UIColor::primary_txt);
       display.setTextSize(2);
       sprintf(tmp, "%d", live);
-      drawCentered(display.width() / 2, 18, tmp);
+      drawCentered(display.width() / 2, 14, tmp);
 
       display.setTextSize(1);
       if (pkt) {
         display.setColor(UIColor::warning_txt);
-        drawRight(display.width() - 1, 18, "PKT");
+        drawRight(display.width() - 1, 14, "PKT");
       }
 
       display.setColor(UIColor::secondary_txt);
@@ -1885,7 +1887,7 @@ public:
 #ifdef HELTEC_LORA_V4
       if (_scan_confirm) {
         display.setColor(UIColor::primary_txt);
-        drawLeft(0, 18, _("RX pauses for scan"));
+        drawLeft(0, 14, _("RX pauses for scan"));
         display.setColor(_scan_apply ? UIColor::primary_txt : UIColor::warning_txt);
         drawLeft(0, 34, _scan_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_scan_apply ? UIColor::warning_txt : UIColor::primary_txt);
@@ -1907,12 +1909,12 @@ public:
           display.setColor(UIColor::secondary_txt);
           display.drawRect(bar_x, 50, bar_w, 8);
           display.setColor(UIColor::primary_txt);
-          if (fill > 2) display.fillRect(bar_x + 1, 51, fill - 2, 6);
+          if (fill > 2) display.fillRect(bar_x + 1, 47, fill - 2, 6);
         }
       } else if (fscan_state == FSCAN_DONE) {
         display.setColor(UIColor::secondary_txt);
         sprintf(tmp, "now %06.3f", _node_prefs->freq);
-        drawLeft(0, 18, tmp);
+        drawLeft(0, 14, tmp);
         display.setColor(UIColor::primary_txt);
         int y = 29;
         for (int i = 0; i < 3; i++, y += 11) {
@@ -1999,7 +2001,7 @@ public:
         snprintf(tmp, sizeof(tmp), _conn_was_enabled ? _("Disable %s?") : _("Enable %s?"), names[_conn_selected]);
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        drawLeft(0, 18, tmp);
+        drawLeft(0, 14, tmp);
         display.setColor(_conn_apply ? UIColor::primary_txt : UIColor::warning_txt);
         drawLeft(0, 34, _conn_apply ? _("Cancel") : _("> Cancel"));
         display.setColor(_conn_apply ? UIColor::warning_txt : UIColor::primary_txt);
@@ -2054,19 +2056,19 @@ public:
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
         if (!nmea) {
-          drawLeft(0, 17, _("GPS unavailable"));
-          drawLeft(0, 29, _("check the wires"));
+          drawLeft(0, 13, _("GPS unavailable"));
+          drawLeft(0, 25, _("check the wires"));
         } else if (!_task->getGPSState()) {
-          drawLeft(0, 17, _("module off"));
-          drawLeft(0, 29, nmea->isEnabled() ? _("still powered") : _("powered off"));
+          drawLeft(0, 13, _("module off"));
+          drawLeft(0, 25, nmea->isEnabled() ? _("still powered") : _("powered off"));
         } else {
           const bool fix = nmea->isValid();
           const int sats = nmea->satellitesCount();
           snprintf(buf, sizeof(buf), _("SAT %d"), sats);
-          drawClipped(0, 18, 58, buf);
+          drawClipped(0, 14, 58, buf);
           const int bar_x = 62;
           const int bar_w = row_right - bar_x;
-          display.drawRect(bar_x, 17, bar_w, 10);
+          display.drawRect(bar_x, 13, bar_w, 10);
           const int fill = constrain(sats, 0, 12) * (bar_w - 4) / 12;
           if (fill > 0) display.fillRect(bar_x + 2, 19, fill, 6);
           if (fix) snprintf(buf, sizeof(buf), _("ALT %.0f m"), nmea->getAltitude() / 1000.0);
@@ -2076,7 +2078,7 @@ public:
           drawRight(row_right, (padded ? 29 : 30), speed);
           if (fix) snprintf(buf, sizeof(buf), _("LAT %.6f"), nmea->getLatitude() / 1000000.0);
           else snprintf(buf, sizeof(buf), "%s", _("LAT --"));
-          drawLeft(0, 40, buf);
+          drawLeft(0, 36, buf);
           if (fix) snprintf(buf, sizeof(buf), _("LON %.6f"), nmea->getLongitude() / 1000000.0);
           else snprintf(buf, sizeof(buf), "%s", _("LON --"));
           drawLeft(0, padded ? 51 : 52, buf);
@@ -2386,7 +2388,7 @@ public:
       display.setTextSize(1);
       if (_adc_edit) {
         display.setColor(UIColor::primary_txt);
-        drawLeft(0, 18, _("Multimeter"));
+        drawLeft(0, 14, _("Multimeter"));
         snprintf(tmp, sizeof(tmp), _("%u.%03u V"),
                  (unsigned)(_adc_mv / 1000), (unsigned)(_adc_mv % 1000));
         drawLeft(0, 32, tmp);
@@ -2398,7 +2400,7 @@ public:
         drawLeft(69, help_y, _("next"));
       } else if (_battery_confirm) {
         display.setColor(UIColor::primary_txt);
-        drawLeft(0, 18, _("Confirm"));
+        drawLeft(0, 14, _("Confirm"));
         if (_battery_choice == 0) {
           drawLeft(0, (padded ? 29 : 30), _("ref 4.200 V"));
         } else if (_battery_choice == 1) {
@@ -2414,7 +2416,7 @@ public:
         drawLeft(4, (padded ? 51 : 54), _battery_apply ? _("> Apply") : _("Apply"));
       } else {
         display.setColor(UIColor::primary_txt);
-        drawLeft(0, 18, _("ADC calibration"));
+        drawLeft(0, 14, _("ADC calibration"));
         const char* items[3] = { _("Full 4.20 V"), _("Multimeter"), _("Reset ADC") };
         for (uint8_t i = 0; i < 3; i++) {
           bool sel = (i == _battery_choice);
@@ -2427,7 +2429,7 @@ public:
     } else if (_page == HomePage::ABOUT) {
       display.setTextSize(1);
       display.setColor(UIColor::primary_txt);
-      drawCentered(display.width() / 2, 18, FIRMWARE_VERSION);
+      drawCentered(display.width() / 2, 14, FIRMWARE_VERSION);
       snprintf(tmp, sizeof(tmp), _("build: %s"), __DATE__);
       display.setColor(UIColor::secondary_txt);
       drawLeft(0, (padded ? 29 : 30), tmp);
@@ -2443,7 +2445,7 @@ public:
       if (!isInSub()) {
         display.setTextSize(1);
         display.setColor(UIColor::primary_txt);
-        drawLeft(0, 18, _("Radio and RX"));
+        drawLeft(0, 14, _("Radio and RX"));
         drawLeft(0, (padded ? 29 : 30), _("Links and power"));
         drawLeft(0, (padded ? 40 : 42), _("GPS, beacon, display"));
         drawLeft(0, (padded ? 51 : 54), _("Time and system"));
@@ -3248,7 +3250,7 @@ public:
     setUiLang(the_mesh.getNodePrefs()->ui_lang);
     if (_view == LIST || _size == 0) {
       renderHeader(display, _("Messages"));
-      if (_size == 0) display.drawTextLeftAlign(4, 18, _("No messages"));
+      if (_size == 0) display.drawTextLeftAlign(4, 14, _("No messages"));
       int sel = selectedIndex();
       int first = sel >= 4 ? sel - 3 : 0;
       for (int i = first; i < _size && i < first + 4; i++) {
@@ -3282,7 +3284,7 @@ public:
       renderHeader(display, _("Message"));
       char age[20], label[64];
       snprintf(label, sizeof(label), "%s %s", msg.group ? "#" : "@", msg.sender);
-      display.drawTextEllipsized(4, 18, display.width() - 8, label);
+      display.drawTextEllipsized(4, 14, display.width() - 8, label);
       formatAge(msg, age, sizeof(age));
       snprintf(label, sizeof(label), _("Received: %s"), age);
       display.drawTextEllipsized(4, 30, display.width() - 8, label);
@@ -3290,7 +3292,7 @@ public:
       display.drawTextEllipsized(4, 42, display.width() - 8, label);
     } else {
       renderHeader(display, _("Message"));
-      display.drawTextLeftAlign(4, 18, _("Remove this copy?"));
+      display.drawTextLeftAlign(4, 14, _("Remove this copy?"));
       drawV4ListRow(display, 1, _row == 0, _("Cancel"));
       drawV4ListRow(display, 2, _row == 1, _("Remove"));
     }
@@ -4230,7 +4232,7 @@ void UITask::loop() {
           _display->setTextSize(text_size);
           _display->setColor(UIColor::warning_txt);
           _display->drawTextCentered(_display->width() / 2, 20, "Low Battery.");
-          _display->drawTextCentered(_display->width() / 2, 40, "Shutting Down!");
+          _display->drawTextCentered(_display->width() / 2, 36, "Shutting Down!");
           _display->endFrame();
           if (_display->isEink() == false) { delay(3000); }
         }

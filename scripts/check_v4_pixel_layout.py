@@ -88,7 +88,7 @@ void checkLayout() {
  for(auto label:samples) for(int row=0;row<4;row++) {
   display.draws.clear(); drawLeft(0,18+11*row,label);
   auto d=display.draws.back();
-  assert(d.x>=3 && d.x+d.w<=125 && d.y-1>=17 && d.y+8<=59);
+  assert(d.x>=3 && d.x+d.w<=125 && d.y-1>=13 && d.y+8<=59);
  }
  display.draws.clear(); drawClipped(36,29,33,samples[4]);drawClipped(72,29,53,samples[4]);
  assert(display.draws[0].x+display.draws[0].w<=69);
